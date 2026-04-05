@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next';
 import localFont from 'next/font/local';
 import { ThemeProvider } from '@/components/layout/theme-provider';
 import { BottomNav } from '@/components/layout/bottom-nav';
+import { SessionState } from '@/components/layout/session-state';
+import { auth } from '@/auth';
 import './globals.css';
 
 const geistSans = localFont({
@@ -34,11 +36,13 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
+
   return (
     <html
       lang="en"
@@ -47,8 +51,9 @@ export default function RootLayout({
     >
       <body className="min-h-full bg-background text-foreground">
         <ThemeProvider>
-          <main className="pb-nav">{children}</main>
-          <BottomNav />
+          <SessionState />
+          <main className={session?.user ? 'pb-nav' : undefined}>{children}</main>
+          {session?.user ? <BottomNav /> : null}
         </ThemeProvider>
       </body>
     </html>
