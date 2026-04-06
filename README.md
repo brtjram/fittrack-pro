@@ -9,7 +9,7 @@ Expert workout planner, smart nutrition tracker, and analytics dashboard. Built 
 - **Analytics Dashboard** - Weight trend charts, strength progression, daily step tracking, and activity analysis.
 - **Apple Health Sync** - Integrates with iOS Shortcuts to sync steps, active calories, and heart rate data.
 - **Supplement Guide** - Evidence-based supplement recommendations tailored to your fitness goals.
-- **Authentication** - Email/password and Google sign-in via Auth.js.
+- **Authentication** - Secure username/password (plus email) and Google sign-in via Auth.js.
 - **Dark Mode** - Full dark/light/system theme support.
 - **Mobile-First** - Responsive design with floating navigation and swipe gestures.
 
