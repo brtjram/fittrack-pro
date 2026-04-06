@@ -9,7 +9,7 @@ Expert workout planner, smart nutrition tracker, and analytics dashboard. Built 
 - **Analytics Dashboard** - Weight trend charts, strength progression, daily step tracking, and activity analysis.
 - **Apple Health Sync** - Integrates with iOS Shortcuts to sync steps, active calories, and heart rate data.
 - **Supplement Guide** - Evidence-based supplement recommendations tailored to your fitness goals.
-- **Authentication** - Email/password and Google sign-in via Auth.js.
+- **Authentication** - Secure username/password (plus email) and Google sign-in via Auth.js.
 - **Dark Mode** - Full dark/light/system theme support.
 - **Mobile-First** - Responsive design with floating navigation and swipe gestures.
 
@@ -62,6 +62,15 @@ Open [http://localhost:3000](http://localhost:3000) to use the app.
 2. Create a new OAuth 2.0 Client ID
 3. Add authorized redirect URI: `http://localhost:3000/api/auth/callback/google`
 4. Copy the Client ID and Client Secret into `.env`
+
+
+## Authentication Notes
+
+- Credential sign-in accepts an `identifier` plus `password`. The identifier can be either the account email or username.
+- Registration supports `name`, `email`, `password`, and optional `username`. If `username` is omitted, the API derives one from the email local-part and retries with a numeric suffix on collisions.
+- Username rules: 3-32 characters, letters/numbers/underscore only.
+- Password rules: at least 12 characters, and must include uppercase, lowercase, number, and special character.
+- Health Sync API routes now require an authenticated session server-side, and attach `userId` from the current session to inbound payload metadata.
 
 ## Deploying to Vercel
 
