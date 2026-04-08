@@ -10,9 +10,11 @@ import { WorkoutDetailScreen } from '../screens/WorkoutDetailScreen';
 import { NutritionScreen } from '../screens/NutritionScreen';
 import { AnalyticsScreen } from '../screens/AnalyticsScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
+import { NotificationSettingsScreen } from '../screens/NotificationSettingsScreen';
 
 const Tab = createBottomTabNavigator();
 const WorkoutStack = createNativeStackNavigator();
+const SettingsStack = createNativeStackNavigator();
 
 function WorkoutsStackNavigator() {
   const { colors } = useTheme();
@@ -25,6 +27,20 @@ function WorkoutsStackNavigator() {
       <WorkoutStack.Screen name="WorkoutsList" component={WorkoutsScreen} options={{ title: 'Workouts' }} />
       <WorkoutStack.Screen name="WorkoutDetail" component={WorkoutDetailScreen} options={{ title: 'Workout' }} />
     </WorkoutStack.Navigator>
+  );
+}
+
+function SettingsStackNavigator() {
+  const { colors } = useTheme();
+  return (
+    <SettingsStack.Navigator screenOptions={{
+      headerStyle: { backgroundColor: colors.background },
+      headerTintColor: colors.foreground,
+      headerShadowVisible: false,
+    }}>
+      <SettingsStack.Screen name="SettingsMain" component={SettingsScreen} options={{ title: 'Settings' }} />
+      <SettingsStack.Screen name="NotificationSettings" component={NotificationSettingsScreen} options={{ title: 'Notifications' }} />
+    </SettingsStack.Navigator>
   );
 }
 
@@ -82,8 +98,9 @@ export function AppNavigator() {
       />
       <Tab.Screen
         name="Me"
-        component={SettingsScreen}
+        component={SettingsStackNavigator}
         options={{
+          headerShown: false,
           title: 'Settings',
           tabBarIcon: ({ color, size }) => <Settings size={size} color={color} />,
         }}

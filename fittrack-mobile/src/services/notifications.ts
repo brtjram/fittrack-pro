@@ -124,6 +124,38 @@ export async function getScheduledNotifications() {
   return Notifications.getAllScheduledNotificationsAsync();
 }
 
+// ==================== Preference-Based Scheduling ====================
+
+import type { NotificationPrefs } from './api';
+
+export async function applyNotificationSchedule(prefs: NotificationPrefs): Promise<void> {
+  // Clear all existing scheduled notifications
+  await cancelAllScheduledNotifications();
+
+  if (!prefs.enabled) return;
+
+  // Workout reminder
+  if (prefs.workoutReminder) {
+    await scheduleWorkoutReminder(prefs.workoutReminderHour, prefs.workoutReminderMinute);
+  }
+
+  // Meal reminders
+  if (prefs.breakfastReminder) {
+    await scheduleMealReminder('Breakfast', prefs.breakfastHour, prefs.breakfastMinute);
+  }
+  if (prefs.lunchReminder) {
+    await scheduleMealReminder('Lunch', prefs.lunchHour, prefs.lunchMinute);
+  }
+  if (prefs.dinnerReminder) {
+    await scheduleMealReminder('Dinner', prefs.dinnerHour, prefs.dinnerMinute);
+  }
+
+  // Weigh-in reminder
+  if (prefs.weighInReminder) {
+    await scheduleWeeklyWeighIn(prefs.weighInDay, prefs.weighInHour, prefs.weighInMinute);
+  }
+}
+
 // ==================== Notification Listeners ====================
 
 export function addNotificationReceivedListener(

@@ -4,12 +4,9 @@ import {
   getExpoPushToken,
   addNotificationReceivedListener,
   addNotificationResponseListener,
-  scheduleWorkoutReminder,
-  scheduleMealReminder,
-  scheduleWeeklyWeighIn,
-  cancelAllScheduledNotifications,
+  applyNotificationSchedule,
 } from '../services/notifications';
-import { registerPushToken } from '../services/api';
+import { registerPushToken, getNotificationPreferences } from '../services/api';
 
 export function useNotifications(navigationRef?: any) {
   const { user } = useAuth();
@@ -31,25 +28,36 @@ export function useNotifications(navigationRef?: any) {
       }
     })();
 
-    // Set up default local notification schedule
+    // Load preferences from server and apply local notification schedule
     (async () => {
-      await cancelAllScheduledNotifications();
-      await scheduleWorkoutReminder(9, 0);           // 9:00 AM daily
-      await scheduleMealReminder('Breakfast', 8, 0);  // 8:00 AM
-      await scheduleMealReminder('Lunch', 12, 0);     // 12:00 PM
-      await scheduleMealReminder('Dinner', 18, 0);    // 6:00 PM
-      await scheduleWeeklyWeighIn(1, 8, 0);           // Monday 8:00 AM
+      try {
+        const prefs = await getNotificationPreferences();
+        await applyNotificationSchedule(prefs);
+      } catch (e) {
+        console.warn('Failed to load notification preferences:', e);
+      }
     })();
 
-    // Handle notification taps — navigate to the right screen
+    // Handle notification taps — navigate to the right screen with optional params
     responseListenerRef.current = addNotificationResponseListener((response) => {
       const data = response.notification.request.content.data;
-      if (data?.screen && navigationRef?.current) {
-        navigationRef.current.navigate(data.screen as string);
+      if (!data?.screen || !navigationRef?.current) return;
+
+      const screen = data.screen as string;
+      const params = data.params as Record<string, unknown> | undefined;
+
+      // Handle nested navigation (e.g., Train > WorkoutDetail)
+      if (data.nestedScreen) {
+        navigationRef.current.navigate(screen, {
+          screen: data.nestedScreen as string,
+          params,
+        });
+      } else {
+        navigationRef.current.navigate(screen, params);
       }
     });
 
-    // Handle foreground notifications (logging)
+    // Handle foreground notifications
     receivedListenerRef.current = addNotificationReceivedListener((notification) => {
       console.log('Notification received:', notification.request.content.title);
     });

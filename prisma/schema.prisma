@@ -27,6 +27,7 @@ model User {
   weightEntries        WeightEntry[]
   dailyActivities      DailyActivity[]
   pushTokens           PushToken[]
+  notificationPrefs    NotificationPreferences?
 }
 
 model Account {
@@ -198,4 +199,32 @@ model PushToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model NotificationPreferences {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  enabled               Boolean  @default(true)
+  workoutReminder       Boolean  @default(true)
+  workoutReminderHour   Int      @default(9)
+  workoutReminderMinute Int      @default(0)
+  breakfastReminder     Boolean  @default(true)
+  breakfastHour         Int      @default(8)
+  breakfastMinute       Int      @default(0)
+  lunchReminder         Boolean  @default(true)
+  lunchHour             Int      @default(12)
+  lunchMinute           Int      @default(0)
+  dinnerReminder        Boolean  @default(true)
+  dinnerHour            Int      @default(18)
+  dinnerMinute          Int      @default(0)
+  weighInReminder       Boolean  @default(true)
+  weighInDay            Int      @default(1)
+  weighInHour           Int      @default(8)
+  weighInMinute         Int      @default(0)
+  quietHoursEnabled     Boolean  @default(false)
+  quietHoursStart       Int      @default(22)
+  quietHoursEnd         Int      @default(7)
+  updatedAt             DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

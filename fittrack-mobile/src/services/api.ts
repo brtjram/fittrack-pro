@@ -193,6 +193,54 @@ export async function removePushToken(token: string): Promise<void> {
   });
 }
 
+// ==================== Notification Preferences ====================
+
+export interface NotificationPrefs {
+  enabled: boolean;
+  workoutReminder: boolean;
+  workoutReminderHour: number;
+  workoutReminderMinute: number;
+  breakfastReminder: boolean;
+  breakfastHour: number;
+  breakfastMinute: number;
+  lunchReminder: boolean;
+  lunchHour: number;
+  lunchMinute: number;
+  dinnerReminder: boolean;
+  dinnerHour: number;
+  dinnerMinute: number;
+  weighInReminder: boolean;
+  weighInDay: number;
+  weighInHour: number;
+  weighInMinute: number;
+  quietHoursEnabled: boolean;
+  quietHoursStart: number;
+  quietHoursEnd: number;
+}
+
+export async function getNotificationPreferences(): Promise<NotificationPrefs> {
+  const res = await apiFetch('/api/fitness/notification-preferences');
+  if (!res.ok) {
+    // Return defaults on error
+    return {
+      enabled: true, workoutReminder: true, workoutReminderHour: 9, workoutReminderMinute: 0,
+      breakfastReminder: true, breakfastHour: 8, breakfastMinute: 0,
+      lunchReminder: true, lunchHour: 12, lunchMinute: 0,
+      dinnerReminder: true, dinnerHour: 18, dinnerMinute: 0,
+      weighInReminder: true, weighInDay: 1, weighInHour: 8, weighInMinute: 0,
+      quietHoursEnabled: false, quietHoursStart: 22, quietHoursEnd: 7,
+    };
+  }
+  return res.json();
+}
+
+export async function saveNotificationPreferences(prefs: Partial<NotificationPrefs>): Promise<void> {
+  await apiFetch('/api/fitness/notification-preferences', {
+    method: 'PUT',
+    body: JSON.stringify(prefs),
+  });
+}
+
 // ==================== USDA Food Search ====================
 
 export async function searchUSDAFoods(query: string): Promise<FoodItem[]> {

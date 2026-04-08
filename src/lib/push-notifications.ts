@@ -100,7 +100,7 @@ export async function sendNutritionReminder(userId: string, meal: string): Promi
   await sendNotificationToUser(userId, {
     title: `Log Your ${meal}`,
     body: `Don't forget to log your ${meal.toLowerCase()} to stay on track with your macros.`,
-    data: { screen: 'Eat' },
+    data: { screen: 'Eat', params: { meal: meal.toLowerCase() } },
   });
 }
 
@@ -108,7 +108,15 @@ export async function sendWeightReminder(userId: string): Promise<void> {
   await sendNotificationToUser(userId, {
     title: 'Weekly Weigh-In',
     body: 'Time for your weekly weigh-in. Consistent tracking leads to better results!',
-    data: { screen: 'Stats' },
+    data: { screen: 'Stats', params: { tab: 'overview', showWeightInput: true } },
+  });
+}
+
+export async function sendWorkoutSessionReminder(userId: string, sessionId: string, name: string): Promise<void> {
+  await sendNotificationToUser(userId, {
+    title: 'Continue Your Workout',
+    body: `"${name}" is waiting for you. Pick up where you left off.`,
+    data: { screen: 'Train', nestedScreen: 'WorkoutDetail', params: { sessionId } },
   });
 }
 

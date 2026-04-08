@@ -3,7 +3,8 @@ import {
   View, Text, ScrollView, TouchableOpacity,
   TextInput, Alert, ActivityIndicator, Linking, StyleSheet,
 } from 'react-native';
-import { User, LogOut, Check, Save, Shield, FileText, Info, ExternalLink } from 'lucide-react-native';
+import { User, LogOut, Check, Save, Shield, FileText, Info, ExternalLink, Bell, ChevronRight } from 'lucide-react-native';
+import { useNavigation } from '@react-navigation/native';
 import Constants from 'expo-constants';
 import { useTheme } from '../theme/useTheme';
 import { useAuth } from '../hooks/useAuth';
@@ -55,6 +56,7 @@ type FormState = {
 export function SettingsScreen() {
   const { colors } = useTheme();
   const { logout } = useAuth();
+  const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -323,6 +325,20 @@ export function SettingsScreen() {
             ))}
           </View>
         </View>
+
+        {/* Notification Preferences */}
+        <TouchableOpacity
+          style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border, flexDirection: 'row', alignItems: 'center' }]}
+          onPress={() => navigation.navigate('NotificationSettings')}
+          activeOpacity={0.7}
+        >
+          <Bell size={18} color={colors.primary} />
+          <View style={{ flex: 1, marginLeft: 10 }}>
+            <Text style={{ fontSize: 15, fontWeight: '600', color: colors.foreground }}>Notifications</Text>
+            <Text style={{ fontSize: 12, color: colors.mutedForeground }}>Workout, meal, and weigh-in reminders</Text>
+          </View>
+          <ChevronRight size={18} color={colors.mutedForeground} />
+        </TouchableOpacity>
 
         {/* Apple Health Integration */}
         <HealthKitSync />
