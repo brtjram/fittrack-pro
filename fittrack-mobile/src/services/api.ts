@@ -166,6 +166,21 @@ export async function getNutritionAdjustments(): Promise<NutritionAdjustment[]> 
   return res.json();
 }
 
+// ==================== Push Tokens ====================
+
+export async function registerPushToken(token: string, platform = 'ios'): Promise<void> {
+  await apiFetch('/api/fitness/push-tokens', {
+    method: 'POST',
+    body: JSON.stringify({ token, platform }),
+  });
+}
+
+export async function removePushToken(token: string): Promise<void> {
+  await apiFetch(`/api/fitness/push-tokens?token=${encodeURIComponent(token)}`, {
+    method: 'DELETE',
+  });
+}
+
 // ==================== USDA Food Search ====================
 
 export async function searchUSDAFoods(query: string): Promise<FoodItem[]> {

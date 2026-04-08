@@ -1,14 +1,19 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { StatusBar, ActivityIndicator, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { AuthProvider, useAuth } from './src/hooks/useAuth';
 import { useTheme } from './src/theme/useTheme';
+import { useNotifications } from './src/hooks/useNotifications';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { LoginScreen } from './src/screens/LoginScreen';
 
 function AppContent() {
   const { user, loading } = useAuth();
   const { colors, isDark } = useTheme();
+  const navigationRef = useRef<any>(null);
+
+  // Register push token, set up local reminders, handle notification taps
+  useNotifications(navigationRef);
 
   if (loading) {
     return (
@@ -20,6 +25,7 @@ function AppContent() {
 
   return (
     <NavigationContainer
+      ref={navigationRef}
       theme={{
         dark: isDark,
         colors: {
