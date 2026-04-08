@@ -1,9 +1,12 @@
 import React, { useRef } from 'react';
 import { StatusBar, ActivityIndicator, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/hooks/useAuth';
 import { useTheme } from './src/theme/useTheme';
 import { useNotifications } from './src/hooks/useNotifications';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
+import { NetworkStatus } from './src/components/NetworkStatus';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { LoginScreen } from './src/screens/LoginScreen';
 
@@ -45,6 +48,7 @@ function AppContent() {
       }}
     >
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      <NetworkStatus />
       {user ? <AppNavigator /> : <LoginScreen />}
     </NavigationContainer>
   );
@@ -52,8 +56,12 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }

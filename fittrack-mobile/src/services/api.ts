@@ -12,14 +12,26 @@ const API_BASE = __DEV__
 
 async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
   const token = await getToken();
-  return fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
-  });
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...options.headers,
+  };
+
+  // Retry with exponential backoff for network failures
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+      // Don't retry on client errors (4xx), only on server errors or network failures
+      if (res.ok || (res.status >= 400 && res.status < 500)) return res;
+      lastError = new Error(`Server error: ${res.status}`);
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error('Network request failed');
+    }
+    if (attempt < 2) await new Promise((r) => setTimeout(r, (attempt + 1) * 1000));
+  }
+  throw lastError ?? new Error('Request failed after retries');
 }
 
 // ==================== Auth ====================

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  TextInput, Alert, ActivityIndicator, StyleSheet,
+  TextInput, Alert, ActivityIndicator, Linking, StyleSheet,
 } from 'react-native';
-import { User, LogOut, Check, Save } from 'lucide-react-native';
+import { User, LogOut, Check, Save, Shield, FileText, Info, ExternalLink } from 'lucide-react-native';
+import Constants from 'expo-constants';
 import { useTheme } from '../theme/useTheme';
 import { useAuth } from '../hooks/useAuth';
 import { HealthKitSync } from '../components/HealthKitSync';
@@ -326,6 +327,46 @@ export function SettingsScreen() {
         {/* Apple Health Integration */}
         <HealthKitSync />
 
+        {/* Legal & Support */}
+        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Legal & Support</Text>
+          <TouchableOpacity
+            style={[styles.linkRow, { borderBottomColor: colors.border }]}
+            onPress={() => Linking.openURL('https://your-app.vercel.app/privacy-policy.html')}
+            activeOpacity={0.6}
+          >
+            <Shield size={16} color={colors.primary} />
+            <Text style={{ fontSize: 14, color: colors.foreground, flex: 1, marginLeft: 10 }}>Privacy Policy</Text>
+            <ExternalLink size={14} color={colors.mutedForeground} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.linkRow, { borderBottomColor: colors.border }]}
+            onPress={() => Linking.openURL('https://your-app.vercel.app/terms-of-service.html')}
+            activeOpacity={0.6}
+          >
+            <FileText size={16} color={colors.primary} />
+            <Text style={{ fontSize: 14, color: colors.foreground, flex: 1, marginLeft: 10 }}>Terms of Service</Text>
+            <ExternalLink size={14} color={colors.mutedForeground} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.linkRow}
+            onPress={() => Linking.openURL('mailto:support@fittrackpro.app')}
+            activeOpacity={0.6}
+          >
+            <Info size={16} color={colors.primary} />
+            <Text style={{ fontSize: 14, color: colors.foreground, flex: 1, marginLeft: 10 }}>Contact Support</Text>
+            <ExternalLink size={14} color={colors.mutedForeground} />
+          </TouchableOpacity>
+        </View>
+
+        {/* App Info */}
+        <View style={{ alignItems: 'center', paddingVertical: 8 }}>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: colors.foreground }}>FitTrack Pro</Text>
+          <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 2 }}>
+            Version {Constants.expoConfig?.version ?? '1.0.0'} (Build {Constants.expoConfig?.ios?.buildNumber ?? '1'})
+          </Text>
+        </View>
+
         {/* Sign Out */}
         <TouchableOpacity
           style={[styles.logoutBtn, { borderColor: colors.destructive + '30', backgroundColor: colors.destructive + '08' }]}
@@ -357,5 +398,6 @@ const styles = StyleSheet.create({
   optionsRow: { flexDirection: 'row', gap: 8 },
   optionBtn: { borderWidth: 1, borderRadius: 8, padding: 10, flexBasis: '47%', flexGrow: 1 },
   listOption: { borderWidth: 1, borderRadius: 8, padding: 10, marginBottom: 6 },
+  linkRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1 },
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: 12, paddingVertical: 14 },
 });
