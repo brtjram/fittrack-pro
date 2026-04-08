@@ -26,6 +26,7 @@ model User {
   nutritionAdjustments NutritionAdjustment[]
   weightEntries        WeightEntry[]
   dailyActivities      DailyActivity[]
+  pushTokens           PushToken[]
 }
 
 model Account {
@@ -185,4 +186,16 @@ model DailyActivity {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
+}
+
+model PushToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  platform  String   @default("ios")
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

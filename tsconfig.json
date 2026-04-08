@@ -19,7 +19,9 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@fittrack/core": ["./packages/core/src/index.ts"],
+      "@fittrack/core/*": ["./packages/core/src/*"]
     }
   },
   "include": [
