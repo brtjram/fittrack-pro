@@ -1,0 +1,10 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "@fittrack/core": ["../packages/core/src/index.ts"],
+      "@fittrack/core/*": ["../packages/core/src/*"]
+    }
+  }
+}
