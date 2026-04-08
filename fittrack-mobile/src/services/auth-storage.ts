@@ -27,3 +27,16 @@ export async function getUser(): Promise<{ id: string; name: string; email: stri
 export async function removeUser(): Promise<void> {
   await SecureStore.deleteItemAsync(USER_KEY);
 }
+
+// Generic key-value helpers for other secure storage needs
+export async function saveValue(key: string, value: string): Promise<void> {
+  await SecureStore.setItemAsync(key, value);
+}
+
+export async function getValue(key: string): Promise<string | null> {
+  return SecureStore.getItemAsync(key);
+}
+
+export async function removeValue(key: string): Promise<void> {
+  await SecureStore.deleteItemAsync(key);
+}

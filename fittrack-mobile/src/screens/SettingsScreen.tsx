@@ -6,6 +6,7 @@ import {
 import { User, LogOut, Check, Save } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import { useAuth } from '../hooks/useAuth';
+import { HealthKitSync } from '../components/HealthKitSync';
 import * as api from '../services/api';
 import type { ActivityLevel, Goal, ExperienceLevel, WorkoutSplit } from '@fittrack/core';
 
@@ -321,6 +322,9 @@ export function SettingsScreen() {
             ))}
           </View>
         </View>
+
+        {/* Apple Health Integration */}
+        <HealthKitSync />
 
         {/* Sign Out */}
         <TouchableOpacity

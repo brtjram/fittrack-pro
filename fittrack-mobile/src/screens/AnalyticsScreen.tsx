@@ -3,11 +3,12 @@ import {
   View, Text, ScrollView, TouchableOpacity,
   TextInput, RefreshControl, ActivityIndicator, StyleSheet,
 } from 'react-native';
-import { Scale, Dumbbell, TrendingUp, TrendingDown, Minus } from 'lucide-react-native';
+import { Scale, Dumbbell, TrendingUp, TrendingDown, Minus, Footprints } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import * as api from '../services/api';
 import { analyzeActivity } from '@fittrack/core/src/algorithms/activity-analyzer';
-import type { WeightEntry, WorkoutSession } from '@fittrack/core';
+import { HealthKitSync } from '../components/HealthKitSync';
+import type { WeightEntry, DailyActivity, WorkoutSession } from '@fittrack/core';
 
 function toDateString(d?: Date): string {
   const dt = d ?? new Date();
@@ -23,6 +24,7 @@ export function AnalyticsScreen() {
   const [weights, setWeights] = useState<WeightEntry[]>([]);
   const [workouts, setWorkouts] = useState<WorkoutSession[]>([]);
   const [activeTab, setActiveTab] = useState<TabId>('overview');
+  const [activities, setActivities] = useState<DailyActivity[]>([]);
   const [showWeightInput, setShowWeightInput] = useState(false);
   const [newWeight, setNewWeight] = useState('');
   const [avgSteps, setAvgSteps] = useState(0);
@@ -36,6 +38,7 @@ export function AnalyticsScreen() {
       ]);
       setWeights(w);
       setWorkouts(s);
+      setActivities(a);
       const insight = analyzeActivity(a);
       setAvgSteps(insight.averageSteps);
     } finally {
@@ -223,19 +226,54 @@ export function AnalyticsScreen() {
         )}
 
         {activeTab === 'activity' && (
-          <View>
-            <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Daily Activity</Text>
+          <View style={{ gap: 16 }}>
+            {/* HealthKit Sync */}
+            <HealthKitSync onSyncComplete={loadData} />
+
+            {/* Average Steps Card */}
             <View style={[styles.activityCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={{ fontSize: 13, color: colors.mutedForeground }}>Average Daily Steps</Text>
-              <Text style={{ fontSize: 28, fontWeight: '700', color: colors.foreground, marginTop: 4 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <Footprints size={18} color={colors.primary} />
+                <Text style={{ fontSize: 13, fontWeight: '600', color: colors.foreground }}>Average Daily Steps</Text>
+              </View>
+              <Text style={{ fontSize: 28, fontWeight: '700', color: colors.foreground }}>
                 {avgSteps > 0 ? `${(avgSteps / 1000).toFixed(1)}k` : '--'}
               </Text>
               <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 4 }}>
                 {avgSteps > 0
                   ? avgSteps >= 10000 ? 'Great job! You\'re hitting your step goal.' : 'Try to reach 10,000 steps daily.'
-                  : 'Connect Apple Health to track steps.'}
+                  : 'Enable Apple Health above to auto-track steps.'}
               </Text>
             </View>
+
+            {/* Recent Activity Log */}
+            {activities.length > 0 && (
+              <View>
+                <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Recent Activity</Text>
+                <View style={[styles.historyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  {[...activities].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 7).map((a, i) => (
+                    <View key={i} style={[styles.historyRow, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}>
+                      <View>
+                        <Text style={{ fontSize: 13, color: colors.mutedForeground }}>
+                          {new Date(a.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                        </Text>
+                        {a.source !== 'manual' && (
+                          <Text style={{ fontSize: 10, color: colors.primary, marginTop: 1 }}>{a.source}</Text>
+                        )}
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground }}>
+                          {a.steps.toLocaleString()} steps
+                        </Text>
+                        <Text style={{ fontSize: 11, color: colors.mutedForeground }}>
+                          {a.activeCalories} cal{a.restingHeartRate ? ` · ${a.restingHeartRate} bpm` : ''}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
           </View>
         )}
       </View>

@@ -18,7 +18,19 @@
       }
     },
     "plugins": [
-      "expo-secure-store"
-    ]
+      "expo-secure-store",
+      [
+        "expo-background-fetch",
+        {
+          "stopOnTerminate": false,
+          "startOnBoot": true
+        }
+      ]
+    ],
+    "entitlements": {
+      "com.apple.developer.healthkit": true,
+      "com.apple.developer.healthkit.background-delivery": true,
+      "com.apple.developer.healthkit.access": ["HKQuantityTypeIdentifierStepCount", "HKQuantityTypeIdentifierActiveEnergyBurned", "HKQuantityTypeIdentifierBodyMass", "HKQuantityTypeIdentifierHeartRate"]
+    }
   }
 }

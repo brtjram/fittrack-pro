@@ -145,6 +145,19 @@ export async function getDailyActivities(limit = 90): Promise<DailyActivity[]> {
   return res.json();
 }
 
+export async function saveDailyActivity(data: {
+  date: string;
+  steps: number;
+  activeCalories: number;
+  restingHeartRate?: number;
+  source?: string;
+}): Promise<void> {
+  await apiFetch('/api/fitness/activities', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
 // ==================== Nutrition Adjustments ====================
 
 export async function getNutritionAdjustments(): Promise<NutritionAdjustment[]> {
