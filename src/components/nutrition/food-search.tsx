@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo, useEffect, useRef } from 'react';
-import { Search, Plus, X, Globe, BookOpen } from 'lucide-react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { Search, Plus, X, ScanBarcode, BookOpen, Loader2 } from 'lucide-react';
 import { foods, searchFoods } from '@/lib/data/foods';
 import type { FoodItem, MealType } from '@/types';
 import { cn } from '@/lib/utils';
@@ -12,46 +12,79 @@ interface FoodSearchProps {
   onClose: () => void;
 }
 
+type FoodResult = FoodItem & { source?: 'local' | 'usda' | 'openfoodfacts'; barcode?: string };
+
 export function FoodSearch({ meal, onSelect, onClose }: FoodSearchProps) {
   const [query, setQuery] = useState('');
-  const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
+  const [selectedFood, setSelectedFood] = useState<FoodResult | null>(null);
   const [servings, setServings] = useState(1);
-  const [tab, setTab] = useState<'local' | 'usda'>('local');
-  const [usdaResults, setUsdaResults] = useState<FoodItem[]>([]);
-  const [usdaLoading, setUsdaLoading] = useState(false);
+  const [apiResults, setApiResults] = useState<FoodResult[]>([]);
+  const [apiLoading, setApiLoading] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scanLoading, setScanLoading] = useState(false);
+  const [scanError, setScanError] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
-  const localResults = useMemo(() => {
-    if (!query.trim()) return foods.slice(0, 20);
-    return searchFoods(query);
+  // Local results (instant)
+  const localResults: FoodResult[] = useMemo(() => {
+    const raw = !query.trim() ? foods.slice(0, 10) : searchFoods(query);
+    return raw.map((f) => ({ ...f, source: 'local' as const }));
   }, [query]);
 
-  // Debounced USDA search
+  // Debounced API search (USDA + Open Food Facts combined)
   useEffect(() => {
-    if (tab !== 'usda' || !query.trim() || query.length < 2) {
-      setUsdaResults([]);
+    if (!query.trim() || query.length < 2) {
+      setApiResults([]);
       return;
     }
 
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
-      setUsdaLoading(true);
+      setApiLoading(true);
       try {
         const res = await fetch(`/api/food-search?q=${encodeURIComponent(query)}`);
         if (res.ok) {
-          setUsdaResults(await res.json());
+          const data = await res.json();
+          setApiResults(data.map((f: FoodResult) => ({ ...f, source: f.source ?? 'usda' })));
         }
       } catch {
-        setUsdaResults([]);
+        setApiResults([]);
       } finally {
-        setUsdaLoading(false);
+        setApiLoading(false);
       }
     }, 400);
 
     return () => clearTimeout(debounceRef.current);
-  }, [query, tab]);
+  }, [query]);
 
-  const results = tab === 'local' ? localResults : usdaResults;
+  // Merge local + API, deduplicating by name similarity
+  const results: FoodResult[] = useMemo(() => {
+    if (!query.trim()) return localResults;
+
+    // Show local matches first, then API results
+    const seen = new Set<string>();
+    const merged: FoodResult[] = [];
+
+    for (const food of localResults) {
+      const key = food.name.toLowerCase().trim();
+      if (!seen.has(key)) {
+        seen.add(key);
+        merged.push(food);
+      }
+    }
+
+    for (const food of apiResults) {
+      const key = food.name.toLowerCase().trim();
+      if (!seen.has(key)) {
+        seen.add(key);
+        merged.push(food);
+      }
+    }
+
+    return merged;
+  }, [query, localResults, apiResults]);
 
   const handleConfirm = () => {
     if (selectedFood) {
@@ -62,6 +95,113 @@ export function FoodSearch({ meal, onSelect, onClose }: FoodSearchProps) {
     }
   };
 
+  // ==================== Barcode Scanner ====================
+
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+  }, []);
+
+  const lookupBarcode = useCallback(async (code: string) => {
+    setScanLoading(true);
+    setScanError('');
+    try {
+      const res = await fetch(`/api/food-barcode?code=${encodeURIComponent(code)}`);
+      if (!res.ok) {
+        setScanError('Product not found. Try searching by name instead.');
+        setScanLoading(false);
+        return;
+      }
+      const food: FoodResult = await res.json();
+      food.source = 'openfoodfacts';
+      stopCamera();
+      setScannerOpen(false);
+      setSelectedFood(food);
+      setServings(1);
+    } catch {
+      setScanError('Failed to look up barcode. Please try again.');
+    } finally {
+      setScanLoading(false);
+    }
+  }, [stopCamera]);
+
+  const startScanner = useCallback(async () => {
+    setScannerOpen(true);
+    setScanError('');
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+      });
+      streamRef.current = stream;
+
+      // Wait for video element to mount
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+
+      // Use BarcodeDetector API if available
+      if ('BarcodeDetector' in window) {
+        const detector = new (window as any).BarcodeDetector({
+          formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e'],
+        });
+
+        const detect = async () => {
+          if (!videoRef.current || !streamRef.current) return;
+          try {
+            const barcodes = await detector.detect(videoRef.current);
+            if (barcodes.length > 0) {
+              const code = barcodes[0].rawValue;
+              if (code) {
+                await lookupBarcode(code);
+                return;
+              }
+            }
+          } catch { /* detection frame failed, retry */ }
+          if (streamRef.current) {
+            requestAnimationFrame(detect);
+          }
+        };
+        requestAnimationFrame(detect);
+      } else {
+        setScanError('Barcode scanning requires Chrome 83+ or Safari 16.4+. You can enter the barcode number manually.');
+      }
+    } catch {
+      setScanError('Camera access denied. Please allow camera access and try again.');
+    }
+  }, [lookupBarcode]);
+
+  const closeScannerAndCleanup = useCallback(() => {
+    stopCamera();
+    setScannerOpen(false);
+    setScanError('');
+  }, [stopCamera]);
+
+  // Cleanup camera on unmount
+  useEffect(() => {
+    return () => stopCamera();
+  }, [stopCamera]);
+
+  const sourceLabel = (source?: string) => {
+    switch (source) {
+      case 'usda': return 'USDA';
+      case 'openfoodfacts': return 'OFF';
+      default: return null;
+    }
+  };
+
+  const sourceColor = (source?: string) => {
+    switch (source) {
+      case 'usda': return 'bg-blue-500/10 text-blue-600';
+      case 'openfoodfacts': return 'bg-green-500/10 text-green-600';
+      default: return '';
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
       {/* Header */}
@@ -69,8 +209,82 @@ export function FoodSearch({ meal, onSelect, onClose }: FoodSearchProps) {
         <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
           <X className="h-5 w-5" />
         </button>
-        <h2 className="font-semibold capitalize">Add to {meal}</h2>
+        <h2 className="flex-1 font-semibold capitalize">Add to {meal}</h2>
+        <button
+          onClick={startScanner}
+          className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
+        >
+          <ScanBarcode className="h-4 w-4" />
+          Scan
+        </button>
       </div>
+
+      {/* Barcode Scanner Modal */}
+      {scannerOpen && (
+        <div className="absolute inset-0 z-60 flex flex-col bg-background">
+          <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+            <button onClick={closeScannerAndCleanup} className="text-muted-foreground hover:text-foreground">
+              <X className="h-5 w-5" />
+            </button>
+            <h2 className="flex-1 font-semibold">Scan Barcode</h2>
+          </div>
+
+          <div className="flex flex-1 flex-col items-center justify-center gap-4 p-4">
+            <div className="relative w-full max-w-sm overflow-hidden rounded-xl border-2 border-primary/30">
+              <video
+                ref={videoRef}
+                className="w-full"
+                playsInline
+                muted
+              />
+              {/* Scanning guide overlay */}
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <div className="h-24 w-64 rounded border-2 border-primary/50" />
+              </div>
+            </div>
+
+            {scanLoading && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Looking up product...
+              </div>
+            )}
+
+            {scanError && (
+              <p className="text-center text-sm text-destructive">{scanError}</p>
+            )}
+
+            {/* Manual barcode entry */}
+            <div className="w-full max-w-sm">
+              <p className="mb-2 text-center text-xs text-muted-foreground">
+                Or enter barcode manually:
+              </p>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const input = (e.target as HTMLFormElement).elements.namedItem('barcode') as HTMLInputElement;
+                  if (input.value.trim()) lookupBarcode(input.value.trim());
+                }}
+                className="flex gap-2"
+              >
+                <input
+                  name="barcode"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="e.g. 5901234123457"
+                  className="flex-1 rounded-lg border border-border bg-muted px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
+                />
+                <button
+                  type="submit"
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  Look up
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search */}
       <div className="border-b border-border px-4 py-3">
@@ -80,45 +294,29 @@ export function FoodSearch({ meal, onSelect, onClose }: FoodSearchProps) {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={tab === 'local' ? 'Search common foods...' : 'Search 300k+ foods (USDA)...'}
+            placeholder="Search foods across all databases..."
             className="flex-1 bg-transparent py-2 text-sm outline-none"
             autoFocus
           />
+          {apiLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
         </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex border-b border-border">
-        <button
-          onClick={() => { setTab('local'); setSelectedFood(null); }}
-          className={cn(
-            'flex flex-1 items-center justify-center gap-1.5 py-2.5 text-sm font-medium transition-colors',
-            tab === 'local'
-              ? 'border-b-2 border-primary text-primary'
-              : 'text-muted-foreground hover:text-foreground'
-          )}
-        >
-          <BookOpen className="h-3.5 w-3.5" />
-          Common Foods
-        </button>
-        <button
-          onClick={() => { setTab('usda'); setSelectedFood(null); }}
-          className={cn(
-            'flex flex-1 items-center justify-center gap-1.5 py-2.5 text-sm font-medium transition-colors',
-            tab === 'usda'
-              ? 'border-b-2 border-primary text-primary'
-              : 'text-muted-foreground hover:text-foreground'
-          )}
-        >
-          <Globe className="h-3.5 w-3.5" />
-          USDA Database
-        </button>
+        <div className="mt-2 flex items-center gap-2 text-[10px] text-muted-foreground">
+          <BookOpen className="h-3 w-3" />
+          <span>Searches common foods, USDA (300k+), and Open Food Facts (3M+ branded products) simultaneously</span>
+        </div>
       </div>
 
       {/* Selected Food Detail */}
       {selectedFood && (
         <div className="border-b border-border bg-primary/5 p-4">
-          <h3 className="font-semibold text-sm">{selectedFood.name}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-sm">{selectedFood.name}</h3>
+            {sourceLabel(selectedFood.source) && (
+              <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-medium', sourceColor(selectedFood.source))}>
+                {sourceLabel(selectedFood.source)}
+              </span>
+            )}
+          </div>
           <div className="mt-2 flex items-center gap-3">
             <label className="text-sm text-muted-foreground">Servings:</label>
             <div className="flex items-center gap-2">
@@ -163,22 +361,23 @@ export function FoodSearch({ meal, onSelect, onClose }: FoodSearchProps) {
 
       {/* Results */}
       <div className="flex-1 overflow-y-auto">
-        {tab === 'usda' && usdaLoading && (
+        {apiLoading && results.length === 0 && (
           <div className="flex items-center justify-center py-8">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            <span className="ml-2 text-sm text-muted-foreground">Searching USDA database...</span>
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            <span className="ml-2 text-sm text-muted-foreground">Searching databases...</span>
           </div>
         )}
 
-        {tab === 'usda' && !usdaLoading && query.length >= 2 && results.length === 0 && (
-          <div className="py-8 text-center text-sm text-muted-foreground">
-            No results found. Try a different search term.
-          </div>
-        )}
-
-        {tab === 'usda' && !query.trim() && (
-          <div className="py-8 text-center text-sm text-muted-foreground">
-            Type at least 2 characters to search the USDA food database.
+        {!apiLoading && query.length >= 2 && results.length === 0 && (
+          <div className="flex flex-col items-center gap-3 py-8">
+            <p className="text-sm text-muted-foreground">No results found.</p>
+            <button
+              onClick={startScanner}
+              className="flex items-center gap-1.5 text-sm text-primary hover:underline"
+            >
+              <ScanBarcode className="h-4 w-4" />
+              Try scanning the barcode instead
+            </button>
           </div>
         )}
 
@@ -192,7 +391,14 @@ export function FoodSearch({ meal, onSelect, onClose }: FoodSearchProps) {
             )}
           >
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium truncate">{food.name}</div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-medium truncate">{food.name}</span>
+                {sourceLabel(food.source) && (
+                  <span className={cn('shrink-0 rounded px-1 py-0.5 text-[9px] font-medium', sourceColor(food.source))}>
+                    {sourceLabel(food.source)}
+                  </span>
+                )}
+              </div>
               <div className="mt-0.5 text-xs text-muted-foreground">
                 {food.servingLabel} ({food.servingSizeG}g) &middot;{' '}
                 {Math.round(food.caloriesPer100g * food.servingSizeG / 100)} cal

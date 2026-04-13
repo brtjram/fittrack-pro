@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Plus, Info, TrendingUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Trash2, Info, TrendingUp } from 'lucide-react';
 import type { WorkoutExercise, WorkoutSet } from '@/types';
 import { SetLogger } from './set-logger';
 import { cn } from '@/lib/utils';
@@ -35,6 +35,14 @@ export function ExerciseItem({ exercise, onUpdateSets, progressionNote }: Exerci
         completed: false,
       },
     ]);
+  };
+
+  const deleteSet = (index: number) => {
+    if (exercise.sets.length <= 1) return;
+    const newSets = exercise.sets
+      .filter((_, i) => i !== index)
+      .map((s, i) => ({ ...s, setNumber: i + 1 }));
+    onUpdateSets(newSets);
   };
 
   return (
@@ -88,12 +96,14 @@ export function ExerciseItem({ exercise, onUpdateSets, progressionNote }: Exerci
             <span className="flex-1 text-center">Weight</span>
             <span className="flex-1 text-center">Reps</span>
             <span className="w-8" />
+            {exercise.sets.length > 1 && <span className="w-8" />}
           </div>
           {exercise.sets.map((set, i) => (
             <SetLogger
               key={i}
               set={set}
               onUpdate={(s) => handleSetUpdate(i, s)}
+              onDelete={exercise.sets.length > 1 ? () => deleteSet(i) : undefined}
             />
           ))}
           <button
