@@ -15,12 +15,15 @@ const CONSECUTIVE_SUCCESS_THRESHOLD = 2;
 const CONSECUTIVE_FAILURE_THRESHOLD = 2;
 const DELOAD_EVERY_N_WEEKS = 4;
 
+// lastRating: 0-10 from the last completed session with the same split day
+// ≤7 → extra intensity boost; 7-9 → normal; ≥9 → force deload/back-off
 export function calculateProgression(
   exerciseId: string,
   exerciseType: ExerciseType,
   currentWeight: number,
   targetReps: number,
   recentSessions: WorkoutSession[],
+  lastRating?: number,
 ): ProgressionResult {
   // Find this exercise in recent sessions
   const exerciseHistory = recentSessions
@@ -50,11 +53,24 @@ export function calculateProgression(
 
   const increment = exerciseType === 'compound' ? COMPOUND_INCREMENT : ISOLATION_INCREMENT;
 
-  if (allSucceeded) {
-    const newWeight = currentWeight + increment;
+  // Rating-based override: ≥9 means take it easy (back-off set); ≤7 means push harder
+  if (lastRating !== undefined && lastRating >= 9) {
+    const newWeight = Math.round((currentWeight * (1 - DELOAD_WEIGHT_REDUCTION)) / increment) * increment;
     return {
       newWeight,
-      reason: `Hit all target reps for ${CONSECUTIVE_SUCCESS_THRESHOLD} sessions. Increasing by ${increment} lbs.`,
+      reason: `Rating ${lastRating}/10 — easing load to aid recovery.`,
+      isPR: false,
+    };
+  }
+
+  if (allSucceeded) {
+    // Rating ≤7: double the increment for an extra intensity boost
+    const multiplier = lastRating !== undefined && lastRating <= 7 ? 2 : 1;
+    const newWeight = currentWeight + increment * multiplier;
+    const ratingNote = multiplier === 2 ? ` (rating ${lastRating}/10 — extra load added)` : '';
+    return {
+      newWeight,
+      reason: `Hit all target reps for ${CONSECUTIVE_SUCCESS_THRESHOLD} sessions. Increasing by ${increment * multiplier} lbs.${ratingNote}`,
       isPR: true,
     };
   }

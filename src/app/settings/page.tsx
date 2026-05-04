@@ -3,11 +3,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { signOut } from 'next-auth/react';
 import { Header } from '@/components/layout/header';
-import { Moon, Sun, Monitor, Save, User, LogOut, Check, ExternalLink } from 'lucide-react';
+import { Moon, Sun, Monitor, Save, User, LogOut, Check, ExternalLink, Footprints, Info } from 'lucide-react';
+import { computeStepTarget, stepTargetRationale } from '@/lib/algorithms/step-target';
 import { useTheme } from 'next-themes';
 import { getUserProfile, saveUserProfile } from '@/lib/stores/user-store';
 import type { ActivityLevel, Goal, ExperienceLevel, WorkoutSplit } from '@/types';
 import { cn } from '@/lib/utils';
+import { NumericInput } from '@/components/shared/numeric-input';
 
 const goalOptions: { value: Goal; label: string; desc: string }[] = [
   { value: 'fat_loss', label: 'Fat Loss', desc: 'Maximize fat loss, preserve muscle' },
@@ -48,6 +50,9 @@ type FormState = {
   goal: Goal;
   experienceLevel: ExperienceLevel;
   preferredSplit: WorkoutSplit;
+  trackCycle: boolean;
+  cycleLength: number;
+  lastPeriodDate: string;
 };
 
 export default function SettingsPage() {
@@ -68,6 +73,9 @@ export default function SettingsPage() {
     goal: 'fat_loss',
     experienceLevel: 'intermediate',
     preferredSplit: 'ppl',
+    trackCycle: false,
+    cycleLength: 28,
+    lastPeriodDate: '',
   });
 
   useEffect(() => {
@@ -85,6 +93,9 @@ export default function SettingsPage() {
           goal: profile.goal,
           experienceLevel: profile.experienceLevel,
           preferredSplit: profile.preferredSplit,
+          trackCycle: profile.trackCycle ?? false,
+          cycleLength: profile.cycleLength ?? 28,
+          lastPeriodDate: profile.lastPeriodDate ?? '',
         };
         setForm(loaded);
         savedFormRef.current = JSON.stringify(loaded);
@@ -162,10 +173,11 @@ export default function SettingsPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="mb-1 block text-sm text-muted-foreground">Age</label>
-                <input
-                  type="number"
+                <NumericInput
                   value={form.age}
-                  onChange={(e) => updateField('age', Number(e.target.value))}
+                  onChange={(v) => updateField('age', v)}
+                  min={1}
+                  placeholder="Age"
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
@@ -193,30 +205,34 @@ export default function SettingsPage() {
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="mb-1 block text-sm text-muted-foreground">Height (cm)</label>
-                <input
-                  type="number"
+                <NumericInput
                   value={form.heightCm}
-                  onChange={(e) => updateField('heightCm', Number(e.target.value))}
+                  onChange={(v) => updateField('heightCm', v)}
+                  min={1}
+                  inputMode="decimal"
+                  placeholder="cm"
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
               <div>
                 <label className="mb-1 block text-sm text-muted-foreground">Weight (lbs)</label>
-                <input
-                  type="number"
+                <NumericInput
                   value={form.currentWeightLbs}
-                  onChange={(e) => updateField('currentWeightLbs', Number(e.target.value))}
-                  step="1"
+                  onChange={(v) => updateField('currentWeightLbs', v)}
+                  min={1}
+                  inputMode="decimal"
+                  placeholder="lbs"
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
               <div>
                 <label className="mb-1 block text-sm text-muted-foreground">Target (lbs)</label>
-                <input
-                  type="number"
+                <NumericInput
                   value={form.targetWeightLbs}
-                  onChange={(e) => updateField('targetWeightLbs', Number(e.target.value))}
-                  step="1"
+                  onChange={(v) => updateField('targetWeightLbs', v)}
+                  min={1}
+                  inputMode="decimal"
+                  placeholder="lbs"
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
@@ -320,6 +336,74 @@ export default function SettingsPage() {
           </div>
         </section>
 
+        {/* Step Target — auto-computed from goal + activity */}
+        <section className="rounded-xl border border-border bg-card p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <Footprints className="h-5 w-5 text-primary" />
+            <h2 className="text-base font-semibold">Daily Step Goal</h2>
+          </div>
+          <div className="flex items-center justify-between rounded-lg bg-primary/5 px-4 py-3">
+            <span className="text-2xl font-bold text-primary">
+              {computeStepTarget(form.activityLevel, form.goal).toLocaleString()}
+            </span>
+            <span className="text-sm text-muted-foreground">steps / day</span>
+          </div>
+          <div className="mt-2 flex items-start gap-1.5">
+            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {stepTargetRationale(form.activityLevel, form.goal)}. Updates automatically when you change your goal or activity level.
+            </p>
+          </div>
+        </section>
+
+        {/* Menstrual Cycle Tracking — only shown for female gender */}
+        {form.gender === 'female' && (
+          <section className="rounded-xl border border-border bg-card p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold">Cycle Tracking</h2>
+                <p className="mt-0.5 text-xs text-muted-foreground">Personalizes workout intensity by cycle phase</p>
+              </div>
+              <button
+                onClick={() => updateField('trackCycle', !form.trackCycle)}
+                className={cn(
+                  'relative h-6 w-11 rounded-full transition-colors',
+                  form.trackCycle ? 'bg-primary' : 'bg-muted'
+                )}
+              >
+                <span className={cn(
+                  'absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-transform',
+                  form.trackCycle ? 'translate-x-6' : 'translate-x-1'
+                )} />
+              </button>
+            </div>
+            {form.trackCycle && (
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-sm text-muted-foreground">Cycle Length (days)</label>
+                  <NumericInput
+                    value={form.cycleLength}
+                    onChange={(v) => updateField('cycleLength', v)}
+                    min={21}
+                    max={35}
+                    placeholder="28"
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm text-muted-foreground">Last Period Start</label>
+                  <input
+                    type="date"
+                    value={form.lastPeriodDate}
+                    onChange={(e) => updateField('lastPeriodDate', e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
         {/* Theme */}
         {mounted && (
           <section className="rounded-xl border border-border bg-card p-4">
@@ -392,6 +476,12 @@ export default function SettingsPage() {
             <LogOut className="h-4 w-4" />
             Sign Out
           </button>
+        </section>
+
+        {/* Legal links */}
+        <section className="flex justify-center gap-4 text-xs text-muted-foreground">
+          <a href="/terms" target="_blank" className="underline underline-offset-2 hover:text-foreground">Terms of Service</a>
+          <a href="/privacy" target="_blank" className="underline underline-offset-2 hover:text-foreground">Privacy Policy</a>
         </section>
 
         <div className="h-4" />

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   Dumbbell, UtensilsCrossed, BarChart3,
   Scale, Sparkles, ArrowRight, Target,
-  Flame, Trophy, AlertCircle,
+  Flame, Trophy, AlertCircle, CheckCircle2,
 } from 'lucide-react';
 import { StatCard } from '@/components/shared/stat-card';
 import { getUserProfile } from '@/lib/stores/user-store';
@@ -142,6 +142,7 @@ export default function DashboardPage() {
   }
 
   const todayWorkout = workouts.find((w) => w.date === toDateString() && !w.completed);
+  const todayCompleted = !todayWorkout && workouts.some((w) => w.date === toDateString() && w.completed);
   const completedThisWeek = workouts.filter((w) => {
     const d = new Date(w.date);
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -207,6 +208,15 @@ export default function DashboardPage() {
                 <ArrowRight className="h-5 w-5 text-primary" />
               </div>
             </Link>
+          ) : todayCompleted ? (
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-success uppercase">Workout Complete</p>
+                <h3 className="mt-1 text-lg font-bold">Great work today! 💪</h3>
+                <p className="mt-0.5 text-sm text-muted-foreground">Rest up and come back tomorrow.</p>
+              </div>
+              <CheckCircle2 className="h-6 w-6 text-success" />
+            </div>
           ) : (
             <button
               onClick={handleStartWorkout}

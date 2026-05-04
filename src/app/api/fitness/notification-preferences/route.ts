@@ -36,6 +36,9 @@ export async function GET() {
       quietHoursEnabled: false,
       quietHoursStart: 22,
       quietHoursEnd: 7,
+      stepReminder: false,
+      stepReminderHour: 20,
+      stepReminderMinute: 0,
       updatedAt: new Date(),
     };
   }
@@ -58,6 +61,7 @@ export async function PUT(request: Request) {
     dinnerReminder, dinnerHour, dinnerMinute,
     weighInReminder, weighInDay, weighInHour, weighInMinute,
     quietHoursEnabled, quietHoursStart, quietHoursEnd,
+    stepReminder, stepReminderHour, stepReminderMinute,
   } = body;
 
   const data = {
@@ -67,6 +71,7 @@ export async function PUT(request: Request) {
     dinnerReminder, dinnerHour, dinnerMinute,
     weighInReminder, weighInDay, weighInHour, weighInMinute,
     quietHoursEnabled, quietHoursStart, quietHoursEnd,
+    stepReminder, stepReminderHour, stepReminderMinute,
   };
 
   // Remove undefined values

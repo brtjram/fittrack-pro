@@ -135,3 +135,15 @@ export async function sendGoalMilestone(userId: string, message: string): Promis
     data: { screen: 'Stats' },
   });
 }
+
+export async function sendStepReminder(userId: string, currentSteps: number, target: number): Promise<void> {
+  const remaining = target - currentSteps;
+  const body = remaining > 0
+    ? `You've hit ${currentSteps.toLocaleString()} steps today. ${remaining.toLocaleString()} more to reach your goal of ${target.toLocaleString()}!`
+    : `Goal crushed! You've hit ${currentSteps.toLocaleString()} steps today.`;
+  await sendNotificationToUser(userId, {
+    title: remaining > 0 ? "Step Goal Reminder" : "Step Goal Complete!",
+    body,
+    data: { screen: 'Stats' },
+  });
+}

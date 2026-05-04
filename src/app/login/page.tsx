@@ -345,7 +345,10 @@ function LoginContent() {
           )}
 
           <p className="mt-8 text-center text-xs text-muted-foreground">
-            By continuing, you agree to our Terms of Service and Privacy Policy.
+            By continuing, you agree to our{' '}
+            <a href="/terms" target="_blank" className="underline underline-offset-2 hover:text-foreground">Terms of Service</a>
+            {' '}and{' '}
+            <a href="/privacy" target="_blank" className="underline underline-offset-2 hover:text-foreground">Privacy Policy</a>.
           </p>
         </div>
       </div>

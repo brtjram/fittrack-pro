@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
-const publicPaths = ['/login', '/api/auth', '/api/register'];
+const publicPaths = ['/login', '/api/auth', '/api/register', '/terms', '/privacy'];
 
 export default async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;

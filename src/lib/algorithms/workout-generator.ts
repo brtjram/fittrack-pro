@@ -24,6 +24,11 @@ export function generateNextWorkout(
   const weekNumber = getWeekNumber(today);
   const isDeload = shouldDeload(weekNumber);
 
+  // Find the rating from the last completed session with the same split day
+  const lastSameSplitRating = recentSessions
+    .find(s => s.completed && s.splitDay === template.splitDay)
+    ?.rating;
+
   const exercises: WorkoutExercise[] = template.exercises.map(templateExercise => {
     const exerciseInfo = getExerciseById(templateExercise.exerciseId);
     const exerciseType = exerciseInfo?.type ?? 'compound';
@@ -36,13 +41,14 @@ export function generateNextWorkout(
       lastWeight = estimateStartingWeight(templateExercise.exerciseId, profile.experienceLevel, profile.gender);
     }
 
-    // Calculate progression
+    // Calculate progression (pass rating so algorithm can adjust intensity)
     const progression = calculateProgression(
       templateExercise.exerciseId,
       exerciseType,
       lastWeight,
       templateExercise.reps,
       recentSessions,
+      lastSameSplitRating,
     );
 
     let targetWeight = progression.newWeight;

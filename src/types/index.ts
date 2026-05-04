@@ -12,6 +12,10 @@ export interface UserProfile {
   experienceLevel: ExperienceLevel;
   preferredSplit: WorkoutSplit;
   healthSyncApiKey?: string;
+  trackCycle?: boolean;
+  cycleLength?: number;
+  lastPeriodDate?: string;
+  stepTarget?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -71,6 +75,8 @@ export interface WorkoutSession {
   weekNumber: number;
   isDeload: boolean;
   notes?: string;
+  rating?: number;
+  cardioLog?: string;
 }
 
 export interface PersonalRecord {

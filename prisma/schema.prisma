@@ -81,6 +81,10 @@ model FitnessProfile {
   experienceLevel String
   preferredSplit  String
   healthSyncApiKey String?
+  trackCycle      Boolean  @default(false)
+  cycleLength     Int?
+  lastPeriodDate  String?
+  stepTarget      Int      @default(10000)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -100,6 +104,8 @@ model WorkoutSession {
   weekNumber  Int      @default(1)
   isDeload    Boolean  @default(false)
   notes       String?
+  rating      Int?
+  cardioLog   String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -224,6 +230,9 @@ model NotificationPreferences {
   quietHoursEnabled     Boolean  @default(false)
   quietHoursStart       Int      @default(22)
   quietHoursEnd         Int      @default(7)
+  stepReminder          Boolean  @default(false)
+  stepReminderHour      Int      @default(20)
+  stepReminderMinute    Int      @default(0)
   updatedAt             DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

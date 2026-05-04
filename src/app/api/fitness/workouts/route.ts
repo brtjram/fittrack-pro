@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
   if (userId instanceof NextResponse) return userId;
 
   const body = await request.json();
-  const { sessionId, date, name, splitDay, exercises, duration, completed, weekNumber, isDeload, notes } = body;
+  const { sessionId, date, name, splitDay, exercises, duration, completed, weekNumber, isDeload, notes, rating, cardioLog } = body;
 
   const existing = await prisma.workoutSession.findFirst({
     where: { userId, sessionId },
@@ -50,6 +50,8 @@ export async function POST(request: NextRequest) {
       data: {
         exercises: JSON.stringify(exercises),
         duration, completed, notes,
+        ...(rating !== undefined && { rating }),
+        ...(cardioLog !== undefined && { cardioLog }),
       },
     });
     return NextResponse.json(updated);
@@ -63,6 +65,8 @@ export async function POST(request: NextRequest) {
       weekNumber: weekNumber ?? 1,
       isDeload: isDeload ?? false,
       notes,
+      rating,
+      cardioLog,
     },
   });
   return NextResponse.json(created);

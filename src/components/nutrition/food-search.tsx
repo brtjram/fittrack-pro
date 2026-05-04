@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Search, Plus, X, ScanBarcode, BookOpen, Loader2 } from 'lucide-react';
+import { Search, Plus, X, ScanBarcode, BookOpen, Loader2, Minus } from 'lucide-react';
 import { foods, searchFoods } from '@/lib/data/foods';
 import type { FoodItem, MealType } from '@/types';
 import { cn } from '@/lib/utils';
@@ -18,6 +18,8 @@ export function FoodSearch({ meal, onSelect, onClose }: FoodSearchProps) {
   const [query, setQuery] = useState('');
   const [selectedFood, setSelectedFood] = useState<FoodResult | null>(null);
   const [servings, setServings] = useState(1);
+  const [servingsStr, setServingsStr] = useState('1');
+  const servingsFocused = useRef(false);
   const [apiResults, setApiResults] = useState<FoodResult[]>([]);
   const [apiLoading, setApiLoading] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -317,27 +319,58 @@ export function FoodSearch({ meal, onSelect, onClose }: FoodSearchProps) {
               </span>
             )}
           </div>
-          <div className="mt-2 flex items-center gap-3">
-            <label className="text-sm text-muted-foreground">Servings:</label>
+          <div className="mt-3 space-y-2">
+            {/* Quick-select portion buttons */}
+            <div className="flex gap-1.5">
+              {[0.5, 1, 1.5, 2, 3].map((q) => (
+                <button
+                  key={q}
+                  onClick={() => { setServings(q); setServingsStr(String(q)); }}
+                  className={cn(
+                    'flex-1 rounded border py-1 text-xs font-medium transition-colors',
+                    servings === q
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border text-muted-foreground hover:bg-accent'
+                  )}
+                >
+                  {q}×
+                </button>
+              ))}
+            </div>
+            {/* Fine-tune stepper */}
             <div className="flex items-center gap-2">
+              <label className="text-sm text-muted-foreground">Servings:</label>
               <button
-                onClick={() => setServings(Math.max(0.25, servings - 0.25))}
-                className="rounded border border-border px-2 py-1 text-sm hover:bg-accent"
+                onClick={() => { const v = Math.max(0.25, servings - 0.25); setServings(v); setServingsStr(String(v)); }}
+                className="rounded border border-border p-1 hover:bg-accent"
               >
-                -
+                <Minus className="h-3 w-3" />
               </button>
               <input
-                type="number"
-                value={servings}
-                onChange={(e) => setServings(Math.max(0.25, Number(e.target.value)))}
-                step="0.25"
-                className="w-16 rounded border border-border bg-background px-2 py-1 text-center text-sm outline-none"
+                type="text"
+                inputMode="decimal"
+                value={servingsStr}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                  setServingsStr(raw);
+                  const n = parseFloat(raw);
+                  if (!isNaN(n) && n > 0) setServings(n);
+                }}
+                onBlur={() => {
+                  servingsFocused.current = false;
+                  const n = parseFloat(servingsStr);
+                  const clean = isNaN(n) || n <= 0 ? 0.25 : n;
+                  setServings(clean);
+                  setServingsStr(String(clean));
+                }}
+                onFocus={(e) => { servingsFocused.current = true; e.target.select(); }}
+                className="w-14 rounded border border-border bg-background px-2 py-1 text-center text-sm outline-none focus:ring-1 focus:ring-ring"
               />
               <button
-                onClick={() => setServings(servings + 0.25)}
-                className="rounded border border-border px-2 py-1 text-sm hover:bg-accent"
+                onClick={() => { const v = servings + 0.25; setServings(v); setServingsStr(String(v)); }}
+                className="rounded border border-border p-1 hover:bg-accent"
               >
-                +
+                <Plus className="h-3 w-3" />
               </button>
               <span className="text-xs text-muted-foreground">
                 ({Math.round(selectedFood.servingSizeG * servings)}g)

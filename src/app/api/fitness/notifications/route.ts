@@ -4,7 +4,9 @@ import {
   sendWorkoutReminder,
   sendNutritionReminder,
   sendWeightReminder,
+  sendStepReminder,
 } from '@/lib/push-notifications';
+import { prisma } from '@/lib/prisma';
 
 // Trigger a notification for the authenticated user (useful for testing + scheduled jobs)
 export async function POST(request: NextRequest) {
@@ -24,6 +26,17 @@ export async function POST(request: NextRequest) {
     case 'weight_reminder':
       await sendWeightReminder(userId);
       break;
+    case 'step_reminder': {
+      const today = new Date().toISOString().split('T')[0];
+      const [activity, profile] = await Promise.all([
+        prisma.dailyActivity.findUnique({ where: { userId_date: { userId, date: today } } }),
+        prisma.fitnessProfile.findUnique({ where: { userId } }),
+      ]);
+      const steps = activity?.steps ?? 0;
+      const target = profile?.stepTarget ?? 10000;
+      await sendStepReminder(userId, steps, target);
+      break;
+    }
     default:
       return NextResponse.json({ error: `Unknown notification type: ${type}` }, { status: 400 });
   }
