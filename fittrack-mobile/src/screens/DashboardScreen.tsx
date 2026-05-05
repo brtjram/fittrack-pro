@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  ActivityIndicator, RefreshControl, StyleSheet,
+  ActivityIndicator, RefreshControl, Alert, StyleSheet,
 } from 'react-native';
 import { Dumbbell, UtensilsCrossed, BarChart3, Flame, Target, Scale, AlertCircle, ArrowRight } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
@@ -111,9 +111,11 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
           screen: 'WorkoutDetail',
           params: { sessionId: session.sessionId },
         });
+      } else {
+        Alert.alert('Setup Required', 'Complete your profile in Settings before generating a workout.');
       }
     } catch {
-      // silently fail — user can try from the Train tab
+      Alert.alert('Error', 'Could not generate workout. Please try again.');
     } finally {
       setGenerating(false);
     }

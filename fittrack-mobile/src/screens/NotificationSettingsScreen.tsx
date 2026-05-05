@@ -7,7 +7,7 @@ import { Bell, BellOff, Dumbbell, UtensilsCrossed, Scale, Moon, Clock, Check } f
 import { useTheme } from '../theme/useTheme';
 import * as api from '../services/api';
 import type { NotificationPrefs } from '../services/api';
-import { applyNotificationSchedule } from '../services/notifications';
+import { applyNotificationSchedule, requestNotificationPermissions } from '../services/notifications';
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -44,8 +44,19 @@ export function NotificationSettingsScreen() {
     if (!prefs) return;
     setSaving(true);
     try {
+      // Request permission before scheduling if notifications are enabled
+      if (prefs.enabled) {
+        const granted = await requestNotificationPermissions();
+        if (!granted) {
+          Alert.alert(
+            'Permission Required',
+            'Enable notifications for FitTrack Pro in your device Settings to receive reminders.',
+          );
+          setSaving(false);
+          return;
+        }
+      }
       await api.saveNotificationPreferences(prefs);
-      // Reschedule local notifications based on new preferences
       await applyNotificationSchedule(prefs);
       setDirty(false);
       Alert.alert('Saved', 'Notification preferences updated.');
