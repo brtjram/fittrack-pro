@@ -211,7 +211,7 @@ export function AnalyticsScreen() {
                       </Text>
                     </View>
                     <Text style={{ fontSize: 13, fontWeight: '600', color: colors.primary }}>
-                      {w.exercises.reduce((a, e) => a + e.sets.reduce((b, s) => b + (s.weight || 0) * (s.reps || 0), 0), 0).toLocaleString()} lbs
+                      {w.exercises.reduce((a, e) => a + e.sets.reduce((b, s) => b + (s.actualWeight ?? s.targetWeight) * (s.actualReps ?? s.targetReps), 0), 0).toLocaleString()} lbs
                     </Text>
                   </View>
                 ))}

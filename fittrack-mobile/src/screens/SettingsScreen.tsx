@@ -76,26 +76,28 @@ export function SettingsScreen() {
   });
 
   useEffect(() => {
-    api.getUserProfile().then((profile) => {
-      if (profile) {
-        const loaded: FormState = {
-          name: profile.name,
-          age: profile.age,
-          gender: profile.gender,
-          heightCm: profile.heightCm,
-          currentWeightLbs: profile.currentWeightLbs,
-          targetWeightLbs: profile.targetWeightLbs,
-          activityLevel: profile.activityLevel,
-          goal: profile.goal,
-          experienceLevel: profile.experienceLevel,
-          preferredSplit: profile.preferredSplit,
-        };
-        setForm(loaded);
-        savedFormRef.current = JSON.stringify(loaded);
-        setSaved(true);
-      }
-      setLoading(false);
-    });
+    api.getUserProfile()
+      .then((profile) => {
+        if (profile) {
+          const loaded: FormState = {
+            name: profile.name,
+            age: profile.age,
+            gender: profile.gender,
+            heightCm: profile.heightCm,
+            currentWeightLbs: profile.currentWeightLbs,
+            targetWeightLbs: profile.targetWeightLbs,
+            activityLevel: profile.activityLevel,
+            goal: profile.goal,
+            experienceLevel: profile.experienceLevel,
+            preferredSplit: profile.preferredSplit,
+          };
+          setForm(loaded);
+          savedFormRef.current = JSON.stringify(loaded);
+          setSaved(true);
+        }
+      })
+      .catch(() => { /* network error — show empty form */ })
+      .finally(() => setLoading(false));
   }, []);
 
   const updateField = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {

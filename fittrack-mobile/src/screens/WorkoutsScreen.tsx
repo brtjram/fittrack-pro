@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, Alert, StyleSheet,
 } from 'react-native';
-import { Dumbbell, Trash2, RotateCcw, Clock, CheckCircle } from 'lucide-react-native';
+import { Dumbbell, Trash2, RotateCcw, Clock, CheckCircle, Plus, Sparkles } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import * as api from '../services/api';
 import type { WorkoutSession } from '@fittrack/core';
@@ -20,6 +20,7 @@ export function WorkoutsScreen({ navigation }: { navigation: any }) {
   const [showDeleted, setShowDeleted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   const loadWorkouts = useCallback(async () => {
     try {
@@ -53,6 +54,23 @@ export function WorkoutsScreen({ navigation }: { navigation: any }) {
       },
     ]);
   }, [workouts]);
+
+  const handleGenerate = useCallback(async () => {
+    setGenerating(true);
+    try {
+      const session = await api.generateWorkout();
+      if (!session) {
+        Alert.alert('Setup Required', 'Complete your profile in Settings before generating a workout.');
+        return;
+      }
+      setWorkouts((prev) => [session, ...prev]);
+      navigation.navigate('WorkoutDetail', { sessionId: session.sessionId });
+    } catch {
+      Alert.alert('Error', 'Could not generate workout. Please try again.');
+    } finally {
+      setGenerating(false);
+    }
+  }, [navigation]);
 
   const handleReinstate = useCallback(async (sessionId: string) => {
     const workout = deletedWorkouts.find((w) => w.sessionId === sessionId);
@@ -121,8 +139,24 @@ export function WorkoutsScreen({ navigation }: { navigation: any }) {
   };
 
   return (
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    {/* Generate button — always visible at top */}
+    <TouchableOpacity
+      style={[styles.generateBtn, { backgroundColor: colors.primary }]}
+      onPress={handleGenerate}
+      disabled={generating}
+      activeOpacity={0.8}
+    >
+      {generating
+        ? <ActivityIndicator size="small" color="#fff" />
+        : <Sparkles size={16} color="#fff" />}
+      <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff', marginLeft: 8 }}>
+        {generating ? 'Generating…' : 'Generate Next Workout'}
+      </Text>
+    </TouchableOpacity>
+
     <ScrollView
-      style={{ flex: 1, backgroundColor: colors.background }}
+      style={{ flex: 1 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
     >
       <View style={styles.content}>
@@ -198,12 +232,13 @@ export function WorkoutsScreen({ navigation }: { navigation: any }) {
               No workouts yet
             </Text>
             <Text style={{ fontSize: 13, color: colors.mutedForeground, textAlign: 'center', marginTop: 4, maxWidth: 260 }}>
-              Generate your first workout plan from the Dashboard tab.
+              Tap "Generate Next Workout" above to get a personalised plan based on your goals and history.
             </Text>
           </View>
         )}
       </View>
     </ScrollView>
+    </View>
   );
 }
 
@@ -229,5 +264,6 @@ const styles = StyleSheet.create({
   deletedToggle: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   deletedCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderStyle: 'dashed', borderRadius: 12, padding: 14, marginBottom: 8, opacity: 0.6 },
   reinstateBtn: { flexDirection: 'row', alignItems: 'center', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
+  generateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', margin: 16, marginBottom: 4, paddingVertical: 14, borderRadius: 14 },
   emptyState: { alignItems: 'center', paddingTop: 60 },
 });

@@ -99,6 +99,12 @@ export async function deleteWorkout(sessionId: string): Promise<void> {
   await apiFetch(`/api/fitness/workouts?sessionId=${sessionId}`, { method: 'DELETE' });
 }
 
+export async function generateWorkout(): Promise<WorkoutSession | undefined> {
+  const res = await apiFetch('/api/fitness/workouts/generate', { method: 'POST' });
+  if (!res.ok) return undefined;
+  return parseWorkoutSession(await res.json());
+}
+
 // ==================== Personal Records ====================
 
 export async function getPersonalRecords(exerciseId?: string): Promise<PersonalRecord[]> {

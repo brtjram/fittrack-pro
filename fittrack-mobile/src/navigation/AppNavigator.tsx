@@ -1,7 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Home, Dumbbell, UtensilsCrossed, BarChart3, Settings } from 'lucide-react-native';
+import { Home, Dumbbell, UtensilsCrossed, BarChart3, Settings, Bot } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 
 import { DashboardScreen } from '../screens/DashboardScreen';
@@ -11,6 +11,7 @@ import { NutritionScreen } from '../screens/NutritionScreen';
 import { AnalyticsScreen } from '../screens/AnalyticsScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { NotificationSettingsScreen } from '../screens/NotificationSettingsScreen';
+import { ChatScreen } from '../screens/ChatScreen';
 
 const Tab = createBottomTabNavigator();
 const WorkoutStack = createNativeStackNavigator();
@@ -86,6 +87,14 @@ export function AppNavigator() {
         options={{
           title: 'Nutrition',
           tabBarIcon: ({ color, size }) => <UtensilsCrossed size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="Coach"
+        component={ChatScreen}
+        options={{
+          title: 'AI Coach',
+          tabBarIcon: ({ color, size }) => <Bot size={size} color={color} />,
         }}
       />
       <Tab.Screen

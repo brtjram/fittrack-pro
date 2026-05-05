@@ -28,6 +28,7 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [workouts, setWorkouts] = useState<WorkoutSession[]>([]);
   const [todayCalories, setTodayCalories] = useState({ eaten: 0, target: 0 });
   const [todayProtein, setTodayProtein] = useState({ eaten: 0, target: 0 });
@@ -99,6 +100,24 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
     setRefreshing(true);
     loadDashboard();
   }, [loadDashboard]);
+
+  const handleGenerateWorkout = useCallback(async () => {
+    setGenerating(true);
+    try {
+      const session = await api.generateWorkout();
+      if (session) {
+        setWorkouts((prev) => [session, ...prev]);
+        navigation.navigate('Train', {
+          screen: 'WorkoutDetail',
+          params: { sessionId: session.sessionId },
+        });
+      }
+    } catch {
+      // silently fail — user can try from the Train tab
+    } finally {
+      setGenerating(false);
+    }
+  }, [navigation]);
 
   const completedThisWeek = workouts.filter((w) => {
     const d = new Date(w.date);
@@ -173,8 +192,11 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
                 screen: 'WorkoutDetail',
                 params: { sessionId: todayWorkout.sessionId },
               });
+            } else {
+              handleGenerateWorkout();
             }
           }}
+          disabled={generating}
           activeOpacity={0.7}
         >
           {todayWorkout ? (
@@ -193,15 +215,19 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
           ) : (
             <View style={styles.workoutRow}>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 10, fontWeight: '600', color: colors.mutedForeground, textTransform: 'uppercase' }}>
-                  Ready to train?
+                <Text style={{ fontSize: 10, fontWeight: '600', color: colors.primary, textTransform: 'uppercase' }}>
+                  {generating ? 'Building your plan…' : 'Ready to train?'}
                 </Text>
-                <Text style={[styles.workoutName, { color: colors.foreground }]}>Start Today's Workout</Text>
+                <Text style={[styles.workoutName, { color: colors.foreground }]}>
+                  {generating ? 'Generating Workout' : "Generate Today's Workout"}
+                </Text>
                 <Text style={{ fontSize: 13, color: colors.mutedForeground, marginTop: 2 }}>
-                  AI-generated plan based on your split
+                  Adapts to your history, ratings &amp; goals
                 </Text>
               </View>
-              <Dumbbell size={20} color={colors.primary} />
+              {generating
+                ? <ActivityIndicator size="small" color={colors.primary} />
+                : <Dumbbell size={20} color={colors.primary} />}
             </View>
           )}
         </TouchableOpacity>

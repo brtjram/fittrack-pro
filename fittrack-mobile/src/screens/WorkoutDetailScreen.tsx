@@ -6,7 +6,7 @@ import {
 import { CheckCircle, Circle, Clock, Dumbbell } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import * as api from '../services/api';
-import type { WorkoutSession, ExerciseSet } from '@fittrack/core';
+import type { WorkoutSession, WorkoutSet } from '@fittrack/core';
 
 export function WorkoutDetailScreen({ route }: { route: any }) {
   const { sessionId } = route.params as { sessionId: string };
@@ -39,7 +39,7 @@ export function WorkoutDetailScreen({ route }: { route: any }) {
     await api.saveWorkout(updated);
   }, [session]);
 
-  const updateSetValue = useCallback(async (exerciseIdx: number, setIdx: number, field: keyof ExerciseSet, value: number) => {
+  const updateSetValue = useCallback(async (exerciseIdx: number, setIdx: number, field: keyof WorkoutSet, value: number) => {
     if (!session) return;
     const updated = { ...session, exercises: session.exercises.map((ex, ei) => {
       if (ei !== exerciseIdx) return ex;
@@ -127,18 +127,18 @@ export function WorkoutDetailScreen({ route }: { route: any }) {
                   <Text style={[styles.setNumber, { color: colors.mutedForeground }]}>{si + 1}</Text>
                   <TextInput
                     style={[styles.setInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-                    value={set.weight ? String(set.weight) : ''}
-                    onChangeText={(t) => updateSetValue(ei, si, 'weight', parseFloat(t) || 0)}
+                    value={set.actualWeight != null ? String(set.actualWeight) : ''}
+                    onChangeText={(t) => updateSetValue(ei, si, 'actualWeight', parseFloat(t) || 0)}
                     keyboardType="numeric"
-                    placeholder="lbs"
+                    placeholder={String(set.targetWeight)}
                     placeholderTextColor={colors.mutedForeground}
                   />
                   <TextInput
                     style={[styles.setInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-                    value={set.reps ? String(set.reps) : ''}
-                    onChangeText={(t) => updateSetValue(ei, si, 'reps', parseInt(t) || 0)}
+                    value={set.actualReps != null ? String(set.actualReps) : ''}
+                    onChangeText={(t) => updateSetValue(ei, si, 'actualReps', parseInt(t) || 0)}
                     keyboardType="numeric"
-                    placeholder="reps"
+                    placeholder={String(set.targetReps)}
                     placeholderTextColor={colors.mutedForeground}
                   />
                   <TouchableOpacity

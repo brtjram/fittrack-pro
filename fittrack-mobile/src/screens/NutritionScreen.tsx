@@ -7,7 +7,7 @@ import { ChevronLeft, ChevronRight, Plus, Trash2, Search, X } from 'lucide-react
 import { useTheme } from '../theme/useTheme';
 import * as api from '../services/api';
 import { calculateMacroTargets, calculateAdaptiveAdjustment } from '@fittrack/core/src/algorithms/macro-calculator';
-import { COMMON_FOODS } from '@fittrack/core/src/data/foods';
+import { foods as COMMON_FOODS } from '@fittrack/core/src/data/foods';
 import type { FoodLogEntry, FoodItem, MacroTargets } from '@fittrack/core';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -73,7 +73,7 @@ export function NutritionScreen() {
     if (!searchMeal) return;
     if (tab === 'common') {
       const q = searchQuery.toLowerCase();
-      setSearchResults(q.length < 1 ? COMMON_FOODS.slice(0, 20) : COMMON_FOODS.filter((f) => f.name.toLowerCase().includes(q)));
+      setSearchResults(q.length < 1 ? COMMON_FOODS.slice(0, 20) : COMMON_FOODS.filter((f: FoodItem) => f.name.toLowerCase().includes(q)));
     } else {
       if (searchQuery.length < 2) { setSearchResults([]); return; }
       clearTimeout(debounceRef.current);
