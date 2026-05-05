@@ -71,6 +71,8 @@ export interface WorkoutSession {
   weekNumber: number;
   isDeload: boolean;
   notes?: string;
+  rating?: number;
+  cardioLog?: string;
 }
 
 export interface PersonalRecord {

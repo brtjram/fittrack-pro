@@ -105,6 +105,13 @@ export async function generateWorkout(): Promise<WorkoutSession | undefined> {
   return parseWorkoutSession(await res.json());
 }
 
+export async function generateWeekWorkouts(): Promise<WorkoutSession[]> {
+  const res = await apiFetch('/api/fitness/workouts/generate-week', { method: 'POST' });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return Array.isArray(data) ? data.map(parseWorkoutSession) : [];
+}
+
 // ==================== Personal Records ====================
 
 export async function getPersonalRecords(exerciseId?: string): Promise<PersonalRecord[]> {

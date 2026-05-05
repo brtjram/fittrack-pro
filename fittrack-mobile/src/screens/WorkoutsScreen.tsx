@@ -21,6 +21,7 @@ export function WorkoutsScreen({ navigation }: { navigation: any }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [generatingWeek, setGeneratingWeek] = useState(false);
 
   const loadWorkouts = useCallback(async () => {
     try {
@@ -54,6 +55,28 @@ export function WorkoutsScreen({ navigation }: { navigation: any }) {
       },
     ]);
   }, [workouts]);
+
+  const handleGenerateWeek = useCallback(async () => {
+    setGeneratingWeek(true);
+    try {
+      const sessions = await api.generateWeekWorkouts();
+      if (sessions.length === 0) {
+        Alert.alert('Setup Required', 'Complete your profile in Settings before planning your week.');
+        return;
+      }
+      // Merge into existing list, deduplicate by sessionId
+      setWorkouts((prev) => {
+        const existingIds = new Set(prev.map((w) => w.sessionId));
+        const newSessions = sessions.filter((s) => !existingIds.has(s.sessionId));
+        return [...newSessions, ...prev].sort((a, b) => a.date.localeCompare(b.date));
+      });
+      Alert.alert('Week Planned!', `${sessions.length} workouts scheduled for this week.`);
+    } catch {
+      Alert.alert('Error', 'Could not plan the week. Please try again.');
+    } finally {
+      setGeneratingWeek(false);
+    }
+  }, []);
 
   const handleGenerate = useCallback(async () => {
     setGenerating(true);
@@ -140,20 +163,35 @@ export function WorkoutsScreen({ navigation }: { navigation: any }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-    {/* Generate button — always visible at top */}
-    <TouchableOpacity
-      style={[styles.generateBtn, { backgroundColor: colors.primary }]}
-      onPress={handleGenerate}
-      disabled={generating}
-      activeOpacity={0.8}
-    >
-      {generating
-        ? <ActivityIndicator size="small" color="#fff" />
-        : <Sparkles size={16} color="#fff" />}
-      <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff', marginLeft: 8 }}>
-        {generating ? 'Generating…' : 'Generate Next Workout'}
-      </Text>
-    </TouchableOpacity>
+    {/* Generate buttons — always visible at top */}
+    <View style={styles.generateRow}>
+      <TouchableOpacity
+        style={[styles.generateBtn, { backgroundColor: colors.primary, flex: 1 }]}
+        onPress={handleGenerate}
+        disabled={generating || generatingWeek}
+        activeOpacity={0.8}
+      >
+        {generating
+          ? <ActivityIndicator size="small" color="#fff" />
+          : <Sparkles size={15} color="#fff" />}
+        <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff', marginLeft: 6 }}>
+          {generating ? 'Generating…' : 'Next Workout'}
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.generateBtn, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.primary, flex: 1 }]}
+        onPress={handleGenerateWeek}
+        disabled={generating || generatingWeek}
+        activeOpacity={0.8}
+      >
+        {generatingWeek
+          ? <ActivityIndicator size="small" color={colors.primary} />
+          : <Sparkles size={15} color={colors.primary} />}
+        <Text style={{ fontSize: 13, fontWeight: '700', color: colors.primary, marginLeft: 6 }}>
+          {generatingWeek ? 'Planning…' : 'Plan This Week'}
+        </Text>
+      </TouchableOpacity>
+    </View>
 
     <ScrollView
       style={{ flex: 1 }}
@@ -264,6 +302,7 @@ const styles = StyleSheet.create({
   deletedToggle: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   deletedCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderStyle: 'dashed', borderRadius: 12, padding: 14, marginBottom: 8, opacity: 0.6 },
   reinstateBtn: { flexDirection: 'row', alignItems: 'center', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
-  generateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', margin: 16, marginBottom: 4, paddingVertical: 14, borderRadius: 14 },
+  generateRow: { flexDirection: 'row', gap: 10, marginHorizontal: 16, marginTop: 16, marginBottom: 4 },
+  generateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 13, borderRadius: 14 },
   emptyState: { alignItems: 'center', paddingTop: 60 },
 });
