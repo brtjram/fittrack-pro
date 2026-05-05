@@ -52,21 +52,27 @@ export function ChatScreen() {
         body: JSON.stringify({ messages: next }),
       });
 
-      if (!res.ok || !res.body) throw new Error('Request failed');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      // Stream the response
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
       let accumulated = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        accumulated += decoder.decode(value, { stream: true });
+      // Try streaming first; fall back to res.text() if body is unavailable (RN/Hermes limitation)
+      if (res.body && typeof res.body.getReader === 'function') {
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          accumulated += decoder.decode(value, { stream: true });
+          setMessages([...next, { role: 'assistant', content: accumulated }]);
+        }
+      } else {
+        accumulated = await res.text();
         setMessages([...next, { role: 'assistant', content: accumulated }]);
       }
-    } catch {
-      setMessages([...next, { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' }]);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setMessages([...next, { role: 'assistant', content: `Sorry, something went wrong (${msg}). Please try again.` }]);
     } finally {
       setLoading(false);
     }
