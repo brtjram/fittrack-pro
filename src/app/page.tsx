@@ -10,12 +10,11 @@ import {
 } from 'lucide-react';
 import { StatCard } from '@/components/shared/stat-card';
 import { getUserProfile } from '@/lib/stores/user-store';
-import { getRecentWorkouts, saveWorkout } from '@/lib/stores/workout-store';
+import { getRecentWorkouts } from '@/lib/stores/workout-store';
 import { getFoodLogByDate, getWeightEntries } from '@/lib/stores/nutrition-store';
 import { getDailyActivities } from '@/lib/stores/analytics-store';
 import { calculateMacroTargets, calculateAdaptiveAdjustment } from '@/lib/algorithms/macro-calculator';
 import { analyzeActivity, shouldSuggestRestDay } from '@/lib/algorithms/activity-analyzer';
-import { generateNextWorkout } from '@/lib/algorithms/workout-generator';
 import type { UserProfile, WorkoutSession } from '@/types';
 import { toDateString } from '@/lib/utils';
 
@@ -29,6 +28,7 @@ export default function DashboardPage() {
   const [insights, setInsights] = useState<string[]>([]);
   const [generating, setGenerating] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [seeding, setSeeding] = useState(false);
 
   useEffect(() => {
     loadDashboard();
@@ -97,18 +97,30 @@ export default function DashboardPage() {
   };
 
   const handleStartWorkout = async () => {
-    if (!profile) {
-      router.push('/settings');
-      return;
-    }
     setGenerating(true);
     try {
-      const recentSessions = await getRecentWorkouts(10);
-      const newWorkout = generateNextWorkout(profile, recentSessions);
-      await saveWorkout(newWorkout);
-      router.push(`/workouts/${newWorkout.sessionId}`);
+      const res = await fetch('/api/fitness/workouts/generate', { method: 'POST' });
+      if (res.status === 400) {
+        router.push('/settings');
+        return;
+      }
+      if (!res.ok) throw new Error('Server error');
+      const workout = await res.json();
+      router.push(`/workouts/${workout.sessionId}`);
+    } catch (err) {
+      console.error('Failed to generate workout:', err);
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handleSeedData = async () => {
+    setSeeding(true);
+    try {
+      const res = await fetch('/api/test/seed', { method: 'POST' });
+      if (res.ok) await loadDashboard();
+    } finally {
+      setSeeding(false);
     }
   };
 
@@ -129,6 +141,18 @@ export default function DashboardPage() {
           Set Up Your Profile
           <ArrowRight className="h-4 w-4" />
         </Link>
+        <button
+          onClick={handleSeedData}
+          disabled={seeding}
+          className="mt-3 flex items-center gap-2 rounded-xl border border-border px-8 py-3 text-sm font-semibold text-muted-foreground hover:bg-accent disabled:opacity-50"
+        >
+          {seeding ? (
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          ) : (
+            <Sparkles className="h-4 w-4" />
+          )}
+          {seeding ? 'Loading test data…' : 'Load Test Data'}
+        </button>
       </div>
     );
   }

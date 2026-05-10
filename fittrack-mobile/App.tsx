@@ -1,5 +1,5 @@
-import React, { useRef } from 'react';
-import { StatusBar, ActivityIndicator, View } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { StatusBar, ActivityIndicator, View, Linking } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/hooks/useAuth';
@@ -10,13 +10,40 @@ import { NetworkStatus } from './src/components/NetworkStatus';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { LoginScreen } from './src/screens/LoginScreen';
 
+function handleAuthDeepLink(url: string, loginWithToken: (token: string, user: any) => Promise<void>) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.pathname !== '//auth' && parsed.host !== 'auth') return;
+    const token = parsed.searchParams.get('token');
+    const id = parsed.searchParams.get('id');
+    const name = parsed.searchParams.get('name') ?? '';
+    const email = parsed.searchParams.get('email') ?? '';
+    if (token && id) {
+      loginWithToken(token, { id, name, email });
+    }
+  } catch {
+    // ignore malformed URLs
+  }
+}
+
 function AppContent() {
-  const { user, loading } = useAuth();
+  const { user, loading, loginWithToken } = useAuth();
   const { colors, isDark } = useTheme();
   const navigationRef = useRef<any>(null);
 
   // Register push token, set up local reminders, handle notification taps
   useNotifications(navigationRef);
+
+  // Handle Google OAuth deep link: com.brtjram.fittrackpro://auth?token=...
+  useEffect(() => {
+    Linking.getInitialURL().then((url) => {
+      if (url) handleAuthDeepLink(url, loginWithToken);
+    });
+    const sub = Linking.addEventListener('url', ({ url }) => {
+      handleAuthDeepLink(url, loginWithToken);
+    });
+    return () => sub.remove();
+  }, [loginWithToken]);
 
   if (loading) {
     return (

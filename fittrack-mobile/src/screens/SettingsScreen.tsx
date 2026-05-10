@@ -142,6 +142,10 @@ export function SettingsScreen() {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.background }}>
+      {/* Page header */}
+      <View style={[styles.pageHeader, { backgroundColor: colors.background }]}>
+        <Text style={[styles.pageTitle, { color: colors.foreground }]}>Profile</Text>
+      </View>
       <View style={styles.content}>
         {/* Save Button */}
         <TouchableOpacity
@@ -194,7 +198,7 @@ export function SettingsScreen() {
                     style={[
                       styles.genderBtn,
                       { borderColor: form.gender === g ? colors.primary : colors.border },
-                      form.gender === g && { backgroundColor: colors.primary + '15' },
+                      form.gender === g && { backgroundColor: colors.muted },
                     ]}
                     onPress={() => updateField('gender', g)}
                   >
@@ -248,7 +252,7 @@ export function SettingsScreen() {
                 style={[
                   styles.optionBtn,
                   { borderColor: form.goal === opt.value ? colors.primary : colors.border },
-                  form.goal === opt.value && { backgroundColor: colors.primary + '15' },
+                  form.goal === opt.value && { backgroundColor: colors.muted },
                 ]}
                 onPress={() => updateField('goal', opt.value)}
               >
@@ -270,7 +274,7 @@ export function SettingsScreen() {
               style={[
                 styles.listOption,
                 { borderColor: form.activityLevel === opt.value ? colors.primary : colors.border },
-                form.activityLevel === opt.value && { backgroundColor: colors.primary + '15' },
+                form.activityLevel === opt.value && { backgroundColor: colors.muted },
               ]}
               onPress={() => updateField('activityLevel', opt.value)}
             >
@@ -292,7 +296,7 @@ export function SettingsScreen() {
                 style={[
                   styles.optionBtn, { flex: 1 },
                   { borderColor: form.experienceLevel === opt.value ? colors.primary : colors.border },
-                  form.experienceLevel === opt.value && { backgroundColor: colors.primary + '15' },
+                  form.experienceLevel === opt.value && { backgroundColor: colors.muted },
                 ]}
                 onPress={() => updateField('experienceLevel', opt.value)}
               >
@@ -315,7 +319,7 @@ export function SettingsScreen() {
                 style={[
                   styles.optionBtn,
                   { borderColor: form.preferredSplit === opt.value ? colors.primary : colors.border },
-                  form.preferredSplit === opt.value && { backgroundColor: colors.primary + '15' },
+                  form.preferredSplit === opt.value && { backgroundColor: colors.muted },
                 ]}
                 onPress={() => updateField('preferredSplit', opt.value)}
               >
@@ -403,19 +407,21 @@ export function SettingsScreen() {
 
 const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  pageHeader: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 4 },
+  pageTitle: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
   content: { padding: 16, gap: 16 },
-  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 10 },
-  section: { borderWidth: 1, borderRadius: 12, padding: 14 },
+  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 13, borderRadius: 12 },
+  section: { borderWidth: 1, borderRadius: 14, padding: 14 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 14, gap: 8 },
-  sectionTitle: { fontSize: 15, fontWeight: '600', marginBottom: 10 },
-  label: { fontSize: 12, fontWeight: '500', marginBottom: 4, marginTop: 10 },
-  input: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14 },
+  sectionTitle: { fontSize: 15, fontWeight: '700', marginBottom: 10 },
+  label: { fontSize: 11, fontWeight: '600', marginBottom: 4, marginTop: 10, textTransform: 'uppercase', letterSpacing: 0.5 },
+  input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14 },
   row: { flexDirection: 'row', gap: 10 },
-  genderBtn: { flex: 1, borderWidth: 1, borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
+  genderBtn: { flex: 1, borderWidth: 1, borderRadius: 10, paddingVertical: 9, alignItems: 'center' },
   optionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   optionsRow: { flexDirection: 'row', gap: 8 },
-  optionBtn: { borderWidth: 1, borderRadius: 8, padding: 10, flexBasis: '47%', flexGrow: 1 },
-  listOption: { borderWidth: 1, borderRadius: 8, padding: 10, marginBottom: 6 },
-  linkRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1 },
-  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: 12, paddingVertical: 14 },
+  optionBtn: { borderWidth: 1, borderRadius: 10, padding: 10, flexBasis: '47%', flexGrow: 1 },
+  listOption: { borderWidth: 1, borderRadius: 10, padding: 10, marginBottom: 6 },
+  linkRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, borderBottomWidth: 1 },
+  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: 14, paddingVertical: 15 },
 });

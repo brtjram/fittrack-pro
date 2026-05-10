@@ -5,10 +5,9 @@ import type {
 } from '@fittrack/core';
 import { getToken } from './auth-storage';
 
-// Change this to your deployed Vercel URL
 const API_BASE = __DEV__
   ? 'http://localhost:3000'
-  : 'https://your-app.vercel.app';
+  : (process.env.EXPO_PUBLIC_API_URL ?? 'https://myfittrack.pro');
 
 async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
   const token = await getToken();
@@ -35,6 +34,18 @@ async function apiFetch(path: string, options: RequestInit = {}): Promise<Respon
 }
 
 // ==================== Auth ====================
+
+export async function registerUser(name: string, email: string, password: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, email, password }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Registration failed');
+  }
+}
 
 export async function loginWithCredentials(email: string, password: string) {
   const res = await fetch(`${API_BASE}/api/auth/mobile-token`, {

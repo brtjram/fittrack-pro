@@ -7,8 +7,6 @@ import { WorkoutCard } from '@/components/workouts/workout-card';
 import { EmptyState } from '@/components/shared/empty-state';
 import { Dumbbell, Plus, History, Sparkles, CalendarDays, Check, Trash2, RotateCcw } from 'lucide-react';
 import { getRecentWorkouts, saveWorkout, deleteWorkout } from '@/lib/stores/workout-store';
-import { getUserProfile } from '@/lib/stores/user-store';
-import { generateNextWorkout, generateWeekPlan } from '@/lib/algorithms/workout-generator';
 import type { WorkoutSession } from '@/types';
 import Link from 'next/link';
 
@@ -38,15 +36,11 @@ export default function WorkoutsPage() {
   const handleGenerateWorkout = async () => {
     setGenerating(true);
     try {
-      const profile = await getUserProfile();
-      if (!profile) {
-        router.push('/settings');
-        return;
-      }
-      const recentSessions = await getRecentWorkouts(10);
-      const newWorkout = generateNextWorkout(profile, recentSessions);
-      await saveWorkout(newWorkout);
-      router.push(`/workouts/${newWorkout.sessionId}`);
+      const res = await fetch('/api/fitness/workouts/generate', { method: 'POST' });
+      if (res.status === 400) { router.push('/settings'); return; }
+      if (!res.ok) throw new Error('Server error');
+      const workout = await res.json();
+      router.push(`/workouts/${workout.sessionId}`);
     } catch (err) {
       console.error('Failed to generate workout:', err);
     } finally {
@@ -57,16 +51,9 @@ export default function WorkoutsPage() {
   const handleGenerateWeek = async () => {
     setGeneratingWeek(true);
     try {
-      const profile = await getUserProfile();
-      if (!profile) {
-        router.push('/settings');
-        return;
-      }
-      const recentSessions = await getRecentWorkouts(10);
-      const weekSessions = generateWeekPlan(profile, recentSessions);
-      for (const session of weekSessions) {
-        await saveWorkout(session);
-      }
+      const res = await fetch('/api/fitness/workouts/generate-week', { method: 'POST' });
+      if (res.status === 400) { router.push('/settings'); return; }
+      if (!res.ok) throw new Error('Server error');
       setWeekGenerated(true);
       setTimeout(() => setWeekGenerated(false), 3000);
       loadWorkouts();

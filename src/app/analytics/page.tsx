@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Header } from '@/components/layout/header';
+import { NumericInput } from '@/components/shared/numeric-input';
 import { WeightChart } from '@/components/analytics/weight-chart';
 import { StepsChart } from '@/components/analytics/steps-chart';
 import { StrengthChart } from '@/components/analytics/strength-chart';
@@ -94,14 +95,14 @@ export default function AnalyticsPage() {
         {/* Weight Input */}
         {showWeightInput && (
           <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
-            <input
-              type="number"
-              value={newWeight}
-              onChange={(e) => setNewWeight(e.target.value)}
+            <NumericInput
+              value={Number(newWeight) || 0}
+              onChange={(v) => setNewWeight(String(v || ''))}
+              min={1}
+              inputMode="decimal"
               placeholder="Weight in lbs"
-              step="1"
+              allowEmpty
               className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-              autoFocus
             />
             <button
               onClick={handleAddWeight}

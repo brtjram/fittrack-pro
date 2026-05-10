@@ -99,7 +99,7 @@ export function AnalyticsScreen() {
       <View style={styles.content}>
         {/* Log Weight Button */}
         <TouchableOpacity
-          style={[styles.logWeightBtn, { backgroundColor: colors.primary + '15' }]}
+          style={[styles.logWeightBtn, { backgroundColor: colors.muted }]}
           onPress={() => setShowWeightInput(!showWeightInput)}
           activeOpacity={0.7}
         >

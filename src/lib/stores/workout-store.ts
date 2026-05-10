@@ -1,4 +1,5 @@
 import type { WorkoutSession, PersonalRecord } from '@/types';
+import { parseExercises } from '@/lib/utils';
 
 export async function getRecentWorkouts(limit = 20): Promise<WorkoutSession[]> {
   const res = await fetch(`/api/fitness/workouts?limit=${limit}`);
@@ -68,10 +69,6 @@ export async function getLatestPRs(): Promise<Map<string, PersonalRecord>> {
   return prMap;
 }
 
-/** Parse exercises JSON string back into an object */
 function parseWorkoutSession(raw: Record<string, unknown>): WorkoutSession {
-  return {
-    ...raw,
-    exercises: typeof raw.exercises === 'string' ? JSON.parse(raw.exercises as string) : raw.exercises,
-  } as unknown as WorkoutSession;
+  return { ...raw, exercises: parseExercises(raw.exercises) } as unknown as WorkoutSession;
 }

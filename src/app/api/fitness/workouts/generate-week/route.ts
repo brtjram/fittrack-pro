@@ -3,6 +3,7 @@ import { getAuthUserId } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
 import { generateNextWorkout } from '@/lib/algorithms/workout-generator';
 import { getWorkoutPlan } from '@/lib/data/workout-templates';
+import { parseExercises } from '@/lib/utils';
 import type { WorkoutSession } from '@/types';
 
 // Training day offsets from Monday for each split (0=Mon, 1=Tue, …, 6=Sun)
@@ -81,12 +82,12 @@ export async function POST() {
   // Running session list grows as we generate each workout so chaining works correctly
   let runningSessions: WorkoutSession[] = rawRecent.map((s) => ({
     ...s,
-    exercises: typeof s.exercises === 'string' ? JSON.parse(s.exercises) : s.exercises,
+    exercises: parseExercises(s.exercises),
   })) as unknown as WorkoutSession[];
 
   // Deduplicate existing sessions by date (keep only one per date)
   const seenDates = new Set<string>();
-  const results: (typeof rawRecent[0] & { exercises: unknown })[] = existingThisWeek
+  const results: (Omit<typeof rawRecent[0], 'exercises'> & { exercises: unknown })[] = existingThisWeek
     .filter((s) => { if (seenDates.has(s.date)) return false; seenDates.add(s.date); return true; })
     .map((s) => ({ ...s, exercises: typeof s.exercises === 'string' ? JSON.parse(s.exercises) : s.exercises }));
 

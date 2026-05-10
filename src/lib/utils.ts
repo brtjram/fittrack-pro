@@ -35,6 +35,14 @@ export function getWeekNumber(date: Date): number {
   return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
 }
 
+/** Safely parse exercises stored as JSON (handles single and double encoding) */
+export function parseExercises(raw: unknown): unknown[] {
+  let v = raw;
+  if (typeof v === 'string') { try { v = JSON.parse(v); } catch { return []; } }
+  if (typeof v === 'string') { try { v = JSON.parse(v); } catch { return []; } }
+  return Array.isArray(v) ? v : [];
+}
+
 export function movingAverage(values: number[], window: number): number {
   if (values.length === 0) return 0;
   const slice = values.slice(-window);

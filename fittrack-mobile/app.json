@@ -15,29 +15,39 @@
       "backgroundColor": "#6366f1"
     },
     "updates": {
-      "fallbackToCacheTimeout": 0,
-      "url": "https://u.expo.dev/YOUR_PROJECT_ID"
+      "fallbackToCacheTimeout": 0
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.fittrackpro.app",
-      "buildNumber": "1",
+      "bundleIdentifier": "com.brtjram.fittrackpro",
+      "buildNumber": "4",
       "config": {
         "usesNonExemptEncryption": false
       },
       "infoPlist": {
         "NSHealthShareUsageDescription": "FitTrack Pro reads your health data to track steps, calories, and weight automatically.",
         "NSHealthUpdateUsageDescription": "FitTrack Pro can log workouts to Apple Health.",
-        "UIBackgroundModes": ["fetch", "remote-notification"]
+        "UIBackgroundModes": [
+          "fetch",
+          "remote-notification"
+        ]
       },
       "privacyManifests": {
         "NSPrivacyAccessedAPITypes": [
           {
             "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
-            "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
           }
         ]
+      },
+      "entitlements": {
+        "com.apple.developer.healthkit": true,
+        "com.apple.developer.healthkit.background-delivery": true
       }
     },
     "android": {
@@ -45,7 +55,11 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#6366f1"
       },
-      "package": "com.fittrackpro.app"
+      "package": "com.brtjram.fittrackpro",
+      "permissions": [
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.WAKE_LOCK"
+      ]
     },
     "plugins": [
       "expo-secure-store",
@@ -58,21 +72,11 @@
         }
       ]
     ],
-    "entitlements": {
-      "com.apple.developer.healthkit": true,
-      "com.apple.developer.healthkit.background-delivery": true,
-      "com.apple.developer.healthkit.access": [
-        "HKQuantityTypeIdentifierStepCount",
-        "HKQuantityTypeIdentifierActiveEnergyBurned",
-        "HKQuantityTypeIdentifierBodyMass",
-        "HKQuantityTypeIdentifierHeartRate"
-      ],
-      "aps-environment": "production"
-    },
     "extra": {
       "eas": {
-        "projectId": "YOUR_EAS_PROJECT_ID"
+        "projectId": "7245cad8-04f3-485f-93ea-e933df52dd22"
       }
-    }
+    },
+    "owner": "brtjram"
   }
 }

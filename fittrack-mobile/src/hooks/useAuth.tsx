@@ -12,6 +12,7 @@ interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithToken: (token: string, user: AuthUser) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -19,6 +20,7 @@ const AuthContext = createContext<AuthContextValue>({
   user: null,
   loading: true,
   login: async () => {},
+  loginWithToken: async () => {},
   logout: async () => {},
 });
 
@@ -28,11 +30,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     (async () => {
-      const [token, stored] = await Promise.all([getToken(), getUser()]);
-      if (token && stored) {
-        setUser(stored);
+      try {
+        const [token, stored] = await Promise.all([getToken(), getUser()]);
+        if (token && stored) {
+          setUser(stored);
+        }
+      } catch (e) {
+        console.warn('Failed to restore auth session:', e);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     })();
   }, []);
 
@@ -43,6 +50,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(result.user);
   }, []);
 
+  const loginWithToken = useCallback(async (token: string, user: AuthUser) => {
+    await saveToken(token);
+    await saveUser(user);
+    setUser(user);
+  }, []);
+
   const logout = useCallback(async () => {
     await removeToken();
     await removeUser();
@@ -50,7 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, loginWithToken, logout }}>
       {children}
     </AuthContext.Provider>
   );

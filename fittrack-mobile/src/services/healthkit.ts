@@ -42,18 +42,24 @@ export interface HealthKitStatus {
 // ==================== Status ====================
 
 export async function getHealthKitStatus(): Promise<HealthKitStatus> {
-  if (Platform.OS !== 'ios') {
-    return { available: false, enabled: false, lastSync: null };
-  }
+  const hk = getHealthKit();
+  if (!hk) return { available: false, enabled: false, lastSync: null };
+
+  const isAvailable = await new Promise<boolean>((resolve) => {
+    try {
+      hk.isAvailable((error: string | null, available: boolean) => {
+        resolve(!error && available);
+      });
+    } catch {
+      resolve(false);
+    }
+  });
+
+  if (!isAvailable) return { available: false, enabled: false, lastSync: null };
 
   const enabled = (await getValue(HEALTHKIT_ENABLED_KEY)) === 'true';
   const lastSync = await getValue(HEALTHKIT_LAST_SYNC_KEY);
-
-  return {
-    available: true,
-    enabled,
-    lastSync,
-  };
+  return { available: true, enabled, lastSync };
 }
 
 export async function setHealthKitEnabled(enabled: boolean): Promise<void> {

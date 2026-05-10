@@ -46,3 +46,21 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+.env*.local
+
+# expo / react-native (root-level artifacts from accidental prebuild)
+/.expo/
+/ios/
+/app.json
+
+# mobile workspace — managed by fittrack-mobile/.gitignore
+fittrack-mobile/node_modules/
+fittrack-mobile/.expo/
+fittrack-mobile/ios/
+fittrack-mobile/android/
+
+# claude
+.claude/
+
+# patches
+web-improvements.patch

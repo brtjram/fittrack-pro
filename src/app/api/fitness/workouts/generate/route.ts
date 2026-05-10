@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getAuthUserId } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
 import { generateNextWorkout } from '@/lib/algorithms/workout-generator';
+import { parseExercises } from '@/lib/utils';
 import type { WorkoutSession } from '@/types';
 
 export async function POST() {
@@ -22,7 +23,7 @@ export async function POST() {
 
   const recentSessions: WorkoutSession[] = raw.map((s) => ({
     ...s,
-    exercises: typeof s.exercises === 'string' ? JSON.parse(s.exercises) : s.exercises,
+    exercises: parseExercises(s.exercises),
   })) as unknown as WorkoutSession[];
 
   const userProfile = {

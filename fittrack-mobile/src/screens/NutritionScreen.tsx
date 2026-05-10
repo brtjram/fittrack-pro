@@ -160,7 +160,7 @@ export function NutritionScreen() {
                     </Text>
                   </View>
                   <TouchableOpacity
-                    style={[styles.addBtn, { backgroundColor: colors.primary + '15' }]}
+                    style={[styles.addBtn, { backgroundColor: colors.border }]}
                     onPress={() => { setSearchMeal(meal); setSearchQuery(''); setTab('common'); }}
                     activeOpacity={0.7}
                   >

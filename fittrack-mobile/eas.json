@@ -20,19 +20,19 @@
     "production": {
       "ios": {
         "buildConfiguration": "Release",
-        "autoIncrement": true
+        "autoIncrement": true,
+        "image": "macos-sequoia-15.5-xcode-26.0"
       },
       "env": {
-        "API_BASE_URL": "https://your-app.vercel.app"
+        "EXPO_PUBLIC_API_URL": "https://myfittrack.pro"
       }
     }
   },
   "submit": {
     "production": {
       "ios": {
-        "appleId": "your-apple-id@example.com",
-        "ascAppId": "YOUR_APP_STORE_CONNECT_APP_ID",
-        "appleTeamId": "YOUR_APPLE_TEAM_ID"
+        "appleId": "bharathjayaram@outlook.com",
+        "ascAppId": "6767952663"
       }
     }
   }

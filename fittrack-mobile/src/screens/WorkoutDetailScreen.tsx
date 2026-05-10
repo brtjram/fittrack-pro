@@ -89,7 +89,7 @@ function RatingButton({ value, selected, onPress, colors }: {
 // ─── Main screen ────────────────────────────────────────────────────────────
 export function WorkoutDetailScreen({ route, navigation }: { route: any; navigation: any }) {
   const { sessionId } = route.params as { sessionId: string };
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const [session, setSession] = useState<WorkoutSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [phase, setPhase] = useState<Phase>('workout');
@@ -283,7 +283,7 @@ export function WorkoutDetailScreen({ route, navigation }: { route: any; navigat
             onPress={() => navigation.navigate('WorkoutsList')}
             activeOpacity={0.8}
           >
-            <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>Back to Workouts</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: colors.primaryForeground }}>Back to Workouts</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -392,7 +392,7 @@ export function WorkoutDetailScreen({ route, navigation }: { route: any; navigat
         >
           {saving
             ? <ActivityIndicator size="small" color="#fff" />
-            : <Text style={{ fontSize: 16, fontWeight: '700', color: '#fff' }}>
+            : <Text style={{ fontSize: 16, fontWeight: '700', color: allDone ? '#fff' : colors.primaryForeground }}>
                 {allDone ? 'Finish Workout' : `${completedSets}/${totalSets} Sets Done`}
               </Text>}
         </TouchableOpacity>

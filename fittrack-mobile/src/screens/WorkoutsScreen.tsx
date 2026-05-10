@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, Alert, StyleSheet,
 } from 'react-native';
-import { Dumbbell, Trash2, RotateCcw, Clock, CheckCircle, Plus, Sparkles } from 'lucide-react-native';
+import { Dumbbell, Trash2, RotateCcw, CheckCircle, ChevronRight, Zap, Calendar } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import * as api from '../services/api';
 import type { WorkoutSession } from '@fittrack/core';
@@ -64,7 +64,6 @@ export function WorkoutsScreen({ navigation }: { navigation: any }) {
         Alert.alert('Setup Required', 'Complete your profile in Settings before planning your week.');
         return;
       }
-      // Merge into existing list, deduplicate by sessionId
       setWorkouts((prev) => {
         const existingIds = new Set(prev.map((w) => w.sessionId));
         const newSessions = sessions.filter((s) => !existingIds.has(s.sessionId));
@@ -104,7 +103,7 @@ export function WorkoutsScreen({ navigation }: { navigation: any }) {
   }, [deletedWorkouts]);
 
   const today = toDateString();
-  const todayWorkout = workouts.find((w) => w.date === today && !w.completed);
+  const todayWorkouts = workouts.filter((w) => w.date === today && !w.completed);
   const upcomingWorkouts = workouts.filter((w) => !w.completed && w.date > today);
   const inProgressWorkouts = workouts.filter((w) => !w.completed && w.date !== today && w.date <= today);
   const completedWorkouts = workouts.filter((w) => w.completed);
@@ -123,31 +122,40 @@ export function WorkoutsScreen({ navigation }: { navigation: any }) {
     });
     const exerciseCount = session.exercises.length;
     const completedCount = session.exercises.filter((e) => e.sets.every((s) => s.completed)).length;
+    const isToday = session.date === today;
 
     return (
       <View key={session.sessionId} style={styles.cardRow}>
         <TouchableOpacity
-          style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+          style={[
+            styles.card,
+            { backgroundColor: colors.card, borderColor: isToday && !session.completed ? colors.primary : colors.border },
+            isToday && !session.completed && { borderWidth: 1.5 },
+          ]}
           onPress={() => navigation.navigate('WorkoutDetail', { sessionId: session.sessionId })}
           activeOpacity={0.7}
         >
-          <View style={styles.cardContent}>
+          <View style={styles.cardLeft}>
+            <View style={[styles.cardIcon, { backgroundColor: session.completed ? colors.success + '20' : colors.primary + '15' }]}>
+              {session.completed
+                ? <CheckCircle size={16} color={colors.success} />
+                : <Dumbbell size={16} color={colors.primary} />
+              }
+            </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.cardName, { color: colors.foreground }]}>{session.name}</Text>
-              <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 2 }}>
+              <Text style={[styles.cardName, { color: colors.foreground }]} numberOfLines={1}>{session.name}</Text>
+              <Text style={[styles.cardMeta, { color: colors.mutedForeground }]}>
                 {dateStr} · {exerciseCount} exercises
               </Text>
             </View>
-            {session.completed ? (
-              <CheckCircle size={18} color={colors.success} />
-            ) : (
-              <View style={styles.progressBadge}>
-                <Clock size={12} color={colors.primary} />
-                <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600', marginLeft: 4 }}>
-                  {completedCount}/{exerciseCount}
-                </Text>
-              </View>
+          </View>
+          <View style={styles.cardRight}>
+            {!session.completed && (
+              <Text style={[styles.cardProgress, { color: colors.primary }]}>
+                {completedCount}/{exerciseCount}
+              </Text>
             )}
+            <ChevronRight size={16} color={colors.mutedForeground} />
           </View>
         </TouchableOpacity>
         <TouchableOpacity
@@ -155,7 +163,7 @@ export function WorkoutsScreen({ navigation }: { navigation: any }) {
           onPress={() => handleDelete(session.sessionId)}
           activeOpacity={0.6}
         >
-          <Trash2 size={16} color={colors.destructive} />
+          <Trash2 size={15} color={colors.destructive} />
         </TouchableOpacity>
       </View>
     );
@@ -163,79 +171,74 @@ export function WorkoutsScreen({ navigation }: { navigation: any }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-    {/* Generate buttons — always visible at top */}
-    <View style={styles.generateRow}>
-      <TouchableOpacity
-        style={[styles.generateBtn, { backgroundColor: colors.primary, flex: 1 }]}
-        onPress={handleGenerate}
-        disabled={generating || generatingWeek}
-        activeOpacity={0.8}
-      >
-        {generating
-          ? <ActivityIndicator size="small" color="#fff" />
-          : <Sparkles size={15} color="#fff" />}
-        <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff', marginLeft: 6 }}>
-          {generating ? 'Generating…' : 'Next Workout'}
-        </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[styles.generateBtn, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.primary, flex: 1 }]}
-        onPress={handleGenerateWeek}
-        disabled={generating || generatingWeek}
-        activeOpacity={0.8}
-      >
-        {generatingWeek
-          ? <ActivityIndicator size="small" color={colors.primary} />
-          : <Sparkles size={15} color={colors.primary} />}
-        <Text style={{ fontSize: 13, fontWeight: '700', color: colors.primary, marginLeft: 6 }}>
-          {generatingWeek ? 'Planning…' : 'Plan This Week'}
-        </Text>
-      </TouchableOpacity>
-    </View>
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: colors.background }]}>
+        <Text style={[styles.screenTitle, { color: colors.foreground }]}>Train</Text>
+        <View style={styles.generateRow}>
+          <TouchableOpacity
+            style={[styles.generateBtn, { backgroundColor: colors.primary }]}
+            onPress={handleGenerate}
+            disabled={generating || generatingWeek}
+            activeOpacity={0.85}
+          >
+            {generating
+              ? <ActivityIndicator size="small" color={colors.primaryForeground} />
+              : <Zap size={15} color={colors.primaryForeground} />}
+            <Text style={[styles.generateBtnText, { color: colors.primaryForeground }]}>
+              {generating ? 'Generating…' : 'Next Workout'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.generateBtn, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }]}
+            onPress={handleGenerateWeek}
+            disabled={generating || generatingWeek}
+            activeOpacity={0.85}
+          >
+            {generatingWeek
+              ? <ActivityIndicator size="small" color={colors.primary} />
+              : <Calendar size={15} color={colors.primary} />}
+            <Text style={[styles.generateBtnText, { color: colors.primary }]}>
+              {generatingWeek ? 'Planning…' : 'Plan Week'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
 
-    <ScrollView
-      style={{ flex: 1 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
-    >
-      <View style={styles.content}>
-        {/* Today */}
-        {todayWorkout && (
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 16 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+      >
+        {todayWorkouts.length > 0 && (
           <Section title="Today" colors={colors}>
-            {renderWorkoutCard(todayWorkout)}
+            {todayWorkouts.map(renderWorkoutCard)}
           </Section>
         )}
 
-        {/* Upcoming */}
         {upcomingWorkouts.length > 0 && (
           <Section title="Upcoming" colors={colors}>
             {upcomingWorkouts.map(renderWorkoutCard)}
           </Section>
         )}
 
-        {/* In Progress */}
         {inProgressWorkouts.length > 0 && (
           <Section title="In Progress" colors={colors}>
             {inProgressWorkouts.map(renderWorkoutCard)}
           </Section>
         )}
 
-        {/* Completed */}
         {completedWorkouts.length > 0 && (
           <Section title="Recent" colors={colors}>
             {completedWorkouts.slice(0, 5).map(renderWorkoutCard)}
           </Section>
         )}
 
-        {/* Deleted */}
         {deletedWorkouts.length > 0 && (
           <View style={{ marginTop: 8 }}>
             <TouchableOpacity onPress={() => setShowDeleted(!showDeleted)} style={styles.deletedToggle}>
-              <Trash2 size={14} color={colors.mutedForeground} />
-              <Text style={[styles.sectionTitle, { color: colors.mutedForeground, marginBottom: 0, marginLeft: 6 }]}>
-                Deleted ({deletedWorkouts.length})
-              </Text>
-              <Text style={{ fontSize: 11, color: colors.mutedForeground, marginLeft: 6 }}>
-                {showDeleted ? '(hide)' : '(show)'}
+              <Trash2 size={13} color={colors.mutedForeground} />
+              <Text style={[styles.deletedToggleText, { color: colors.mutedForeground }]}>
+                Deleted ({deletedWorkouts.length})  {showDeleted ? '↑' : '↓'}
               </Text>
             </TouchableOpacity>
             {showDeleted && deletedWorkouts.map((session) => (
@@ -246,44 +249,41 @@ export function WorkoutsScreen({ navigation }: { navigation: any }) {
                   </Text>
                   <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 2 }}>
                     {new Date(session.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                    {' · '}{session.exercises.length} exercises
                   </Text>
                 </View>
                 <TouchableOpacity
-                  style={[styles.reinstateBtn, { backgroundColor: colors.primary + '15' }]}
+                  style={[styles.reinstateBtn, { backgroundColor: colors.primary + '20' }]}
                   onPress={() => handleReinstate(session.sessionId)}
                   activeOpacity={0.7}
                 >
-                  <RotateCcw size={14} color={colors.primary} />
-                  <Text style={{ fontSize: 12, fontWeight: '500', color: colors.primary, marginLeft: 4 }}>Reinstate</Text>
+                  <RotateCcw size={13} color={colors.primary} />
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: colors.primary, marginLeft: 4 }}>Restore</Text>
                 </TouchableOpacity>
               </View>
             ))}
           </View>
         )}
 
-        {/* Empty */}
         {workouts.length === 0 && deletedWorkouts.length === 0 && (
           <View style={styles.emptyState}>
-            <Dumbbell size={48} color={colors.mutedForeground} />
-            <Text style={{ fontSize: 17, fontWeight: '600', color: colors.foreground, marginTop: 16 }}>
-              No workouts yet
-            </Text>
-            <Text style={{ fontSize: 13, color: colors.mutedForeground, textAlign: 'center', marginTop: 4, maxWidth: 260 }}>
-              Tap "Generate Next Workout" above to get a personalised plan based on your goals and history.
+            <View style={[styles.emptyIcon, { backgroundColor: colors.card }]}>
+              <Dumbbell size={32} color={colors.primary} />
+            </View>
+            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No workouts yet</Text>
+            <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
+              Tap "Next Workout" to get a plan personalised to your goals and training history.
             </Text>
           </View>
         )}
-      </View>
-    </ScrollView>
+      </ScrollView>
     </View>
   );
 }
 
 function Section({ title, colors, children }: { title: string; colors: any; children: React.ReactNode }) {
   return (
-    <View style={{ marginBottom: 16 }}>
-      <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>{title}</Text>
+    <View style={{ marginBottom: 24 }}>
+      <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>{title.toUpperCase()}</Text>
       {children}
     </View>
   );
@@ -291,18 +291,33 @@ function Section({ title, colors, children }: { title: string; colors: any; chil
 
 const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: { padding: 16 },
-  sectionTitle: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 },
-  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  card: { flex: 1, borderWidth: 1, borderRadius: 12, padding: 14 },
-  cardContent: { flexDirection: 'row', alignItems: 'center' },
-  cardName: { fontSize: 15, fontWeight: '600' },
-  progressBadge: { flexDirection: 'row', alignItems: 'center' },
+  header: { paddingTop: 60, paddingHorizontal: 16, paddingBottom: 12 },
+  screenTitle: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5, marginBottom: 12 },
+  generateRow: { flexDirection: 'row', gap: 8 },
+  generateBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 12, borderRadius: 12, gap: 6,
+  },
+  generateBtnText: { fontSize: 13, fontWeight: '700' },
+  sectionTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 10 },
+  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  card: { flex: 1, borderWidth: 1, borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'center' },
+  cardLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  cardIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  cardName: { fontSize: 14, fontWeight: '700', marginBottom: 2 },
+  cardMeta: { fontSize: 12 },
+  cardRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  cardProgress: { fontSize: 12, fontWeight: '700' },
   deleteBtn: { width: 40, height: 40, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  deletedToggle: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  deletedCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderStyle: 'dashed', borderRadius: 12, padding: 14, marginBottom: 8, opacity: 0.6 },
+  deletedToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
+  deletedToggleText: { fontSize: 12, fontWeight: '600' },
+  deletedCard: {
+    flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderStyle: 'dashed',
+    borderRadius: 12, padding: 12, marginBottom: 8, opacity: 0.65,
+  },
   reinstateBtn: { flexDirection: 'row', alignItems: 'center', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
-  generateRow: { flexDirection: 'row', gap: 10, marginHorizontal: 16, marginTop: 16, marginBottom: 4 },
-  generateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 13, borderRadius: 14 },
-  emptyState: { alignItems: 'center', paddingTop: 60 },
+  emptyState: { alignItems: 'center', paddingTop: 60, paddingHorizontal: 32 },
+  emptyIcon: { width: 72, height: 72, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  emptyTitle: { fontSize: 18, fontWeight: '700', marginBottom: 8 },
+  emptyDesc: { fontSize: 13, textAlign: 'center', lineHeight: 19 },
 });

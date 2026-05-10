@@ -7,7 +7,9 @@ import { Send, Bot, ShieldAlert } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import { getToken } from '../services/auth-storage';
 
-const API_BASE = __DEV__ ? 'http://localhost:3000' : 'https://your-app.vercel.app';
+const API_BASE = __DEV__
+  ? 'http://localhost:3000'
+  : (process.env.EXPO_PUBLIC_API_URL ?? 'https://myfittrack.pro');
 
 const SUGGESTED = [
   'What should I eat after a workout?',
@@ -216,7 +218,9 @@ export function ChatScreen() {
           disabled={!input.trim() || loading}
           activeOpacity={0.7}
         >
-          {loading ? <ActivityIndicator size="small" color="#fff" /> : <Send size={18} color="#fff" />}
+          {loading
+            ? <ActivityIndicator size="small" color={colors.primaryForeground} />
+            : <Send size={18} color={colors.primaryForeground} />}
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>

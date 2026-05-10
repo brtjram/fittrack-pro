@@ -1,4 +1,5 @@
 import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Home, Dumbbell, UtensilsCrossed, BarChart3, Settings, Bot } from 'lucide-react-native';
@@ -24,8 +25,9 @@ function WorkoutsStackNavigator() {
       headerStyle: { backgroundColor: colors.background },
       headerTintColor: colors.foreground,
       headerShadowVisible: false,
+      headerTitleStyle: { fontWeight: '700', fontSize: 17 },
     }}>
-      <WorkoutStack.Screen name="WorkoutsList" component={WorkoutsScreen} options={{ title: 'Workouts' }} />
+      <WorkoutStack.Screen name="WorkoutsList" component={WorkoutsScreen} options={{ headerShown: false }} />
       <WorkoutStack.Screen name="WorkoutDetail" component={WorkoutDetailScreen} options={{ title: 'Workout' }} />
     </WorkoutStack.Navigator>
   );
@@ -38,39 +40,63 @@ function SettingsStackNavigator() {
       headerStyle: { backgroundColor: colors.background },
       headerTintColor: colors.foreground,
       headerShadowVisible: false,
+      headerTitleStyle: { fontWeight: '700', fontSize: 17 },
     }}>
-      <SettingsStack.Screen name="SettingsMain" component={SettingsScreen} options={{ title: 'Settings' }} />
+      <SettingsStack.Screen name="SettingsMain" component={SettingsScreen} options={{ headerShown: false }} />
       <SettingsStack.Screen name="NotificationSettings" component={NotificationSettingsScreen} options={{ title: 'Notifications' }} />
     </SettingsStack.Navigator>
   );
 }
 
+function TabIcon({ icon, label, focused, colors }: { icon: React.ReactNode; label: string; focused: boolean; colors: any }) {
+  return (
+    <View style={[tabStyles.iconWrap, focused && { backgroundColor: colors.primary + '18' }]}>
+      {icon}
+    </View>
+  );
+}
+
+const tabStyles = StyleSheet.create({
+  iconWrap: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5, alignItems: 'center', justifyContent: 'center' },
+});
+
 export function AppNavigator() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   return (
     <Tab.Navigator
-      screenOptions={{
+      screenOptions={({ route }) => ({
         tabBarStyle: {
-          backgroundColor: colors.card,
+          backgroundColor: isDark ? '#111111' : colors.card,
           borderTopColor: colors.border,
-          paddingBottom: 4,
-          height: 56,
+          borderTopWidth: 1,
+          paddingBottom: 8,
+          paddingTop: 8,
+          height: 64,
         },
-        tabBarActiveTintColor: colors.primary,
+        tabBarActiveTintColor: isDark ? colors.primary : colors.primary,
         tabBarInactiveTintColor: colors.mutedForeground,
-        tabBarLabelStyle: { fontSize: 10, fontWeight: '600' },
+        tabBarLabelStyle: { fontSize: 10, fontWeight: '700', marginTop: 2, letterSpacing: 0.2 },
+        tabBarShowLabel: true,
         headerStyle: { backgroundColor: colors.background },
         headerTintColor: colors.foreground,
         headerShadowVisible: false,
-      }}
+        headerTitleStyle: { fontWeight: '700', fontSize: 17 },
+      })}
     >
       <Tab.Screen
         name="Home"
         component={DashboardScreen}
         options={{
           headerShown: false,
-          tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon
+              icon={<Home size={22} color={color} strokeWidth={focused ? 2.5 : 2} />}
+              label="Home"
+              focused={focused}
+              colors={colors}
+            />
+          ),
         }}
       />
       <Tab.Screen
@@ -78,7 +104,14 @@ export function AppNavigator() {
         component={WorkoutsStackNavigator}
         options={{
           headerShown: false,
-          tabBarIcon: ({ color, size }) => <Dumbbell size={size} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon
+              icon={<Dumbbell size={22} color={color} strokeWidth={focused ? 2.5 : 2} />}
+              label="Train"
+              focused={focused}
+              colors={colors}
+            />
+          ),
         }}
       />
       <Tab.Screen
@@ -86,7 +119,15 @@ export function AppNavigator() {
         component={NutritionScreen}
         options={{
           title: 'Nutrition',
-          tabBarIcon: ({ color, size }) => <UtensilsCrossed size={size} color={color} />,
+          headerTitle: 'Nutrition',
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon
+              icon={<UtensilsCrossed size={22} color={color} strokeWidth={focused ? 2.5 : 2} />}
+              label="Eat"
+              focused={focused}
+              colors={colors}
+            />
+          ),
         }}
       />
       <Tab.Screen
@@ -94,7 +135,14 @@ export function AppNavigator() {
         component={ChatScreen}
         options={{
           title: 'AI Coach',
-          tabBarIcon: ({ color, size }) => <Bot size={size} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon
+              icon={<Bot size={22} color={color} strokeWidth={focused ? 2.5 : 2} />}
+              label="Coach"
+              focused={focused}
+              colors={colors}
+            />
+          ),
         }}
       />
       <Tab.Screen
@@ -102,7 +150,14 @@ export function AppNavigator() {
         component={AnalyticsScreen}
         options={{
           title: 'Analytics',
-          tabBarIcon: ({ color, size }) => <BarChart3 size={size} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon
+              icon={<BarChart3 size={22} color={color} strokeWidth={focused ? 2.5 : 2} />}
+              label="Stats"
+              focused={focused}
+              colors={colors}
+            />
+          ),
         }}
       />
       <Tab.Screen
@@ -110,8 +165,15 @@ export function AppNavigator() {
         component={SettingsStackNavigator}
         options={{
           headerShown: false,
-          title: 'Settings',
-          tabBarIcon: ({ color, size }) => <Settings size={size} color={color} />,
+          title: 'Profile',
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon
+              icon={<Settings size={22} color={color} strokeWidth={focused ? 2.5 : 2} />}
+              label="Profile"
+              focused={focused}
+              colors={colors}
+            />
+          ),
         }}
       />
     </Tab.Navigator>

@@ -3,9 +3,10 @@ import {
   View, Text, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, Alert, StyleSheet,
 } from 'react-native';
-import { Dumbbell, UtensilsCrossed, BarChart3, Flame, Target, Scale, AlertCircle, ArrowRight } from 'lucide-react-native';
+import { Dumbbell, UtensilsCrossed, BarChart3, Flame, Target, Scale, Zap, ChevronRight, TrendingUp } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import { useAuth } from '../hooks/useAuth';
+import { LogoMark } from '../components/Logo';
 import * as api from '../services/api';
 import { calculateMacroTargets, calculateAdaptiveAdjustment } from '@fittrack/core/src/algorithms/macro-calculator';
 import { analyzeActivity, shouldSuggestRestDay } from '@fittrack/core/src/algorithms/activity-analyzer';
@@ -13,9 +14,9 @@ import type { WorkoutSession } from '@fittrack/core';
 
 function getGreeting(): string {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
+  if (hour < 12) return 'Morning';
+  if (hour < 17) return 'Afternoon';
+  return 'Evening';
 }
 
 function toDateString(d?: Date): string {
@@ -24,7 +25,7 @@ function toDateString(d?: Date): string {
 }
 
 export function DashboardScreen({ navigation }: { navigation: any }) {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -68,7 +69,7 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
         }
 
         if (activityInsight.averageSteps > 0 && activityInsight.category === 'sedentary') {
-          insightsList.push('Your step count is low. Try a 15-minute walk after meals to boost daily movement.');
+          insightsList.push('Step count low. Try a 15-min walk after meals.');
         }
 
         const completedThisWeek = w.filter((s) => {
@@ -81,9 +82,7 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
         if (restSuggestion.suggest) insightsList.push(restSuggestion.reason);
 
         if (eaten.protein < macros.protein * 0.5 && new Date().getHours() >= 14) {
-          insightsList.push(
-            `You've only had ${Math.round(eaten.protein)}g protein so far. You need ${Math.round(macros.protein - eaten.protein)}g more today.`,
-          );
+          insightsList.push(`Only ${Math.round(eaten.protein)}g protein logged. You need ${Math.round(macros.protein - eaten.protein)}g more today.`);
         }
 
         setInsights(insightsList);
@@ -129,178 +128,237 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
 
   const todayWorkout = workouts.find((w) => w.date === toDateString() && !w.completed);
   const caloriePercent = todayCalories.target > 0
-    ? Math.round((todayCalories.eaten / todayCalories.target) * 100)
+    ? Math.min(Math.round((todayCalories.eaten / todayCalories.target) * 100), 100)
     : 0;
+  const proteinPercent = todayProtein.target > 0
+    ? Math.min(Math.round((todayProtein.eaten / todayProtein.target) * 100), 100)
+    : 0;
+
+  const bg = colors.background;
+  const accent = colors.primary;
 
   if (loading) {
     return (
-      <View style={[styles.centered, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={[styles.centered, { backgroundColor: bg }]}>
+        <ActivityIndicator size="large" color={accent} />
       </View>
     );
   }
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+      style={{ flex: 1, backgroundColor: bg }}
+      contentContainerStyle={{ paddingBottom: 32 }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={accent} />}
     >
-      {/* Hero */}
-      <View style={[styles.hero, { backgroundColor: colors.primary + '15' }]}>
-        <Text style={[styles.greeting, { color: colors.foreground }]}>
-          {getGreeting()}, {user?.name || 'there'}
-        </Text>
-        <Text style={[styles.goalText, { color: colors.mutedForeground }]}>
-          Ready to crush your goals today.
-        </Text>
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: bg }]}>
+        <View>
+          <Text style={[styles.greeting, { color: colors.mutedForeground }]}>{getGreeting()},</Text>
+          <Text style={[styles.name, { color: colors.foreground }]}>{user?.name?.split(' ')[0] || 'Athlete'}</Text>
+        </View>
+        <LogoMark size={36} color={accent} bg={isDark ? '#1A1A1A' : '#F0F0F0'} />
       </View>
 
-      <View style={styles.content}>
-        {/* Stat Cards */}
-        <View style={styles.statsGrid}>
-          <StatCard
-            icon={<Flame size={18} color={caloriePercent > 100 ? colors.destructive : colors.primary} />}
-            label="Calories Today"
-            value={`${Math.round(todayCalories.eaten)} / ${Math.round(todayCalories.target)}`}
-            colors={colors}
-            borderColor={caloriePercent > 100 ? colors.destructive + '30' : undefined}
-          />
-          <StatCard
-            icon={<Target size={18} color={colors.primary} />}
-            label="Protein"
-            value={`${Math.round(todayProtein.eaten)}g / ${Math.round(todayProtein.target)}g`}
-            colors={colors}
-          />
-          <StatCard
-            icon={<Scale size={18} color={colors.primary} />}
-            label="Weight"
-            value={latestWeight ? `${latestWeight} lbs` : '--'}
-            colors={colors}
-          />
-          <StatCard
-            icon={<Dumbbell size={18} color={colors.primary} />}
-            label="Workouts / Week"
-            value={String(completedThisWeek)}
-            colors={colors}
-          />
+      {/* Train CTA */}
+      <TouchableOpacity
+        style={[styles.trainCta, { backgroundColor: accent }]}
+        onPress={() => {
+          if (todayWorkout) {
+            navigation.navigate('Train', { screen: 'WorkoutDetail', params: { sessionId: todayWorkout.sessionId } });
+          } else {
+            handleGenerateWorkout();
+          }
+        }}
+        disabled={generating}
+        activeOpacity={0.85}
+      >
+        <View style={styles.trainCtaContent}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.trainCtaLabel, { color: colors.primaryForeground + 'BB' }]}>
+              {todayWorkout ? 'CONTINUE' : 'TODAY'}
+            </Text>
+            <Text style={[styles.trainCtaTitle, { color: colors.primaryForeground }]}>
+              {generating ? 'Building plan…' : todayWorkout ? todayWorkout.name : "Generate Workout"}
+            </Text>
+            {todayWorkout && (
+              <Text style={{ fontSize: 13, color: colors.primaryForeground + 'AA', marginTop: 2 }}>
+                {todayWorkout.exercises.filter((e) => e.sets.every((s) => s.completed)).length}/{todayWorkout.exercises.length} exercises done
+              </Text>
+            )}
+            {!todayWorkout && !generating && (
+              <Text style={{ fontSize: 13, color: colors.primaryForeground + 'AA', marginTop: 2 }}>
+                Adapts to your history &amp; goals
+              </Text>
+            )}
+          </View>
+          {generating
+            ? <ActivityIndicator color={colors.primaryForeground} />
+            : <View style={[styles.trainCtaArrow, { backgroundColor: colors.primaryForeground + '20' }]}>
+                <ChevronRight size={20} color={colors.primaryForeground} />
+              </View>
+          }
         </View>
+      </TouchableOpacity>
 
-        {/* Today's Workout */}
-        <TouchableOpacity
-          style={[styles.workoutCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-          onPress={() => {
-            if (todayWorkout) {
-              navigation.navigate('Train', {
-                screen: 'WorkoutDetail',
-                params: { sessionId: todayWorkout.sessionId },
-              });
-            } else {
-              handleGenerateWorkout();
-            }
-          }}
-          disabled={generating}
-          activeOpacity={0.7}
-        >
-          {todayWorkout ? (
-            <View style={styles.workoutRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 10, fontWeight: '600', color: colors.primary, textTransform: 'uppercase' }}>
-                  Continue Workout
-                </Text>
-                <Text style={[styles.workoutName, { color: colors.foreground }]}>{todayWorkout.name}</Text>
-                <Text style={{ fontSize: 13, color: colors.mutedForeground, marginTop: 2 }}>
-                  {todayWorkout.exercises.filter((e) => e.sets.every((s) => s.completed)).length}/{todayWorkout.exercises.length} exercises done
-                </Text>
-              </View>
-              <ArrowRight size={20} color={colors.primary} />
-            </View>
-          ) : (
-            <View style={styles.workoutRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 10, fontWeight: '600', color: colors.primary, textTransform: 'uppercase' }}>
-                  {generating ? 'Building your plan…' : 'Ready to train?'}
-                </Text>
-                <Text style={[styles.workoutName, { color: colors.foreground }]}>
-                  {generating ? 'Generating Workout' : "Generate Today's Workout"}
-                </Text>
-                <Text style={{ fontSize: 13, color: colors.mutedForeground, marginTop: 2 }}>
-                  Adapts to your history, ratings &amp; goals
-                </Text>
-              </View>
-              {generating
-                ? <ActivityIndicator size="small" color={colors.primary} />
-                : <Dumbbell size={20} color={colors.primary} />}
-            </View>
-          )}
-        </TouchableOpacity>
-
-        {/* Insights */}
-        {insights.length > 0 && (
-          <View>
-            <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Smart Insights</Text>
-            {insights.map((insight, i) => (
-              <View key={i} style={[styles.insightCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <AlertCircle size={16} color={colors.primary} style={{ marginTop: 2 }} />
-                <Text style={{ flex: 1, fontSize: 13, color: colors.mutedForeground, marginLeft: 8 }}>
-                  {insight}
-                </Text>
-              </View>
-            ))}
+      {/* Stats Row */}
+      <View style={styles.statsRow}>
+        <MacroRing
+          label="Calories"
+          value={Math.round(todayCalories.eaten)}
+          target={Math.round(todayCalories.target)}
+          percent={caloriePercent}
+          unit="kcal"
+          colors={colors}
+          accent={accent}
+        />
+        <MacroRing
+          label="Protein"
+          value={Math.round(todayProtein.eaten)}
+          target={Math.round(todayProtein.target)}
+          percent={proteinPercent}
+          unit="g"
+          colors={colors}
+          accent={accent}
+        />
+        <View style={[styles.statPill, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Dumbbell size={16} color={accent} />
+          <Text style={[styles.statPillValue, { color: colors.foreground }]}>{completedThisWeek}</Text>
+          <Text style={[styles.statPillLabel, { color: colors.mutedForeground }]}>this week</Text>
+        </View>
+        {latestWeight !== null && (
+          <View style={[styles.statPill, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Scale size={16} color={accent} />
+            <Text style={[styles.statPillValue, { color: colors.foreground }]}>{latestWeight}</Text>
+            <Text style={[styles.statPillLabel, { color: colors.mutedForeground }]}>lbs</Text>
           </View>
         )}
-
-        {/* Quick Links */}
-        <View style={styles.quickLinks}>
-          <QuickLink icon={<UtensilsCrossed size={22} color={colors.primary} />} label="Log Food" colors={colors} onPress={() => navigation.navigate('Eat')} />
-          <QuickLink icon={<BarChart3 size={22} color={colors.primary} />} label="Analytics" colors={colors} onPress={() => navigation.navigate('Stats')} />
-          <QuickLink icon={<Dumbbell size={22} color={colors.primary} />} label="Workouts" colors={colors} onPress={() => navigation.navigate('Train')} />
-        </View>
       </View>
+
+      {/* Quick Actions */}
+      <View style={styles.sectionHeader}>
+        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>QUICK ACTIONS</Text>
+      </View>
+      <View style={styles.quickGrid}>
+        <QuickAction
+          icon={<UtensilsCrossed size={20} color={accent} />}
+          label="Log Food"
+          colors={colors}
+          onPress={() => navigation.navigate('Eat')}
+        />
+        <QuickAction
+          icon={<Dumbbell size={20} color={accent} />}
+          label="Train"
+          colors={colors}
+          onPress={() => navigation.navigate('Train')}
+        />
+        <QuickAction
+          icon={<BarChart3 size={20} color={accent} />}
+          label="Analytics"
+          colors={colors}
+          onPress={() => navigation.navigate('Stats')}
+        />
+        <QuickAction
+          icon={<TrendingUp size={20} color={accent} />}
+          label="AI Coach"
+          colors={colors}
+          onPress={() => navigation.navigate('Coach')}
+        />
+      </View>
+
+      {/* Insights */}
+      {insights.length > 0 && (
+        <View>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>SMART INSIGHTS</Text>
+          </View>
+          {insights.map((insight, i) => (
+            <View key={i} style={[styles.insightCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={[styles.insightDot, { backgroundColor: accent }]} />
+              <Text style={{ flex: 1, fontSize: 13, lineHeight: 19, color: colors.foreground }}>
+                {insight}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
     </ScrollView>
   );
 }
 
-function StatCard({ icon, label, value, colors, borderColor }: {
-  icon: React.ReactNode; label: string; value: string;
-  colors: any; borderColor?: string;
+function MacroRing({ label, value, target, percent, unit, colors, accent }: {
+  label: string; value: number; target: number; percent: number;
+  unit: string; colors: any; accent: string;
 }) {
   return (
-    <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: borderColor || colors.border }]}>
-      {icon}
-      <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 6 }}>{label}</Text>
-      <Text style={{ fontSize: 15, fontWeight: '700', color: colors.foreground, marginTop: 2 }}>{value}</Text>
+    <View style={[styles.macroRing, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <Text style={[styles.macroValue, { color: colors.foreground }]}>{value}</Text>
+      <Text style={[styles.macroUnit, { color: accent }]}>{unit}</Text>
+      <Text style={[styles.macroLabel, { color: colors.mutedForeground }]}>{label}</Text>
+      <View style={[styles.macroBar, { backgroundColor: colors.border }]}>
+        <View style={[styles.macroBarFill, { width: `${percent}%` as any, backgroundColor: accent }]} />
+      </View>
+      <Text style={[styles.macroTarget, { color: colors.mutedForeground }]}>{target}{unit}</Text>
     </View>
   );
 }
 
-function QuickLink({ icon, label, colors, onPress }: {
+function QuickAction({ icon, label, colors, onPress }: {
   icon: React.ReactNode; label: string; colors: any; onPress: () => void;
 }) {
   return (
     <TouchableOpacity
-      style={[styles.quickLink, { backgroundColor: colors.card, borderColor: colors.border }]}
+      style={[styles.quickAction, { backgroundColor: colors.card, borderColor: colors.border }]}
       onPress={onPress}
       activeOpacity={0.7}
     >
-      {icon}
-      <Text style={{ fontSize: 12, fontWeight: '500', color: colors.foreground, marginTop: 6 }}>{label}</Text>
+      <View style={[styles.quickActionIcon, { backgroundColor: colors.border }]}>
+        {icon}
+      </View>
+      <Text style={{ fontSize: 12, fontWeight: '600', color: colors.foreground, marginTop: 8 }}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  hero: { paddingTop: 60, paddingBottom: 24, paddingHorizontal: 20 },
-  greeting: { fontSize: 22, fontWeight: '700' },
-  goalText: { fontSize: 14, marginTop: 4 },
-  content: { padding: 16, gap: 20 },
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  statCard: { width: '48%', borderWidth: 1, borderRadius: 12, padding: 14, flexGrow: 1, flexBasis: '46%' },
-  workoutCard: { borderWidth: 1, borderRadius: 12, padding: 16 },
-  workoutRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  workoutName: { fontSize: 17, fontWeight: '700', marginTop: 4 },
-  sectionTitle: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
-  insightCard: { flexDirection: 'row', borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 8 },
-  quickLinks: { flexDirection: 'row', gap: 10 },
-  quickLink: { flex: 1, borderWidth: 1, borderRadius: 12, padding: 16, alignItems: 'center' },
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingTop: 60, paddingBottom: 20, paddingHorizontal: 20,
+  },
+  greeting: { fontSize: 14, fontWeight: '500', letterSpacing: 0.3 },
+  name: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5, marginTop: 2 },
+  trainCta: {
+    marginHorizontal: 16, borderRadius: 20, padding: 20, marginBottom: 16,
+  },
+  trainCtaContent: { flexDirection: 'row', alignItems: 'center' },
+  trainCtaLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 4 },
+  trainCtaTitle: { fontSize: 20, fontWeight: '800', letterSpacing: -0.3 },
+  trainCtaArrow: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  statsRow: { flexDirection: 'row', gap: 10, marginHorizontal: 16, marginBottom: 24 },
+  macroRing: {
+    flex: 1, borderWidth: 1, borderRadius: 16, padding: 12, alignItems: 'center',
+  },
+  macroValue: { fontSize: 18, fontWeight: '800', letterSpacing: -0.5 },
+  macroUnit: { fontSize: 10, fontWeight: '700', marginTop: -2 },
+  macroLabel: { fontSize: 10, fontWeight: '600', marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  macroBar: { width: '100%', height: 3, borderRadius: 2, marginTop: 8, overflow: 'hidden' },
+  macroBarFill: { height: 3, borderRadius: 2 },
+  macroTarget: { fontSize: 9, marginTop: 4 },
+  statPill: {
+    flex: 1, borderWidth: 1, borderRadius: 16, padding: 12, alignItems: 'center', gap: 2,
+  },
+  statPillValue: { fontSize: 18, fontWeight: '800', letterSpacing: -0.5 },
+  statPillLabel: { fontSize: 10, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.3 },
+  sectionHeader: { paddingHorizontal: 20, marginBottom: 10 },
+  sectionTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 1 },
+  quickGrid: { flexDirection: 'row', gap: 10, marginHorizontal: 16, marginBottom: 24 },
+  quickAction: { flex: 1, borderWidth: 1, borderRadius: 16, padding: 14, alignItems: 'center' },
+  quickActionIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  insightCard: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+    marginHorizontal: 16, borderWidth: 1, borderRadius: 14,
+    padding: 14, marginBottom: 8,
+  },
+  insightDot: { width: 6, height: 6, borderRadius: 3, marginTop: 6 },
 });
