@@ -7,8 +7,14 @@ export async function GET() {
   const userId = await getAuthUserId();
   if (userId instanceof NextResponse) return userId;
 
-  const profile = await prisma.fitnessProfile.findUnique({ where: { userId } });
-  return NextResponse.json(profile);
+  try {
+    const profile = await prisma.fitnessProfile.findUnique({ where: { userId } });
+    return NextResponse.json(profile);
+  } catch (e: unknown) {
+    const err = e as Error & { code?: string; cause?: unknown };
+    console.error('[profile GET] error:', err.message, 'code:', err.code, 'cause:', err.cause);
+    return NextResponse.json({ error: err.message, code: err.code }, { status: 500 });
+  }
 }
 
 export async function PUT(request: NextRequest) {
