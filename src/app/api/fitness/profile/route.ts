@@ -13,7 +13,8 @@ export async function GET() {
   } catch (e: unknown) {
     const err = e as Error & { code?: string; cause?: unknown };
     console.error('[profile GET] error:', err.message, 'code:', err.code, 'cause:', err.cause);
-    return NextResponse.json({ error: err.message, code: err.code }, { status: 500 });
+    const dbUrl = process.env.DATABASE_URL ?? 'undefined';
+    return NextResponse.json({ error: err.message, code: err.code, db_host: dbUrl.replace(/^libsql:\/\//, '').split('.')[0] }, { status: 500 });
   }
 }
 
