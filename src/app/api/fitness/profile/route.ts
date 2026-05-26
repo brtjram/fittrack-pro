@@ -7,15 +7,8 @@ export async function GET() {
   const userId = await getAuthUserId();
   if (userId instanceof NextResponse) return userId;
 
-  try {
-    const profile = await prisma.fitnessProfile.findUnique({ where: { userId } });
-    return NextResponse.json(profile);
-  } catch (e: unknown) {
-    const err = e as Error & { code?: string; cause?: unknown };
-    console.error('[profile GET] error:', err.message, 'code:', err.code, 'cause:', err.cause);
-    const dbUrl = process.env.DATABASE_URL ?? 'undefined';
-    return NextResponse.json({ error: err.message, code: err.code, db_host: dbUrl.replace(/^libsql:\/\//, '').split('.')[0] }, { status: 500 });
-  }
+  const profile = await prisma.fitnessProfile.findUnique({ where: { userId } });
+  return NextResponse.json(profile);
 }
 
 export async function PUT(request: NextRequest) {
