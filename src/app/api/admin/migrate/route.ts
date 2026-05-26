@@ -1,6 +1,17 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const secret = url.searchParams.get('secret');
+  if (secret !== process.env.AUTH_SECRET) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
+  const profiles = await prisma.$queryRawUnsafe('SELECT id, userId, name FROM FitnessProfile LIMIT 10');
+  const users = await prisma.$queryRawUnsafe('SELECT id, email FROM User WHERE email LIKE ? LIMIT 5', '%brtjram%');
+  return NextResponse.json({ profiles, users });
+}
+
 // Temporary migration endpoint — remove after applying to prod
 export async function POST(request: Request) {
   const { secret } = await request.json() as { secret?: string };
