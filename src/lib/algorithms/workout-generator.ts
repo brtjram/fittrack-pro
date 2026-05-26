@@ -4,9 +4,30 @@ import { getExerciseById } from '@/lib/data/exercises';
 import { shouldDeload, applyDeload, calculateProgression } from './progressive-overload';
 import { generateId, getWeekNumber } from '@/lib/utils';
 
+export interface CoachingNotes {
+  intensityModifier?: number;
+  exerciseOverrides?: Record<string, { intensityModifier?: number; notes?: string }>;
+  generalNotes?: string;
+  lastUpdated?: string;
+}
+
+function applyCoachingModifier(weight: number, exerciseId: string, exerciseName: string, notes: CoachingNotes): number {
+  let modifier = notes.intensityModifier ?? 1.0;
+  const overrides = notes.exerciseOverrides ?? {};
+  const matchKey = Object.keys(overrides).find(
+    (k) => k.toLowerCase() === exerciseId.toLowerCase() || k.toLowerCase() === exerciseName.toLowerCase()
+  );
+  if (matchKey && overrides[matchKey].intensityModifier !== undefined) {
+    modifier = overrides[matchKey].intensityModifier!;
+  }
+  if (modifier === 1.0) return weight;
+  return Math.round((weight * modifier) / 5) * 5;
+}
+
 export function generateNextWorkout(
   profile: UserProfile,
   recentSessions: WorkoutSession[],
+  coachingNotes?: CoachingNotes,
 ): WorkoutSession {
   const plan = getWorkoutPlan(profile.preferredSplit);
   if (!plan) {
@@ -60,6 +81,12 @@ export function generateNextWorkout(
       const deloaded = applyDeload(targetWeight, sets);
       targetWeight = deloaded.weight;
       sets = deloaded.sets;
+    }
+
+    // Apply coaching intensity overrides
+    if (coachingNotes) {
+      const exerciseName = exerciseInfo?.name ?? templateExercise.exerciseId;
+      targetWeight = applyCoachingModifier(targetWeight, templateExercise.exerciseId, exerciseName, coachingNotes);
     }
 
     // Adjust for fat loss goal: slightly higher reps, shorter rest

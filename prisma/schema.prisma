@@ -19,15 +19,16 @@ model User {
   accounts       Account[]
   sessions       Session[]
 
-  fitnessProfile       FitnessProfile?
-  workoutSessions      WorkoutSession[]
-  personalRecords      PersonalRecord[]
-  foodLogEntries       FoodLogEntry[]
-  nutritionAdjustments NutritionAdjustment[]
-  weightEntries        WeightEntry[]
-  dailyActivities      DailyActivity[]
-  pushTokens           PushToken[]
-  notificationPrefs    NotificationPreferences?
+  fitnessProfile          FitnessProfile?
+  workoutSessions         WorkoutSession[]
+  personalRecords         PersonalRecord[]
+  foodLogEntries          FoodLogEntry[]
+  nutritionAdjustments    NutritionAdjustment[]
+  weightEntries           WeightEntry[]
+  dailyActivities         DailyActivity[]
+  pushTokens              PushToken[]
+  notificationPrefs       NotificationPreferences?
+  transformationChallenge TransformationChallenge?
 }
 
 model Account {
@@ -85,6 +86,7 @@ model FitnessProfile {
   cycleLength     Int?
   lastPeriodDate  String?
   stepTarget      Int      @default(10000)
+  coachingNotes   String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -205,6 +207,22 @@ model PushToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model TransformationChallenge {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  startDate       String
+  startWeightLbs  Float
+  targetWeightLbs Float
+  currentWeek     Int      @default(1)
+  isActive        Boolean  @default(true)
+  weeklyData      String   @default("[]")
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model NotificationPreferences {

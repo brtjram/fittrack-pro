@@ -265,6 +265,66 @@ export async function saveNotificationPreferences(prefs: Partial<NotificationPre
   });
 }
 
+// ==================== Transformation Challenge ====================
+
+export interface TransformationChallenge {
+  id: string;
+  startDate: string;
+  startWeightLbs: number;
+  targetWeightLbs: number;
+  currentWeek: number;
+  isActive: boolean;
+  weeklyData: Array<{
+    week: number;
+    endWeight?: number;
+    avgDailySteps?: number;
+    workoutsCompleted?: number;
+    workoutsTargeted?: number;
+    foodComplianceDays?: number;
+    notes?: string;
+  }>;
+}
+
+export async function getTransformationChallenge(): Promise<TransformationChallenge | null> {
+  const res = await apiFetch('/api/fitness/transformation-challenge');
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function startTransformationChallenge(targetWeightLbs?: number): Promise<TransformationChallenge> {
+  const res = await apiFetch('/api/fitness/transformation-challenge', {
+    method: 'POST',
+    body: JSON.stringify({ targetWeightLbs }),
+  });
+  if (!res.ok) throw new Error('Failed to start challenge');
+  return res.json();
+}
+
+export async function updateTransformationChallenge(data: {
+  currentWeek?: number;
+  isActive?: boolean;
+  weeklyCheckIn?: {
+    week: number;
+    endWeight?: number;
+    avgDailySteps?: number;
+    workoutsCompleted?: number;
+    workoutsTargeted?: number;
+    foodComplianceDays?: number;
+    notes?: string;
+  };
+}): Promise<TransformationChallenge> {
+  const res = await apiFetch('/api/fitness/transformation-challenge', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to update challenge');
+  return res.json();
+}
+
+export async function endTransformationChallenge(): Promise<void> {
+  await apiFetch('/api/fitness/transformation-challenge', { method: 'DELETE' });
+}
+
 // ==================== USDA Food Search ====================
 
 export async function searchUSDAFoods(query: string): Promise<FoodItem[]> {

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { signOut } from 'next-auth/react';
 import { Header } from '@/components/layout/header';
-import { Moon, Sun, Monitor, Save, User, LogOut, Check, ExternalLink, Footprints, Info } from 'lucide-react';
+import { Moon, Sun, Monitor, Save, User, LogOut, Check, ExternalLink, Footprints, Info, Flame, ChevronRight } from 'lucide-react';
 import { computeStepTarget, stepTargetRationale } from '@/lib/algorithms/step-target';
 import { useTheme } from 'next-themes';
 import { getUserProfile, saveUserProfile } from '@/lib/stores/user-store';
@@ -465,6 +465,23 @@ export default function SettingsPage() {
           <p className="text-sm text-muted-foreground">
             Your fitness data is stored securely in the cloud, tied to your account. Data persists across all your devices and browsers.
           </p>
+        </section>
+
+        {/* Transformation Challenge */}
+        <section>
+          <a
+            href="/challenge"
+            className="flex w-full items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/5 p-4 transition-colors hover:bg-red-500/10"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-500/10">
+              <Flame className="h-5 w-5 text-red-500" />
+            </div>
+            <div className="flex-1">
+              <div className="text-sm font-semibold">12-Week Transformation Challenge</div>
+              <div className="mt-0.5 text-xs text-muted-foreground">Maximum fat loss — steps, food & training tracked weekly</div>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </a>
         </section>
 
         {/* Logout */}

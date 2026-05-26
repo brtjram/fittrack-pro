@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthUserId } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
-import { generateNextWorkout } from '@/lib/algorithms/workout-generator';
+import { generateNextWorkout, type CoachingNotes } from '@/lib/algorithms/workout-generator';
 import { getWorkoutPlan } from '@/lib/data/workout-templates';
 import { parseExercises } from '@/lib/utils';
 import type { WorkoutSession } from '@/types';
@@ -79,6 +79,11 @@ export async function POST() {
     updatedAt: profile.updatedAt.toISOString(),
   };
 
+  let coachingNotes: CoachingNotes | undefined;
+  if (profile.coachingNotes) {
+    try { coachingNotes = JSON.parse(profile.coachingNotes); } catch { /* ignore */ }
+  }
+
   // Running session list grows as we generate each workout so chaining works correctly
   let runningSessions: WorkoutSession[] = rawRecent.map((s) => ({
     ...s,
@@ -94,7 +99,7 @@ export async function POST() {
   for (const date of weekDates) {
     if (existingDates.has(date)) continue;
 
-    const generated = generateNextWorkout(userProfile, runningSessions);
+    const generated = generateNextWorkout(userProfile, runningSessions, coachingNotes);
     generated.date = date;
 
     const saved = await prisma.workoutSession.create({

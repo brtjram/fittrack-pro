@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthUserId } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
-import { generateNextWorkout } from '@/lib/algorithms/workout-generator';
+import { generateNextWorkout, type CoachingNotes } from '@/lib/algorithms/workout-generator';
 import { parseExercises } from '@/lib/utils';
 import type { WorkoutSession } from '@/types';
 
@@ -41,7 +41,12 @@ export async function POST() {
     updatedAt: profile.updatedAt.toISOString(),
   };
 
-  const generated = generateNextWorkout(userProfile, recentSessions);
+  let coachingNotes: CoachingNotes | undefined;
+  if (profile.coachingNotes) {
+    try { coachingNotes = JSON.parse(profile.coachingNotes); } catch { /* ignore */ }
+  }
+
+  const generated = generateNextWorkout(userProfile, recentSessions, coachingNotes);
 
   // Save and return
   const saved = await prisma.workoutSession.create({

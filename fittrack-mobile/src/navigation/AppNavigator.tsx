@@ -12,6 +12,7 @@ import { NutritionScreen } from '../screens/NutritionScreen';
 import { AnalyticsScreen } from '../screens/AnalyticsScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { NotificationSettingsScreen } from '../screens/NotificationSettingsScreen';
+import { TransformationChallengeScreen } from '../screens/TransformationChallengeScreen';
 import { ChatScreen } from '../screens/ChatScreen';
 
 const Tab = createBottomTabNavigator();
@@ -44,6 +45,7 @@ function SettingsStackNavigator() {
     }}>
       <SettingsStack.Screen name="SettingsMain" component={SettingsScreen} options={{ headerShown: false }} />
       <SettingsStack.Screen name="NotificationSettings" component={NotificationSettingsScreen} options={{ title: 'Notifications' }} />
+      <SettingsStack.Screen name="TransformationChallenge" component={TransformationChallengeScreen} options={{ title: '12-Week Challenge' }} />
     </SettingsStack.Navigator>
   );
 }

@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity,
   TextInput, Alert, ActivityIndicator, Linking, StyleSheet,
 } from 'react-native';
-import { User, LogOut, Check, Save, Shield, FileText, Info, ExternalLink, Bell, ChevronRight } from 'lucide-react-native';
+import { User, LogOut, Check, Save, Shield, FileText, Info, ExternalLink, Bell, ChevronRight, Flame } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import Constants from 'expo-constants';
 import { useTheme } from '../theme/useTheme';
@@ -331,6 +331,20 @@ export function SettingsScreen() {
             ))}
           </View>
         </View>
+
+        {/* Transformation Challenge */}
+        <TouchableOpacity
+          style={[styles.section, { backgroundColor: '#ef444410', borderColor: '#ef444430', flexDirection: 'row', alignItems: 'center' }]}
+          onPress={() => navigation.navigate('TransformationChallenge')}
+          activeOpacity={0.7}
+        >
+          <Flame size={18} color="#ef4444" />
+          <View style={{ flex: 1, marginLeft: 10 }}>
+            <Text style={{ fontSize: 15, fontWeight: '600', color: colors.foreground }}>12-Week Transformation</Text>
+            <Text style={{ fontSize: 12, color: colors.mutedForeground }}>Maximum fat loss challenge — steps, food & training</Text>
+          </View>
+          <ChevronRight size={18} color={colors.mutedForeground} />
+        </TouchableOpacity>
 
         {/* Notification Preferences */}
         <TouchableOpacity
