@@ -209,8 +209,15 @@ You have long-term memory of this user from past sessions (below, if any exists)
 
   // First pass: check if this message likely asks for a persisted change
   const lastUserMessage = messages[messages.length - 1];
-  const mightHaveInstructions = lastUserMessage?.role === 'user' &&
+  const keywordMightHaveInstructions = lastUserMessage?.role === 'user' &&
     /\b(intense|intensity|harder|heavier|lighter|easier|reduce|increase|lower|higher|less|more|change|adjust|modify|swap|replace|drop|add|switch|cut|maintain|focus|avoid|skip|plan|schedule|regenerate|generate|calorie|calories|macro|macros|diet|target|targets|bulk|deficit|surplus|protein|carbs|nutrition|workout|week|injur|hurt|pain|sore|allerg|prefer|dislike|hate|love|worked|working|isn't working|wasn't working|stall|plateau|energy|sleep|goal|marathon|race|train for|ai coach)\b/i.test(lastUserMessage.content);
+
+  // AI Coach Mode with a stated goal but no targets set yet owes the user a
+  // plan on the very next message, per the system prompt above — don't let
+  // the keyword heuristic silently withhold tools until the user happens to
+  // phrase a message that matches it.
+  const aiCoachAwaitingPlan = profile?.goal === 'ai_coach' && !!profile.aiCoachGoal && !profile.nutritionTargetOverride;
+  const mightHaveInstructions = lastUserMessage?.role === 'user' && (keywordMightHaveInstructions || aiCoachAwaitingPlan);
 
   if (mightHaveInstructions) {
     // Run with tools to potentially persist changes
