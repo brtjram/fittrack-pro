@@ -68,7 +68,7 @@ const saveCoachingInstructionsTool: Anthropic.Tool = {
 
 const scheduleWorkoutPlanTool: Anthropic.Tool = {
   name: 'schedule_workout_plan',
-  description: "Generate and save the user's workouts for the upcoming week directly to their training log, so a plan discussed in chat actually shows up as real scheduled sessions rather than just being talked about. Use this whenever the user asks you to plan, schedule, set up, or regenerate their workouts for the week. Any active coaching intensity preferences are automatically applied.",
+  description: "Generate and save the user's workouts for the upcoming week directly to their training log, so a plan discussed in chat actually shows up as real scheduled sessions rather than just being talked about. Use this whenever the user asks you to plan, schedule, set up, or regenerate their workouts for the week. In AI Coach Mode, you own the training split and daily step target — the user is never asked to pick them, so set them here as part of building the plan. Feel free to prescribe extra cardio or movement sessions on top of the split when the goal calls for it (e.g. a fat-loss or endurance goal). Any active coaching intensity preferences are automatically applied.",
   input_schema: {
     type: 'object' as const,
     properties: {
@@ -76,6 +76,24 @@ const scheduleWorkoutPlanTool: Anthropic.Tool = {
         type: 'string',
         enum: ['ppl', 'upper_lower', 'full_body', 'bro_split'],
         description: "Change the user's training split going forward (ppl = push/pull/legs, upper_lower, full_body, bro_split = body-part split). Omit to keep their current split.",
+      },
+      stepTarget: {
+        type: 'number',
+        description: 'Daily step target in AI Coach Mode. Set this based on the goal (e.g. higher for fat loss/endurance, lower if recovery-limited) — the user is not shown a manual step goal input in this mode, so this is the only way it gets set.',
+      },
+      cardioSessions: {
+        type: 'array',
+        description: 'Optional standalone cardio/movement sessions to add on top of the split this week, if the goal calls for it (e.g. zone-2 cardio, incline walks). Each becomes a real scheduled session; days that already have a session are skipped.',
+        items: {
+          type: 'object',
+          properties: {
+            dayOffset: { type: 'number', description: '0 = Monday of this week, 6 = Sunday.' },
+            name: { type: 'string', description: 'e.g. "Zone 2 Cardio" or "Incline Walk".' },
+            durationMinutes: { type: 'number', description: 'Prescribed duration in minutes.' },
+            notes: { type: 'string', description: 'Any guidance for the session (intensity, heart rate zone, etc).' },
+          },
+          required: ['dayOffset', 'name'],
+        },
       },
     },
     required: [],
@@ -170,7 +188,7 @@ You have long-term memory of this user from past sessions (below, if any exists)
 
     if (profile.goal === 'ai_coach') {
       systemPrompt += profile.aiCoachGoal
-        ? `\n\nAI Coach Mode is active. The user's stated goal: "${profile.aiCoachGoal}". This goal — not a generic fat_loss/muscle_gain/recomp preset — is the source of truth for their nutrition and training. If they haven't been given concrete daily/weekly targets yet, or the goal has changed, use set_nutrition_targets and schedule_workout_plan (and save_coaching_instructions for training style/split changes) to translate it into real numbers now, then explain your reasoning briefly. Revisit and adjust these targets as the user reports progress, adherence, or a change in the goal — that's the point of this mode.`
+        ? `\n\nAI Coach Mode is active. The user's stated goal: "${profile.aiCoachGoal}". This goal — not a generic fat_loss/muscle_gain/recomp preset — is the source of truth for their nutrition and training. In this mode you own the training split and daily step target — the app doesn't ask the user to pick them, so set them yourself via schedule_workout_plan's split and stepTarget parameters based on what the goal actually needs, and add cardio/movement sessions on top of the split (schedule_workout_plan's cardioSessions) when appropriate. If they haven't been given concrete daily/weekly targets yet, or the goal has changed, use set_nutrition_targets and schedule_workout_plan (and save_coaching_instructions for training style changes) to translate it into real numbers now, then explain your reasoning briefly. Revisit and adjust these targets as the user reports progress, adherence, or a change in the goal — that's the point of this mode.`
         : `\n\nAI Coach Mode is active, but no goal description has been saved yet. Ask what the user is training for, then call set_ai_coach_goal with a concise summary, and immediately follow up with set_nutrition_targets and schedule_workout_plan to turn it into concrete daily/weekly targets.`;
     }
 
@@ -264,7 +282,11 @@ You have long-term memory of this user from past sessions (below, if any exists)
           if (!currentProfile) {
             resultText = 'Could not schedule workouts: no fitness profile found for this user yet.';
           } else {
-            const result = await scheduleWorkoutPlanAction(userId, currentProfile, block.input as { split?: 'ppl' | 'upper_lower' | 'full_body' | 'bro_split' });
+            const result = await scheduleWorkoutPlanAction(userId, currentProfile, block.input as {
+              split?: 'ppl' | 'upper_lower' | 'full_body' | 'bro_split';
+              stepTarget?: number;
+              cardioSessions?: { dayOffset: number; name: string; durationMinutes?: number; notes?: string }[];
+            });
             currentProfile = result.profile;
             resultText = result.resultText;
           }

@@ -46,7 +46,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ resultText: result.resultText, profile: result.profile });
     }
     case 'schedule_workout_plan': {
-      const result = await scheduleWorkoutPlanAction(userId, profile, input as { split?: WorkoutSplit });
+      const result = await scheduleWorkoutPlanAction(userId, profile, input as {
+        split?: WorkoutSplit;
+        stepTarget?: number;
+        cardioSessions?: { dayOffset: number; name: string; durationMinutes?: number; notes?: string }[];
+      });
       return NextResponse.json({ resultText: result.resultText, profile: result.profile });
     }
     case 'set_nutrition_targets': {

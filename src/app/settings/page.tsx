@@ -297,7 +297,8 @@ export default function SettingsPage() {
               />
               <p className="mt-1.5 text-xs text-muted-foreground">
                 Save this, then open the coach chat and ask it to build your plan — it will set your
-                daily nutrition and weekly workout targets from this goal and keep adjusting them as you go.
+                daily nutrition, training split, step goal, and weekly workouts (including any extra cardio it
+                thinks the goal needs) from this goal, and keep adjusting them as you go.
               </p>
             </div>
           )}
@@ -351,49 +352,53 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* Workout Split */}
-        <section className="rounded-xl border border-border bg-card p-4">
-          <h2 className="mb-3 text-base font-semibold">Preferred Split</h2>
-          <div className="grid grid-cols-2 gap-2">
-            {splitOptions.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => updateField('preferredSplit', opt.value)}
-                className={cn(
-                  'rounded-lg border p-3 text-left transition-colors',
-                  form.preferredSplit === opt.value
-                    ? 'border-primary bg-primary/10'
-                    : 'border-border hover:bg-accent'
-                )}
-              >
-                <div className={cn('text-sm font-medium', form.preferredSplit === opt.value && 'text-primary')}>
-                  {opt.label}
-                </div>
-                <div className="mt-0.5 text-xs text-muted-foreground">{opt.desc}</div>
-              </button>
-            ))}
-          </div>
-        </section>
+        {/* Workout Split — AI Coach Mode decides this itself via chat */}
+        {form.goal !== 'ai_coach' && (
+          <section className="rounded-xl border border-border bg-card p-4">
+            <h2 className="mb-3 text-base font-semibold">Preferred Split</h2>
+            <div className="grid grid-cols-2 gap-2">
+              {splitOptions.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => updateField('preferredSplit', opt.value)}
+                  className={cn(
+                    'rounded-lg border p-3 text-left transition-colors',
+                    form.preferredSplit === opt.value
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:bg-accent'
+                  )}
+                >
+                  <div className={cn('text-sm font-medium', form.preferredSplit === opt.value && 'text-primary')}>
+                    {opt.label}
+                  </div>
+                  <div className="mt-0.5 text-xs text-muted-foreground">{opt.desc}</div>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
 
-        {/* Step Target — auto-computed from goal + activity */}
-        <section className="rounded-xl border border-border bg-card p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <Footprints className="h-5 w-5 text-primary" />
-            <h2 className="text-base font-semibold">Daily Step Goal</h2>
-          </div>
-          <div className="flex items-center justify-between rounded-lg bg-primary/5 px-4 py-3">
-            <span className="text-2xl font-bold text-primary">
-              {computeStepTarget(form.activityLevel, form.goal).toLocaleString()}
-            </span>
-            <span className="text-sm text-muted-foreground">steps / day</span>
-          </div>
-          <div className="mt-2 flex items-start gap-1.5">
-            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              {stepTargetRationale(form.activityLevel, form.goal)}. Updates automatically when you change your goal or activity level.
-            </p>
-          </div>
-        </section>
+        {/* Step Target — auto-computed from goal + activity; AI Coach Mode sets its own instead */}
+        {form.goal !== 'ai_coach' && (
+          <section className="rounded-xl border border-border bg-card p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <Footprints className="h-5 w-5 text-primary" />
+              <h2 className="text-base font-semibold">Daily Step Goal</h2>
+            </div>
+            <div className="flex items-center justify-between rounded-lg bg-primary/5 px-4 py-3">
+              <span className="text-2xl font-bold text-primary">
+                {computeStepTarget(form.activityLevel, form.goal).toLocaleString()}
+              </span>
+              <span className="text-sm text-muted-foreground">steps / day</span>
+            </div>
+            <div className="mt-2 flex items-start gap-1.5">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {stepTargetRationale(form.activityLevel, form.goal)}. Updates automatically when you change your goal or activity level.
+              </p>
+            </div>
+          </section>
+        )}
 
         {/* Menstrual Cycle Tracking — only shown for female gender */}
         {form.gender === 'female' && (

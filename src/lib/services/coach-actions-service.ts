@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { calculateMacroTargets } from '@/lib/algorithms/macro-calculator';
 import { getWorkoutPlan } from '@/lib/data/workout-templates';
-import { scheduleUpcomingWeek } from './workout-plan-service';
+import { scheduleUpcomingWeek, scheduleCardioSessions, type CardioSessionInput } from './workout-plan-service';
 import { toCalcUserProfile } from './fitness-profile-adapter';
 import { addCoachMemory } from './coach-memory-service';
 import type { FitnessProfile } from '@/generated/prisma/client';
@@ -83,13 +83,20 @@ export async function saveCoachingInstructionsAction(
 export async function scheduleWorkoutPlanAction(
   userId: string,
   profile: FitnessProfile,
-  input: { split?: WorkoutSplit },
+  input: { split?: WorkoutSplit; stepTarget?: number; cardioSessions?: CardioSessionInput[] },
 ): Promise<ActionResult> {
   let current = profile;
 
+  const profileUpdate: { preferredSplit?: WorkoutSplit; stepTarget?: number } = {};
   if (input.split && input.split !== current.preferredSplit && getWorkoutPlan(input.split)) {
-    await prisma.fitnessProfile.updateMany({ where: { userId }, data: { preferredSplit: input.split } });
-    current = { ...current, preferredSplit: input.split };
+    profileUpdate.preferredSplit = input.split;
+  }
+  if (input.stepTarget !== undefined) {
+    profileUpdate.stepTarget = Math.round(input.stepTarget);
+  }
+  if (Object.keys(profileUpdate).length > 0) {
+    await prisma.fitnessProfile.updateMany({ where: { userId }, data: profileUpdate });
+    current = { ...current, ...profileUpdate };
   }
 
   if (!getWorkoutPlan(current.preferredSplit)) {
@@ -97,15 +104,27 @@ export async function scheduleWorkoutPlanAction(
   }
 
   const sessions = await scheduleUpcomingWeek(userId, current);
-  await addCoachMemory(userId, {
-    category: 'action',
-    content: `Scheduled a week of ${current.preferredSplit} workouts (${sessions.length} sessions).`,
-  });
+  const cardioAdded = input.cardioSessions?.length
+    ? await scheduleCardioSessions(userId, input.cardioSessions)
+    : [];
 
-  return {
-    resultText: `Scheduled this week's workouts:\n- ${sessions.map((s) => `${s.date}: ${s.name}`).join('\n- ')}`,
-    profile: current,
-  };
+  const memoryParts = [`Scheduled a week of ${current.preferredSplit} workouts (${sessions.length} sessions)`];
+  if (profileUpdate.stepTarget !== undefined) memoryParts.push(`step target set to ${profileUpdate.stepTarget}/day`);
+  if (cardioAdded.length > 0) memoryParts.push(`added ${cardioAdded.length} cardio session(s)`);
+  await addCoachMemory(userId, { category: 'action', content: `${memoryParts.join('; ')}.` });
+
+  const resultLines = [
+    `Scheduled this week's workouts:`,
+    `- ${sessions.map((s) => `${s.date}: ${s.name}`).join('\n- ')}`,
+  ];
+  if (cardioAdded.length > 0) {
+    resultLines.push(`\nAdded cardio:\n- ${cardioAdded.map((c) => `${c.date}: ${c.name}`).join('\n- ')}`);
+  }
+  if (profileUpdate.stepTarget !== undefined) {
+    resultLines.push(`\nDaily step target set to ${profileUpdate.stepTarget.toLocaleString()}.`);
+  }
+
+  return { resultText: resultLines.join('\n'), profile: current };
 }
 
 export async function setNutritionTargetsAction(

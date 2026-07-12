@@ -1,9 +1,17 @@
 import { prisma } from '@/lib/prisma';
 import { generateNextWorkout, type CoachingNotes } from '@/lib/algorithms/workout-generator';
 import { getWorkoutPlan } from '@/lib/data/workout-templates';
-import { parseExercises } from '@/lib/utils';
+import { parseExercises, generateId, getWeekNumber } from '@/lib/utils';
 import { toCalcUserProfile, type FitnessProfileRow } from './fitness-profile-adapter';
 import type { WorkoutSession } from '@/types';
+
+export interface CardioSessionInput {
+  /** 0 = Monday of the current week, 6 = Sunday. */
+  dayOffset: number;
+  name: string;
+  durationMinutes?: number;
+  notes?: string;
+}
 
 // Training day offsets from Monday for each split (0=Mon, 1=Tue, …, 6=Sun)
 const SPLIT_DAY_OFFSETS: Record<string, number[]> = {
@@ -110,4 +118,61 @@ export async function scheduleUpcomingWeek(
 
   results.sort((a, b) => a.date.localeCompare(b.date));
   return results;
+}
+
+/**
+ * Adds standalone cardio/movement sessions on top of the split (e.g. extra
+ * NEAT, zone-2 cardio the AI coach decides a goal needs) — skips any day that
+ * already has a session so it never clobbers a split training day. No new
+ * exercise-type machinery needed: these are just WorkoutSession rows with no
+ * strength exercises, so they show up in history/dashboard like any other
+ * logged session.
+ */
+export async function scheduleCardioSessions(
+  userId: string,
+  cardioSessions: CardioSessionInput[],
+): Promise<Array<{ date: string; name: string }>> {
+  if (cardioSessions.length === 0) return [];
+
+  const monday = getMondayOfWeek(new Date());
+  const weekNumber = getWeekNumber(monday);
+
+  const dates = cardioSessions.map((c) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + Math.min(Math.max(c.dayOffset, 0), 6));
+    return toDateString(d);
+  });
+
+  const existing = await prisma.workoutSession.findMany({
+    where: { userId, date: { in: dates } },
+    select: { date: true },
+  });
+  const existingDates = new Set(existing.map((s) => s.date));
+
+  const created: Array<{ date: string; name: string }> = [];
+  for (let i = 0; i < cardioSessions.length; i++) {
+    const date = dates[i];
+    if (existingDates.has(date)) continue; // don't clobber an existing split/logged day
+
+    const cardio = cardioSessions[i];
+    await prisma.workoutSession.create({
+      data: {
+        userId,
+        sessionId: generateId(),
+        date,
+        name: cardio.name,
+        splitDay: 'cardio',
+        exercises: '[]',
+        duration: cardio.durationMinutes,
+        completed: false,
+        weekNumber,
+        isDeload: false,
+        notes: cardio.notes,
+      },
+    });
+    created.push({ date, name: cardio.name });
+    existingDates.add(date); // guard against duplicate dayOffsets in the same call
+  }
+
+  return created;
 }

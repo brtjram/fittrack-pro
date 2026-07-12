@@ -139,19 +139,37 @@ function buildServer(userId: string) {
       title: "Schedule this week's workouts",
       description:
         "Generate and save the user's workouts for the upcoming week directly to their training log in FitTrack " +
-        'Pro, so they show up as real scheduled sessions. Any active coaching intensity preferences are applied automatically.',
+        'Pro, so they show up as real scheduled sessions. In AI Coach Mode you own the training split and daily ' +
+        'step target — set them here based on the goal. Any active coaching intensity preferences are applied automatically.',
       inputSchema: {
         split: z
           .enum(['ppl', 'upper_lower', 'full_body', 'bro_split'])
           .optional()
           .describe('Change the training split going forward. Omit to keep the current split.'),
+        stepTarget: z
+          .number()
+          .optional()
+          .describe('Daily step target in AI Coach Mode — the only way it gets set, since the user has no manual step goal input in this mode.'),
+        cardioSessions: z
+          .array(z.object({
+            dayOffset: z.number().int().min(0).max(6).describe('0 = Monday of this week, 6 = Sunday.'),
+            name: z.string().describe('e.g. "Zone 2 Cardio" or "Incline Walk".'),
+            durationMinutes: z.number().optional().describe('Prescribed duration in minutes.'),
+            notes: z.string().optional().describe('Guidance for the session (intensity, heart rate zone, etc).'),
+          }))
+          .optional()
+          .describe('Standalone cardio/movement sessions to add on top of the split, if the goal calls for it. Days that already have a session are skipped.'),
       },
     },
     async (input) => {
       try {
         const profile = await prisma.fitnessProfile.findUnique({ where: { userId } });
         if (!profile) return errorResult('No fitness profile found for this user yet.');
-        const result = await scheduleWorkoutPlanAction(userId, profile, input as { split?: WorkoutSplit });
+        const result = await scheduleWorkoutPlanAction(userId, profile, input as {
+          split?: WorkoutSplit;
+          stepTarget?: number;
+          cardioSessions?: { dayOffset: number; name: string; durationMinutes?: number; notes?: string }[];
+        });
         return textResult({ resultText: result.resultText, profile: result.profile });
       } catch (err) {
         return errorResult(err);
