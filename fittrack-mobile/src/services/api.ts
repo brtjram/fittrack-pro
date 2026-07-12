@@ -158,6 +158,40 @@ export async function deleteFoodLogEntry(id: string): Promise<void> {
   await apiFetch(`/api/fitness/food-log?id=${id}`, { method: 'DELETE' });
 }
 
+export interface AnalyzedFoodItem {
+  name: string;
+  servingDescription: string;
+  servingSizeG: number;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  confidence: 'high' | 'medium' | 'low';
+}
+
+export async function analyzeFoodPhoto(
+  base64Image: string,
+  mediaType: string,
+  description?: string,
+): Promise<{ items: AnalyzedFoodItem[]; notes?: string }> {
+  const res = await apiFetch('/api/fitness/food-log/analyze-photo', {
+    method: 'POST',
+    body: JSON.stringify({ image: base64Image, mediaType, description }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Photo analysis failed.');
+  }
+  return res.json();
+}
+
+export async function getRecentFoods(meal?: string, limit = 10): Promise<FoodItem[]> {
+  const params = new URLSearchParams({ limit: String(limit), ...(meal ? { meal } : {}) });
+  const res = await apiFetch(`/api/fitness/food-log/recent?${params.toString()}`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
 // ==================== Weight ====================
 
 export async function getWeightEntries(limit = 90): Promise<WeightEntry[]> {

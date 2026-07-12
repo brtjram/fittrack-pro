@@ -70,6 +70,13 @@
           "stopOnTerminate": false,
           "startOnBoot": true
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "FitTrack Pro uses your photos to estimate calories and macros for meals you log by photo.",
+          "cameraPermission": "FitTrack Pro uses your camera to estimate calories and macros for meals you log by photo."
+        }
       ]
     ],
     "extra": {

@@ -83,6 +83,27 @@ export default function NutritionPage() {
     loadData();
   };
 
+  const handleAddFoods = async (items: Array<{ food: FoodItem; servings: number }>) => {
+    if (!searchMeal) return;
+    await Promise.all(items.map(({ food, servings }) => {
+      const factor = (food.servingSizeG * servings) / 100;
+      return addFoodLogEntry({
+        date,
+        foodItemId: food.id,
+        foodName: food.name,
+        servings,
+        servingSizeG: food.servingSizeG,
+        meal: searchMeal,
+        calories: food.caloriesPer100g * factor,
+        protein: food.proteinPer100g * factor,
+        carbs: food.carbsPer100g * factor,
+        fat: food.fatPer100g * factor,
+      });
+    }));
+    setSearchMeal(null);
+    loadData();
+  };
+
   const handleDelete = async (id: string) => {
     await deleteFoodLogEntry(id);
     loadData();
@@ -161,6 +182,7 @@ export default function NutritionPage() {
         <FoodSearch
           meal={searchMeal}
           onSelect={handleAddFood}
+          onSelectMultiple={handleAddFoods}
           onClose={() => setSearchMeal(null)}
         />
       )}
