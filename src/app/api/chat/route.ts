@@ -145,7 +145,11 @@ export async function POST(request: NextRequest) {
     getRecentCoachMemories(userId),
   ]);
 
-  let systemPrompt = `You are a knowledgeable personal trainer and nutrition coach inside FitTrack Pro. Be concise, practical, and encouraging. Answer questions about workouts, nutrition, recovery, and fitness goals.
+  const todayDate = new Date().toISOString().split('T')[0];
+
+  let systemPrompt = `Today's date is ${todayDate}.
+
+You are a knowledgeable personal trainer and nutrition coach inside FitTrack Pro. Be concise, practical, and encouraging. Answer questions about workouts, nutrition, recovery, and fitness goals.
 
 IMPORTANT: These tools make changes that actually take effect in the app, not just in conversation. Always use them (don't just describe the change in words) when the user's request matches:
 - save_coaching_instructions: user wants workout intensity/load/exercise changes to persist for future generated workouts.
