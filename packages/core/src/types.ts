@@ -12,12 +12,14 @@ export interface UserProfile {
   experienceLevel: ExperienceLevel;
   preferredSplit: WorkoutSplit;
   healthSyncApiKey?: string;
+  nutritionTargetOverride?: string | null;
+  aiCoachGoal?: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
-export type Goal = 'fat_loss' | 'muscle_gain' | 'recomp' | 'maintain';
+export type Goal = 'fat_loss' | 'muscle_gain' | 'recomp' | 'maintain' | 'ai_coach';
 export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
 export type WorkoutSplit = 'ppl' | 'upper_lower' | 'full_body' | 'bro_split';
 

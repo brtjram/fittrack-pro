@@ -16,7 +16,7 @@ export async function PUT(request: NextRequest) {
   if (userId instanceof NextResponse) return userId;
 
   const body = await request.json();
-  const { name, age, gender, heightCm, currentWeightLbs, targetWeightLbs, activityLevel, goal, experienceLevel, preferredSplit, healthSyncApiKey, trackCycle, cycleLength, lastPeriodDate } = body;
+  const { name, age, gender, heightCm, currentWeightLbs, targetWeightLbs, activityLevel, goal, experienceLevel, preferredSplit, healthSyncApiKey, trackCycle, cycleLength, lastPeriodDate, aiCoachGoal } = body;
 
   const stepTarget = computeStepTarget(activityLevel, goal);
 
@@ -26,11 +26,13 @@ export async function PUT(request: NextRequest) {
       name, age, gender, heightCm, currentWeightLbs, targetWeightLbs,
       activityLevel, goal, experienceLevel, preferredSplit, healthSyncApiKey,
       trackCycle, cycleLength, lastPeriodDate, stepTarget,
+      ...(goal === 'ai_coach' ? { aiCoachGoal } : {}),
     },
     create: {
       userId, name, age, gender, heightCm, currentWeightLbs, targetWeightLbs,
       activityLevel, goal, experienceLevel, preferredSplit, healthSyncApiKey,
       trackCycle: trackCycle ?? false, cycleLength, lastPeriodDate, stepTarget,
+      aiCoachGoal: goal === 'ai_coach' ? aiCoachGoal : undefined,
     },
   });
 

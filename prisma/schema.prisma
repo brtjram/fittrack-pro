@@ -29,6 +29,8 @@ model User {
   pushTokens              PushToken[]
   notificationPrefs       NotificationPreferences?
   transformationChallenge TransformationChallenge?
+  coachMemories           CoachMemory[]
+  apiTokens               ApiToken[]
 }
 
 model Account {
@@ -87,6 +89,8 @@ model FitnessProfile {
   lastPeriodDate  String?
   stepTarget      Int      @default(10000)
   coachingNotes   String?
+  nutritionTargetOverride String?
+  aiCoachGoal     String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -223,6 +227,38 @@ model TransformationChallenge {
   updatedAt       DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Durable coaching memory — insights, preferences, constraints, and logged actions
+// the AI coach has learned about the user, injected back into future chat sessions
+// so advice compounds instead of resetting each conversation.
+model CoachMemory {
+  id        String   @id @default(cuid())
+  userId    String
+  category  String   // 'insight' | 'preference' | 'constraint' | 'action' | 'outcome'
+  content   String
+  pinned    Boolean  @default(false) // always surfaced first (e.g. injuries, allergies)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+// Personal access tokens for connecting external MCP clients (Claude, ChatGPT, etc.)
+// to a user's FitTrack Pro data. Only the hash is stored; the plaintext token is
+// shown once at generation time.
+model ApiToken {
+  id         String    @id @default(cuid())
+  userId     String
+  name       String
+  tokenHash  String    @unique
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model NotificationPreferences {

@@ -1,14 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthUserId } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
 
+// This endpoint is hit by the iOS Shortcut described in Settings > Apple Health,
+// which authenticates with an `apiKey` field in the JSON body (there's no way to
+// set a custom Authorization header from the Shortcuts app UI) rather than a
+// Bearer token. It's listed in proxy.ts's publicPaths so requests reach this
+// handler at all, and auth happens here by resolving the profile that owns the key.
 export async function POST(request: NextRequest) {
-  const userId = await getAuthUserId();
-  if (userId instanceof NextResponse) return userId;
-
   try {
     const body = await request.json();
-    const { date, steps, activeCalories, restingHeartRate, weight } = body;
+    const { apiKey, date, steps, activeCalories, restingHeartRate, weight } = body;
+
+    if (!apiKey) {
+      return NextResponse.json({ error: 'Missing required field: apiKey' }, { status: 400 });
+    }
+
+    const profile = await prisma.fitnessProfile.findFirst({ where: { healthSyncApiKey: apiKey } });
+    if (!profile) {
+      return NextResponse.json({ error: 'Invalid apiKey' }, { status: 401 });
+    }
+    const userId = profile.userId;
 
     if (!date) {
       return NextResponse.json({ error: 'Missing required field: date' }, { status: 400 });
@@ -51,6 +62,6 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   return NextResponse.json({
     status: 'Apple Health Sync API is active',
-    usage: 'POST with Bearer auth + { date, steps, activeCalories, restingHeartRate?, weight? }',
+    usage: 'POST with { apiKey, date, steps, activeCalories, restingHeartRate?, weight? }',
   });
 }

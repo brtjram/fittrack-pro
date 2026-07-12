@@ -14,6 +14,7 @@ const GOAL_ADJUSTMENTS = {
   muscle_gain: 0.15,
   recomp: -0.05,
   maintain: 0,
+  ai_coach: 0,
 };
 
 const PROTEIN_PER_KG = 2.2;
@@ -35,6 +36,22 @@ export function calculateTDEE(profile: UserProfile): number {
 }
 
 export function calculateMacroTargets(profile: UserProfile): MacroTargets {
+  if (profile.nutritionTargetOverride) {
+    try {
+      const override = JSON.parse(profile.nutritionTargetOverride) as Partial<MacroTargets>;
+      if (typeof override.calories === 'number') {
+        return {
+          calories: override.calories,
+          protein: override.protein ?? 0,
+          carbs: override.carbs ?? 0,
+          fat: override.fat ?? 0,
+        };
+      }
+    } catch {
+      // ignore parse errors, fall through to calculated targets
+    }
+  }
+
   const tdee = calculateTDEE(profile);
   const goalAdjustment = GOAL_ADJUSTMENTS[profile.goal];
   const targetCalories = Math.round(tdee * (1 + goalAdjustment));

@@ -16,6 +16,7 @@ const goalOptions: { value: Goal; label: string; desc: string }[] = [
   { value: 'muscle_gain', label: 'Muscle Gain', desc: 'Build muscle with lean surplus' },
   { value: 'recomp', label: 'Recomposition', desc: 'Lose fat and gain muscle simultaneously' },
   { value: 'maintain', label: 'Maintain', desc: 'Maintain current weight and performance' },
+  { value: 'ai_coach', label: 'AI Coach Mode', desc: 'Describe your goal — the coach sets nutrition & workouts' },
 ];
 
 const activityOptions: { value: ActivityLevel; label: string; desc: string }[] = [
@@ -53,6 +54,7 @@ type FormState = {
   trackCycle: boolean;
   cycleLength: number;
   lastPeriodDate: string;
+  aiCoachGoal: string;
 };
 
 export default function SettingsPage() {
@@ -76,6 +78,7 @@ export default function SettingsPage() {
     trackCycle: false,
     cycleLength: 28,
     lastPeriodDate: '',
+    aiCoachGoal: '',
   });
 
   useEffect(() => {
@@ -96,6 +99,7 @@ export default function SettingsPage() {
           trackCycle: profile.trackCycle ?? false,
           cycleLength: profile.cycleLength ?? 28,
           lastPeriodDate: profile.lastPeriodDate ?? '',
+          aiCoachGoal: profile.aiCoachGoal ?? '',
         };
         setForm(loaded);
         savedFormRef.current = JSON.stringify(loaded);
@@ -262,6 +266,25 @@ export default function SettingsPage() {
               </button>
             ))}
           </div>
+
+          {form.goal === 'ai_coach' && (
+            <div className="mt-3">
+              <label className="mb-1 block text-sm text-muted-foreground">
+                Tell the coach what you&apos;re training for
+              </label>
+              <textarea
+                value={form.aiCoachGoal}
+                onChange={(e) => updateField('aiCoachGoal', e.target.value)}
+                placeholder='e.g. "Train for a marathon in 16 weeks while keeping the muscle I&apos;ve built" or "Get as strong as possible without gaining much fat"'
+                rows={3}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+              />
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Save this, then open the coach chat and ask it to build your plan — it will set your
+                daily nutrition and weekly workout targets from this goal and keep adjusting them as you go.
+              </p>
+            </div>
+          )}
         </section>
 
         {/* Activity Level */}
@@ -446,15 +469,22 @@ export default function SettingsPage() {
             />
             <IntegrationRow
               name="MacroFactor"
-              description="Sync macro targets and expenditure data"
+              description="Import weight and nutrition history"
               exportUrl="https://help.macrofactorapp.com/exporting_data"
-              instructions="Export your data from MacroFactor Settings > Export Data, then use the CSV to set up your macro targets here."
+              href="/settings/import/macrofactor"
+              instructions="MacroFactor has no live API, so this is a one-time import: export your data from MacroFactor Settings > Export Data, then upload the CSV here to bring your weight and nutrition history into FitTrack."
             />
             <IntegrationRow
               name="Apple Health"
               description="Auto-sync steps, calories, and weight"
               href="/settings/health-sync"
               instructions="Set up an iOS Shortcut to automatically push your Apple Health data to FitTrack every night."
+            />
+            <IntegrationRow
+              name="Connect an AI (MCP)"
+              description="Let Claude, ChatGPT, or any MCP client read and coach from your FitTrack data"
+              href="/settings/mcp"
+              instructions="Generate a personal access token and point any MCP-compatible AI client at FitTrack Pro's MCP server. It sees your profile, workouts, nutrition, weight/activity, and coaching memory together, and can act on the same tools your in-app coach uses."
             />
           </div>
         </section>

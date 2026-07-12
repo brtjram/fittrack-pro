@@ -124,6 +124,35 @@ const statements = [
   )`,
 
   `CREATE UNIQUE INDEX IF NOT EXISTS "DailyActivity_userId_date_key" ON "DailyActivity"("userId", "date")`,
+
+  // Added for AI coach memory / AI coach goal mode / MCP access tokens.
+  // ALTER TABLE ADD COLUMN fails (caught below, non-fatal) if the column already exists.
+  `ALTER TABLE "FitnessProfile" ADD COLUMN "aiCoachGoal" TEXT`,
+
+  `CREATE TABLE IF NOT EXISTS "CoachMemory" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "category" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "pinned" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "CoachMemory_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+  )`,
+
+  `CREATE INDEX IF NOT EXISTS "CoachMemory_userId_createdAt_idx" ON "CoachMemory"("userId", "createdAt")`,
+
+  `CREATE TABLE IF NOT EXISTS "ApiToken" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "tokenHash" TEXT NOT NULL,
+    "lastUsedAt" DATETIME,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "ApiToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+  )`,
+
+  `CREATE UNIQUE INDEX IF NOT EXISTS "ApiToken_tokenHash_key" ON "ApiToken"("tokenHash")`,
+  `CREATE INDEX IF NOT EXISTS "ApiToken_userId_idx" ON "ApiToken"("userId")`,
 ];
 
 async function migrate() {

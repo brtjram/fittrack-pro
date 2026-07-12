@@ -1,0 +1,23 @@
+{
+  "name": "@fittrack/mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MCP server exposing a FitTrack Pro account (profile, workouts, nutrition, weight/activity, and coaching memory) to any MCP-compatible LLM client.",
+  "type": "module",
+  "bin": {
+    "fittrack-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "dev": "tsc -p tsconfig.json --watch"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5",
+    "@types/node": "^20"
+  }
+}

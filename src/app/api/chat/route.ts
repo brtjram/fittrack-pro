@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { getAuthUserId } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
+import { getRecentCoachMemories, formatCoachMemoriesForPrompt } from '@/lib/services/coach-memory-service';
+import {
+  type CoachingNotes,
+  formatCoachingNotes,
+  saveCoachingInstructionsAction,
+  scheduleWorkoutPlanAction,
+  setNutritionTargetsAction,
+  setAiCoachGoalAction,
+  rememberInsightAction,
+} from '@/lib/services/coach-actions-service';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -16,37 +26,19 @@ function getCyclePhase(lastPeriodDate: string, cycleLength: number): string {
   return `Luteal phase (day ${dayOfCycle}) — energy declining, moderate intensity, listen to your body`;
 }
 
-interface CoachingNotes {
-  intensityModifier?: number;
-  exerciseOverrides?: Record<string, { intensityModifier?: number; notes?: string }>;
-  generalNotes?: string;
-  lastUpdated?: string;
-}
-
-function formatCoachingNotes(notes: CoachingNotes): string {
-  const parts: string[] = [];
-  if (notes.intensityModifier && notes.intensityModifier !== 1.0) {
-    const pct = Math.round((notes.intensityModifier - 1) * 100);
-    parts.push(`Overall intensity: ${pct > 0 ? '+' : ''}${pct}% on all lifts`);
+function formatNutritionOverride(raw: string): string | null {
+  try {
+    const override = JSON.parse(raw) as { calories?: number; protein?: number; carbs?: number; fat?: number; reason?: string };
+    if (typeof override.calories !== 'number') return null;
+    return `${override.calories} kcal, ${override.protein}g protein, ${override.carbs}g carbs, ${override.fat}g fat${override.reason ? ` (${override.reason})` : ''}`;
+  } catch {
+    return null;
   }
-  if (notes.generalNotes) parts.push(notes.generalNotes);
-  if (notes.exerciseOverrides) {
-    for (const [exercise, override] of Object.entries(notes.exerciseOverrides)) {
-      const parts2: string[] = [];
-      if (override.intensityModifier && override.intensityModifier !== 1.0) {
-        const pct = Math.round((override.intensityModifier - 1) * 100);
-        parts2.push(`${pct > 0 ? '+' : ''}${pct}% load`);
-      }
-      if (override.notes) parts2.push(override.notes);
-      if (parts2.length) parts.push(`${exercise}: ${parts2.join(', ')}`);
-    }
-  }
-  return parts.join('\n- ');
 }
 
 const saveCoachingInstructionsTool: Anthropic.Tool = {
   name: 'save_coaching_instructions',
-  description: 'Save training or nutrition instructions given by the user so they persist and affect future workouts and meal plans. Use this whenever the user explicitly asks to change workout intensity, load, exercise difficulty, or dietary preferences.',
+  description: 'Save training instructions given by the user so they persist and affect future workouts. Use this whenever the user explicitly asks to change workout intensity, load, or exercise difficulty. For nutrition/calorie/macro changes, use set_nutrition_targets instead.',
   input_schema: {
     type: 'object' as const,
     properties: {
@@ -67,10 +59,77 @@ const saveCoachingInstructionsTool: Anthropic.Tool = {
       },
       generalNotes: {
         type: 'string',
-        description: 'Free-text coaching preferences (e.g., "more leg volume", "swap deadlifts for RDLs", "keep calories at 2200").',
+        description: 'Free-text training preferences (e.g., "more leg volume", "swap deadlifts for RDLs").',
       },
     },
     required: [],
+  },
+};
+
+const scheduleWorkoutPlanTool: Anthropic.Tool = {
+  name: 'schedule_workout_plan',
+  description: "Generate and save the user's workouts for the upcoming week directly to their training log, so a plan discussed in chat actually shows up as real scheduled sessions rather than just being talked about. Use this whenever the user asks you to plan, schedule, set up, or regenerate their workouts for the week. Any active coaching intensity preferences are automatically applied.",
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      split: {
+        type: 'string',
+        enum: ['ppl', 'upper_lower', 'full_body', 'bro_split'],
+        description: "Change the user's training split going forward (ppl = push/pull/legs, upper_lower, full_body, bro_split = body-part split). Omit to keep their current split.",
+      },
+    },
+    required: [],
+  },
+};
+
+const setNutritionTargetsTool: Anthropic.Tool = {
+  name: 'set_nutrition_targets',
+  description: "Set the user's real daily calorie and macro targets, overriding the auto-calculated targets shown throughout the app's nutrition tracker. Use this whenever the user asks you to lock in, change, or set a specific calorie or macro goal (e.g. 'keep me at 2200 calories', 'bump my protein to 180g', 'set up a lean bulk at 2800 calories').",
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      calories: { type: 'number', description: 'Daily calorie target.' },
+      protein: { type: 'number', description: 'Daily protein target in grams. Omit to keep the auto-calculated protein target.' },
+      carbs: { type: 'number', description: 'Daily carb target in grams. Omit to auto-balance from remaining calories.' },
+      fat: { type: 'number', description: 'Daily fat target in grams. Omit to auto-balance from remaining calories.' },
+      reason: { type: 'string', description: 'Short reason for the change, shown in the adjustment history (e.g. "user requested lean bulk").' },
+    },
+    required: ['calories', 'reason'],
+  },
+};
+
+const setAiCoachGoalTool: Anthropic.Tool = {
+  name: 'set_ai_coach_goal',
+  description: "Switch the user into AI Coach Mode with a specific stated goal (e.g. training for an event, a hybrid strength+endurance goal, or anything that doesn't fit the fat_loss/muscle_gain/recomp/maintain presets). This becomes the source of truth for their nutrition and training instead of a generic preset. After calling this, immediately follow up with set_nutrition_targets and schedule_workout_plan in the same turn to turn the goal into real daily/weekly targets — don't just save the description and stop.",
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      goalDescription: {
+        type: 'string',
+        description: 'A concise summary of what the user is training for, in their words where possible (e.g. "Marathon in 16 weeks while keeping current muscle mass").',
+      },
+    },
+    required: ['goalDescription'],
+  },
+};
+
+const rememberInsightTool: Anthropic.Tool = {
+  name: 'remember_insight',
+  description: "Save a durable fact about this user to long-term coaching memory so it carries into every future conversation, not just this one. Use this whenever the user reveals something that should shape future advice: an injury or physical limitation, a food they dislike or are allergic to, a training preference, what has or hasn't worked for them (adherence, energy, recovery), or the outcome of a change you previously made. Do not use this for one-off facts already captured by save_coaching_instructions or set_nutrition_targets — this is for things that should inform your judgment later, in words, not structured overrides.",
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      category: {
+        type: 'string',
+        enum: ['insight', 'preference', 'constraint', 'outcome'],
+        description: "'constraint' = injuries/allergies/hard limits (always shown to you going forward). 'preference' = likes/dislikes. 'insight' = a pattern you've noticed about what works for this user. 'outcome' = the result of a change that was tried.",
+      },
+      content: {
+        type: 'string',
+        description: 'One or two sentences, written so future-you can act on it directly (e.g. "Knees hurt with high-rep leg presses — prefers lower rep ranges on quad-dominant isolation work.").',
+      },
+    },
+    required: ['category', 'content'],
   },
 };
 
@@ -80,17 +139,36 @@ export async function POST(request: NextRequest) {
 
   const { messages } = await request.json() as { messages: { role: 'user' | 'assistant'; content: string }[] };
 
-  const [profile, challenge] = await Promise.all([
+  const [profile, challenge, coachMemories] = await Promise.all([
     prisma.fitnessProfile.findUnique({ where: { userId } }),
     prisma.transformationChallenge.findUnique({ where: { userId } }),
+    getRecentCoachMemories(userId),
   ]);
 
   let systemPrompt = `You are a knowledgeable personal trainer and nutrition coach inside FitTrack Pro. Be concise, practical, and encouraging. Answer questions about workouts, nutrition, recovery, and fitness goals.
 
-IMPORTANT: When the user asks you to change workout intensity (make it harder/easier), adjust loads for specific exercises, or modify their diet/nutrition targets, ALWAYS use the save_coaching_instructions tool to persist those changes. These saved instructions will automatically feed into their generated workouts and nutrition plans going forward. Confirm to the user that you've saved their preferences.`;
+IMPORTANT: These tools make changes that actually take effect in the app, not just in conversation. Always use them (don't just describe the change in words) when the user's request matches:
+- save_coaching_instructions: user wants workout intensity/load/exercise changes to persist for future generated workouts.
+- schedule_workout_plan: user wants their upcoming week of workouts planned, scheduled, or regenerated.
+- set_nutrition_targets: user wants a specific calorie or macro target locked in.
+- remember_insight: user reveals an injury, allergy, preference, or the outcome of something you tried — save it so it shapes advice in every future session, not just this one.
+Confirm to the user what you've saved/scheduled after calling a tool.
+
+You have long-term memory of this user from past sessions (below, if any exists). Actively use it: reference what's worked or hasn't, respect stated constraints without being asked again, and let outcomes from past changes inform new recommendations instead of starting from scratch each time.`;
+
+  const memoryContext = formatCoachMemoriesForPrompt(coachMemories);
+  if (memoryContext) {
+    systemPrompt += `\n\nCoaching memory (accumulated across past sessions):\n${memoryContext}`;
+  }
 
   if (profile) {
     systemPrompt += `\n\nUser profile: ${profile.name}, ${profile.age}yo ${profile.gender}, ${profile.currentWeightLbs}lbs, goal: ${profile.goal}, experience: ${profile.experienceLevel}, split: ${profile.preferredSplit}.`;
+
+    if (profile.goal === 'ai_coach') {
+      systemPrompt += profile.aiCoachGoal
+        ? `\n\nAI Coach Mode is active. The user's stated goal: "${profile.aiCoachGoal}". This goal — not a generic fat_loss/muscle_gain/recomp preset — is the source of truth for their nutrition and training. If they haven't been given concrete daily/weekly targets yet, or the goal has changed, use set_nutrition_targets and schedule_workout_plan (and save_coaching_instructions for training style/split changes) to translate it into real numbers now, then explain your reasoning briefly. Revisit and adjust these targets as the user reports progress, adherence, or a change in the goal — that's the point of this mode.`
+        : `\n\nAI Coach Mode is active, but no goal description has been saved yet. Ask what the user is training for, then call set_ai_coach_goal with a concise summary, and immediately follow up with set_nutrition_targets and schedule_workout_plan to turn it into concrete daily/weekly targets.`;
+    }
 
     if (profile.coachingNotes) {
       try {
@@ -101,6 +179,13 @@ IMPORTANT: When the user asks you to change workout intensity (make it harder/ea
         }
       } catch {
         // ignore parse errors
+      }
+    }
+
+    if (profile.nutritionTargetOverride) {
+      const formatted = formatNutritionOverride(profile.nutritionTargetOverride);
+      if (formatted) {
+        systemPrompt += `\n\nActive nutrition target override (saved from previous sessions): ${formatted}`;
       }
     }
 
@@ -122,86 +207,106 @@ IMPORTANT: When the user asks you to change workout intensity (make it harder/ea
 - Tailor all advice to the transformation challenge. Prioritize fat loss while protecting muscle.`;
   }
 
-  // First pass: check if this message contains coaching instructions
+  // First pass: check if this message likely asks for a persisted change
   const lastUserMessage = messages[messages.length - 1];
   const mightHaveInstructions = lastUserMessage?.role === 'user' &&
-    /\b(intense|intensity|harder|heavier|lighter|easier|reduce|increase|lower|higher|less|more|change|adjust|modify|swap|replace|drop|add|switch|cut|maintain|focus|avoid|skip)\b/i.test(lastUserMessage.content);
+    /\b(intense|intensity|harder|heavier|lighter|easier|reduce|increase|lower|higher|less|more|change|adjust|modify|swap|replace|drop|add|switch|cut|maintain|focus|avoid|skip|plan|schedule|regenerate|generate|calorie|calories|macro|macros|diet|target|targets|bulk|deficit|surplus|protein|carbs|nutrition|workout|week|injur|hurt|pain|sore|allerg|prefer|dislike|hate|love|worked|working|isn't working|wasn't working|stall|plateau|energy|sleep|goal|marathon|race|train for|ai coach)\b/i.test(lastUserMessage.content);
 
   if (mightHaveInstructions) {
-    // Run with tools to potentially save instructions
+    // Run with tools to potentially persist changes
     const toolResponse = await client.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 1024,
       system: systemPrompt,
       messages,
-      tools: [saveCoachingInstructionsTool],
+      tools: [saveCoachingInstructionsTool, scheduleWorkoutPlanTool, setNutritionTargetsTool, setAiCoachGoalTool, rememberInsightTool],
       tool_choice: { type: 'auto' },
     });
 
-    // Process tool use
-    for (const block of toolResponse.content) {
-      if (block.type === 'tool_use' && block.name === 'save_coaching_instructions') {
-        const input = block.input as {
-          intensityModifier?: number;
-          exerciseOverrides?: Record<string, { intensityModifier?: number; notes?: string }>;
-          generalNotes?: string;
-        };
+    const toolUseBlocks = toolResponse.content.filter(
+      (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use'
+    );
 
-        let existing: CoachingNotes = {};
-        if (profile?.coachingNotes) {
-          try { existing = JSON.parse(profile.coachingNotes); } catch { /* ignore */ }
+    if (toolUseBlocks.length > 0) {
+      // Track profile state locally as tools run in sequence, so a later tool
+      // in the same turn (e.g. schedule_workout_plan) sees an earlier tool's
+      // writes (e.g. save_coaching_instructions) without an extra DB round-trip.
+      let currentProfile = profile;
+      const toolResults: Anthropic.ToolResultBlockParam[] = [];
+
+      for (const block of toolUseBlocks) {
+        let resultText = 'Done.';
+
+        if (block.name === 'save_coaching_instructions') {
+          if (!currentProfile) {
+            resultText = 'Could not save instructions: no fitness profile found for this user yet.';
+          } else {
+            const result = await saveCoachingInstructionsAction(userId, currentProfile, block.input as {
+              intensityModifier?: number;
+              exerciseOverrides?: Record<string, { intensityModifier?: number; notes?: string }>;
+              generalNotes?: string;
+            });
+            currentProfile = result.profile;
+            resultText = result.resultText;
+          }
+        } else if (block.name === 'schedule_workout_plan') {
+          if (!currentProfile) {
+            resultText = 'Could not schedule workouts: no fitness profile found for this user yet.';
+          } else {
+            const result = await scheduleWorkoutPlanAction(userId, currentProfile, block.input as { split?: 'ppl' | 'upper_lower' | 'full_body' | 'bro_split' });
+            currentProfile = result.profile;
+            resultText = result.resultText;
+          }
+        } else if (block.name === 'set_nutrition_targets') {
+          if (!currentProfile) {
+            resultText = 'Could not set nutrition targets: no fitness profile found for this user yet.';
+          } else {
+            const result = await setNutritionTargetsAction(userId, currentProfile, block.input as { calories: number; protein?: number; carbs?: number; fat?: number; reason: string });
+            currentProfile = result.profile;
+            resultText = result.resultText;
+          }
+        } else if (block.name === 'set_ai_coach_goal') {
+          if (!currentProfile) {
+            resultText = 'Could not enable AI Coach Mode: no fitness profile found for this user yet.';
+          } else {
+            const result = await setAiCoachGoalAction(userId, currentProfile, block.input as { goalDescription: string });
+            currentProfile = result.profile;
+            resultText = result.resultText;
+          }
+        } else if (block.name === 'remember_insight') {
+          const result = await rememberInsightAction(userId, block.input as { category: 'insight' | 'preference' | 'constraint' | 'outcome'; content: string });
+          resultText = result.resultText;
         }
 
-        const merged: CoachingNotes = {
-          ...existing,
-          ...(input.intensityModifier !== undefined && { intensityModifier: input.intensityModifier }),
-          ...(input.generalNotes && { generalNotes: [existing.generalNotes, input.generalNotes].filter(Boolean).join('. ') }),
-          exerciseOverrides: {
-            ...existing.exerciseOverrides,
-            ...input.exerciseOverrides,
-          },
-          lastUpdated: new Date().toISOString().split('T')[0],
-        };
-
-        await prisma.fitnessProfile.updateMany({
-          where: { userId },
-          data: { coachingNotes: JSON.stringify(merged) },
-        });
-
-        // Continue with a follow-up message that includes the tool result
-        const messagesWithTool: Anthropic.MessageParam[] = [
-          ...messages,
-          { role: 'assistant' as const, content: toolResponse.content },
-          {
-            role: 'user' as const,
-            content: [{
-              type: 'tool_result' as const,
-              tool_use_id: block.id,
-              content: 'Instructions saved successfully. These will now affect future workout generation and nutrition plans.',
-            }],
-          },
-        ];
-
-        const followUp = client.messages.stream({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 1024,
-          system: systemPrompt,
-          messages: messagesWithTool,
-        });
-
-        const encoder = new TextEncoder();
-        const readable = new ReadableStream({
-          async start(controller) {
-            for await (const chunk of followUp) {
-              if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
-                controller.enqueue(encoder.encode(chunk.delta.text));
-              }
-            }
-            controller.close();
-          },
-        });
-        return new Response(readable, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+        toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: resultText });
       }
+
+      // Continue with a follow-up message that includes all tool results
+      const messagesWithTool: Anthropic.MessageParam[] = [
+        ...messages,
+        { role: 'assistant' as const, content: toolResponse.content },
+        { role: 'user' as const, content: toolResults },
+      ];
+
+      const followUp = client.messages.stream({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages: messagesWithTool,
+      });
+
+      const encoder = new TextEncoder();
+      const readable = new ReadableStream({
+        async start(controller) {
+          for await (const chunk of followUp) {
+            if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+              controller.enqueue(encoder.encode(chunk.delta.text));
+            }
+          }
+          controller.close();
+        },
+      });
+      return new Response(readable, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
     }
 
     // No tool was called; stream the text response that was already generated
@@ -213,7 +318,7 @@ IMPORTANT: When the user asks you to change workout intensity (make it harder/ea
     return new Response(textContent, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
   }
 
-  // Normal streaming path (no coaching instructions detected)
+  // Normal streaming path (no persisted changes detected)
   const stream = client.messages.stream({
     model: 'claude-sonnet-4-6',
     max_tokens: 1024,

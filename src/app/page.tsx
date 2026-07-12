@@ -189,6 +189,7 @@ export default function DashboardPage() {
             {profile?.goal === 'muscle_gain' && 'Building muscle, one rep at a time.'}
             {profile?.goal === 'recomp' && 'Transforming your body composition.'}
             {profile?.goal === 'maintain' && 'Maintaining your progress.'}
+            {profile?.goal === 'ai_coach' && (profile.aiCoachGoal || 'AI Coach Mode — ask your coach to set your plan.')}
           </p>
         </div>
       </div>

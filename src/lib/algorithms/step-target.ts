@@ -15,6 +15,9 @@ const GOAL_DELTA: Record<Goal, number> = {
   recomp:      1000,
   maintain:    0,
   muscle_gain: -1000,
+  // AI coach mode sets its own step target as part of the plan it designs;
+  // this is only the fallback until it does.
+  ai_coach:    0,
 };
 
 export function computeStepTarget(activityLevel: ActivityLevel, goal: Goal): number {

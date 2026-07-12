@@ -16,6 +16,10 @@ const GOAL_ADJUSTMENTS = {
   muscle_gain: 0.15, // 15% surplus
   recomp: -0.05, // Slight deficit
   maintain: 0,
+  // AI coach mode: no fixed adjustment — the coach sets a nutritionTargetOverride
+  // based on the user's stated goal, which is checked before this map is used.
+  // 0 is only a fallback for the window before the coach has set a target.
+  ai_coach: 0,
 };
 
 const PROTEIN_PER_KG = 2.2; // g/kg for muscle preservation during cut
@@ -38,6 +42,22 @@ export function calculateTDEE(profile: UserProfile): number {
 }
 
 export function calculateMacroTargets(profile: UserProfile): MacroTargets {
+  if (profile.nutritionTargetOverride) {
+    try {
+      const override = JSON.parse(profile.nutritionTargetOverride) as Partial<MacroTargets>;
+      if (typeof override.calories === 'number') {
+        return {
+          calories: override.calories,
+          protein: override.protein ?? 0,
+          carbs: override.carbs ?? 0,
+          fat: override.fat ?? 0,
+        };
+      }
+    } catch {
+      // ignore parse errors, fall through to calculated targets
+    }
+  }
+
   const tdee = calculateTDEE(profile);
   const goalAdjustment = GOAL_ADJUSTMENTS[profile.goal];
   const targetCalories = Math.round(tdee * (1 + goalAdjustment));
