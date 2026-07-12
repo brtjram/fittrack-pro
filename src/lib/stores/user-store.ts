@@ -8,11 +8,14 @@ export async function getUserProfile(): Promise<UserProfile | undefined> {
 }
 
 export async function saveUserProfile(profile: Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): Promise<void> {
-  await fetch('/api/fitness/profile', {
+  const res = await fetch('/api/fitness/profile', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(profile),
   });
+  if (!res.ok) {
+    throw new Error(`Failed to save profile (${res.status})`);
+  }
 }
 
 export async function updateUserWeight(weightLbs: number): Promise<void> {

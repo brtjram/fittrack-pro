@@ -60,9 +60,11 @@ type FormState = {
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [saveError, setSaveError] = useState(false);
   const savedFormRef = useRef<string>('');
   const [form, setForm] = useState<FormState>({
     name: '',
@@ -105,17 +107,21 @@ export default function SettingsPage() {
         savedFormRef.current = JSON.stringify(loaded);
         setSaved(true);
       }
-    });
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, []);
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveError(false);
     try {
       const existing = await getUserProfile();
       await saveUserProfile({ ...form, id: existing?.id });
       savedFormRef.current = JSON.stringify(form);
       setSaved(true);
       setDirty(false);
+    } catch {
+      setSaveError(true);
     } finally {
       setSaving(false);
     }
@@ -154,7 +160,17 @@ export default function SettingsPage() {
         }
       />
 
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      ) : (
       <div className="mx-auto max-w-lg space-y-6 p-4">
+        {saveError && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+            Save failed — check your connection and try again.
+          </div>
+        )}
         {/* Profile Section */}
         <section className="rounded-xl border border-border bg-card p-4">
           <div className="mb-4 flex items-center gap-2">
@@ -533,6 +549,7 @@ export default function SettingsPage() {
 
         <div className="h-4" />
       </div>
+      )}
     </div>
   );
 }

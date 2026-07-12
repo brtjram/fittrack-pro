@@ -36,9 +36,14 @@ export async function getAuthUserId(): Promise<string | NextResponse> {
   }
 
   // Fall back to cookie-based session (web)
-  const session = await auth();
-  if (!session?.user?.id) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    return session.user.id;
+  } catch (e) {
+    console.error('[api-auth] session resolution failed:', e);
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  return session.user.id;
 }
