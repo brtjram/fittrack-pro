@@ -167,17 +167,37 @@ export default function McpSettingsPage() {
           )}
         </div>
 
-        {/* Step 2: config */}
+        {/* Step 2: Claude.ai web connector */}
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-center gap-2 mb-3">
             <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">2</div>
-            <h3 className="font-semibold">Add it to your AI client</h3>
+            <h3 className="font-semibold">Add to Claude.ai (web)</h3>
           </div>
           <p className="mb-3 text-sm text-muted-foreground">
-            For Claude Desktop or Claude Code, add this to your MCP config (or run{' '}
-            <code className="rounded bg-muted px-1">claude mcp add fittrack</code>). Other MCP clients (including
-            ChatGPT&apos;s custom connectors, once you have a token) use the same base URL and bearer token against
-            the REST endpoints directly.
+            In Claude.ai, go to <strong>Settings → Connectors → Add custom connector</strong> and paste this URL.
+            If it asks for an Authorization header, use <code className="rounded bg-muted px-1">Bearer &lt;your token&gt;</code> with
+            the token from Step 1.
+          </p>
+          <div className="relative">
+            <pre className="overflow-x-auto rounded-lg bg-muted p-3 font-mono text-xs">{`${appUrl || 'https://your-fittrack-domain.com'}/api/mcp`}</pre>
+            <button
+              onClick={() => copyToClipboard(`${appUrl}/api/mcp`, 'connector-url')}
+              className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-lg bg-background/80 text-muted-foreground hover:text-foreground"
+            >
+              {copied === 'connector-url' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Step 3: Claude Desktop / Claude Code config */}
+        <div className="rounded-xl border border-border bg-card p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">3</div>
+            <h3 className="font-semibold">Or use Claude Desktop / Claude Code</h3>
+          </div>
+          <p className="mb-3 text-sm text-muted-foreground">
+            Add this to your MCP config (or run <code className="rounded bg-muted px-1">claude mcp add fittrack</code>).
+            Other local MCP clients use the same base URL and bearer token against the REST endpoints directly.
           </p>
           <div className="relative">
             <pre className="overflow-x-auto rounded-lg bg-muted p-3 font-mono text-xs">{configSnippet}</pre>

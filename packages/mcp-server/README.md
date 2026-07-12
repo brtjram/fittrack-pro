@@ -11,12 +11,20 @@ over HTTPS, authenticated with a personal access token. No FitTrack data is stor
 ## Setup
 
 1. In the FitTrack Pro app, go to **Settings → Connect an AI (MCP)** and generate a personal access token.
+
+### Claude.ai (web)
+
+Claude.ai's web connectors can't spawn a local process, so they need a remote HTTP endpoint instead of this stdio
+package. The main app exposes one directly at `/api/mcp` (Streamable HTTP transport, same tools, same token). In
+Claude.ai go to **Settings → Connectors → Add custom connector** and use `https://your-app.vercel.app/api/mcp` with
+`Authorization: Bearer <your token>`.
+
+### Claude Desktop / Claude Code
+
 2. Build this package (from the repo root): `npm run build --workspace=@fittrack/mcp-server`.
 3. Point your MCP client at it with two environment variables:
    - `FITTRACK_BASE_URL` — your deployed FitTrack Pro origin (e.g. `https://your-app.vercel.app`)
    - `FITTRACK_API_TOKEN` — the token from step 1
-
-### Claude Desktop / Claude Code
 
 ```json
 {
