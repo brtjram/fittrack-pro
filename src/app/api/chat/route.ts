@@ -87,7 +87,7 @@ const scheduleWorkoutPlanTool: Anthropic.Tool = {
         items: {
           type: 'object',
           properties: {
-            dayOffset: { type: 'number', description: '0 = Monday of this week, 6 = Sunday.' },
+            dayOffset: { type: 'number', description: '0 = Sunday of this week, 6 = Saturday.' },
             name: { type: 'string', description: 'e.g. "Zone 2 Cardio" or "Incline Walk".' },
             durationMinutes: { type: 'number', description: 'Prescribed duration in minutes.' },
             notes: { type: 'string', description: 'Any guidance for the session (intensity, heart rate zone, etc).' },

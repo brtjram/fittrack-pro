@@ -2,7 +2,7 @@ import type { UserProfile, WorkoutSession, WorkoutExercise, WorkoutSet } from '@
 import { getWorkoutPlan, getNextWorkoutTemplate } from '@/lib/data/workout-templates';
 import { getExerciseById } from '@/lib/data/exercises';
 import { shouldDeload, applyDeload, calculateProgression } from './progressive-overload';
-import { generateId, getWeekNumber } from '@/lib/utils';
+import { generateId, getWeekNumber, toDateString } from '@/lib/utils';
 
 export interface CoachingNotes {
   intensityModifier?: number;
@@ -115,7 +115,7 @@ export function generateNextWorkout(
 
   return {
     sessionId: generateId(),
-    date: today.toISOString().split('T')[0],
+    date: toDateString(today),
     name: isDeload ? `${template.name} (Deload)` : template.name,
     splitDay: template.splitDay,
     exercises,
@@ -186,12 +186,13 @@ export function generateWeekPlan(
 
   const today = new Date();
   const dayOfWeek = today.getDay(); // 0=Sun
-  // Start from next Monday (or today if Monday)
-  const monday = new Date(today);
-  const daysUntilMonday = dayOfWeek === 0 ? 1 : dayOfWeek === 1 ? 0 : 8 - dayOfWeek;
-  monday.setDate(today.getDate() + daysUntilMonday);
+  // Week runs Sun–Sat; training days below are still Mon–Sat (offset 0 = the
+  // upcoming Monday from this week's Sunday), so this schedules the current
+  // week's remaining days rather than always jumping to next week.
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - dayOfWeek);
 
-  const weekNumber = getWeekNumber(monday);
+  const weekNumber = getWeekNumber(weekStart);
   const isDeload = shouldDeload(weekNumber);
   const sessions: WorkoutSession[] = [];
 
@@ -199,16 +200,17 @@ export function generateWeekPlan(
   let accumulated = [...recentSessions];
   for (let i = 0; i < plan.templates.length; i++) {
     const template = plan.templates[i];
-    const sessionDate = new Date(monday);
-    // Spread workouts across the week with rest days
-    const dayOffsets3 = [0, 2, 4];
-    const dayOffsets4 = [0, 1, 3, 4];
+    const sessionDate = new Date(weekStart);
+    // Spread workouts across the week with rest days. Offsets are from
+    // Monday (+1 from the Sunday week start) — Sunday itself stays a rest day.
+    const dayOffsets3 = [1, 3, 5];
+    const dayOffsets4 = [1, 2, 4, 5];
     if (plan.daysPerWeek <= 3) {
-      sessionDate.setDate(monday.getDate() + (dayOffsets3[i] !== undefined ? dayOffsets3[i] : i * 2));
+      sessionDate.setDate(weekStart.getDate() + (dayOffsets3[i] !== undefined ? dayOffsets3[i] : 1 + i * 2));
     } else if (plan.daysPerWeek <= 4) {
-      sessionDate.setDate(monday.getDate() + (dayOffsets4[i] !== undefined ? dayOffsets4[i] : i));
+      sessionDate.setDate(weekStart.getDate() + (dayOffsets4[i] !== undefined ? dayOffsets4[i] : 1 + i));
     } else {
-      sessionDate.setDate(monday.getDate() + i);
+      sessionDate.setDate(weekStart.getDate() + 1 + i);
     }
 
     const exercises: WorkoutExercise[] = template.exercises.map(templateExercise => {
@@ -248,7 +250,7 @@ export function generateWeekPlan(
 
     const session: WorkoutSession = {
       sessionId: generateId(),
-      date: sessionDate.toISOString().split('T')[0],
+      date: toDateString(sessionDate),
       name: isDeload ? `${template.name} (Deload)` : template.name,
       splitDay: template.splitDay,
       exercises,

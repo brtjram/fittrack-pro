@@ -18,6 +18,8 @@ export async function PUT(request: NextRequest) {
   const body = await request.json();
   const { name, age, gender, heightCm, currentWeightLbs, targetWeightLbs, activityLevel, goal, experienceLevel, preferredSplit, healthSyncApiKey, trackCycle, cycleLength, lastPeriodDate, aiCoachGoal } = body;
 
+  // In AI Coach Mode, stepTarget is the coach's call (set via schedule_workout_plan)
+  // — don't clobber it with the generic activity/goal formula on every save.
   const stepTarget = computeStepTarget(activityLevel, goal);
 
   const profile = await prisma.fitnessProfile.upsert({
@@ -25,8 +27,8 @@ export async function PUT(request: NextRequest) {
     update: {
       name, age, gender, heightCm, currentWeightLbs, targetWeightLbs,
       activityLevel, goal, experienceLevel, preferredSplit, healthSyncApiKey,
-      trackCycle, cycleLength, lastPeriodDate, stepTarget,
-      ...(goal === 'ai_coach' ? { aiCoachGoal } : {}),
+      trackCycle, cycleLength, lastPeriodDate,
+      ...(goal === 'ai_coach' ? { aiCoachGoal } : { stepTarget }),
     },
     create: {
       userId, name, age, gender, heightCm, currentWeightLbs, targetWeightLbs,

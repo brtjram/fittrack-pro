@@ -152,7 +152,7 @@ function buildServer(userId: string) {
           .describe('Daily step target in AI Coach Mode — the only way it gets set, since the user has no manual step goal input in this mode.'),
         cardioSessions: z
           .array(z.object({
-            dayOffset: z.number().int().min(0).max(6).describe('0 = Monday of this week, 6 = Sunday.'),
+            dayOffset: z.number().int().min(0).max(6).describe('0 = Sunday of this week, 6 = Saturday.'),
             name: z.string().describe('e.g. "Zone 2 Cardio" or "Incline Walk".'),
             durationMinutes: z.number().optional().describe('Prescribed duration in minutes.'),
             notes: z.string().optional().describe('Guidance for the session (intensity, heart rate zone, etc).'),

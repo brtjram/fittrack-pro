@@ -5,18 +5,31 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// Our date-only strings (from toDateString below) are plain "YYYY-MM-DD" with
+// no time component. `new Date("2026-07-12")` parses that as UTC midnight, so
+// formatting it in any timezone behind UTC (e.g. US Pacific) rolls it back to
+// the previous calendar day. Parse the Y/M/D parts directly into local time
+// instead, so the displayed date always matches what was actually stored.
+export function parseDateOnly(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
 export function formatDate(date: string | Date): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
+  const d = typeof date === 'string' ? parseDateOnly(date) : date;
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 export function formatDateShort(date: string | Date): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
+  const d = typeof date === 'string' ? parseDateOnly(date) : date;
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 export function toDateString(date: Date = new Date()): string {
-  return date.toISOString().split('T')[0];
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export function roundTo(num: number, decimals: number): number {

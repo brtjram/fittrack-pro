@@ -6,28 +6,30 @@ import { toCalcUserProfile, type FitnessProfileRow } from './fitness-profile-ada
 import type { WorkoutSession } from '@/types';
 
 export interface CardioSessionInput {
-  /** 0 = Monday of the current week, 6 = Sunday. */
+  /** 0 = Sunday of the current week, 6 = Saturday. */
   dayOffset: number;
   name: string;
   durationMinutes?: number;
   notes?: string;
 }
 
-// Training day offsets from Monday for each split (0=Mon, 1=Tue, …, 6=Sun)
+// Training day offsets from Sunday for each split (0=Sun, 1=Mon, …, 6=Sat).
+// Training itself still runs Mon–Sat (Sunday stays the rest day) — only the
+// week *boundary* changed from Mon–Sun to Sun–Sat, so "this week" on a Sunday
+// means the week starting today, not the tail end of the week that just ended.
 const SPLIT_DAY_OFFSETS: Record<string, number[]> = {
-  ppl:         [0, 1, 2, 3, 4, 5],   // Mon–Sat
-  upper_lower: [0, 1, 3, 4],          // Mon, Tue, Thu, Fri
-  full_body:   [0, 2, 4],             // Mon, Wed, Fri
-  bro_split:   [0, 1, 2, 3, 4],       // Mon–Fri
+  ppl:         [1, 2, 3, 4, 5, 6],   // Mon–Sat
+  upper_lower: [1, 2, 4, 5],          // Mon, Tue, Thu, Fri
+  full_body:   [1, 3, 5],             // Mon, Wed, Fri
+  bro_split:   [1, 2, 3, 4, 5],       // Mon–Fri
 };
 
-function getMondayOfWeek(d: Date): Date {
+function getSundayOfWeek(d: Date): Date {
   const day = d.getDay(); // 0=Sun
-  const diff = day === 0 ? -6 : 1 - day;
-  const monday = new Date(d);
-  monday.setDate(d.getDate() + diff);
-  monday.setHours(0, 0, 0, 0);
-  return monday;
+  const sunday = new Date(d);
+  sunday.setDate(d.getDate() - day);
+  sunday.setHours(0, 0, 0, 0);
+  return sunday;
 }
 
 function toDateString(d: Date): string {
@@ -50,11 +52,11 @@ export async function scheduleUpcomingWeek(
     throw new Error(`Unknown split: ${split}`);
   }
 
-  const monday = getMondayOfWeek(new Date());
-  const offsets = SPLIT_DAY_OFFSETS[split] ?? [0, 2, 4];
+  const weekStart = getSundayOfWeek(new Date());
+  const offsets = SPLIT_DAY_OFFSETS[split] ?? [1, 3, 5];
   const weekDates = offsets.map((offset) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + offset);
+    const d = new Date(weekStart);
+    d.setDate(weekStart.getDate() + offset);
     return toDateString(d);
   });
 
@@ -134,12 +136,12 @@ export async function scheduleCardioSessions(
 ): Promise<Array<{ date: string; name: string }>> {
   if (cardioSessions.length === 0) return [];
 
-  const monday = getMondayOfWeek(new Date());
-  const weekNumber = getWeekNumber(monday);
+  const weekStart = getSundayOfWeek(new Date());
+  const weekNumber = getWeekNumber(weekStart);
 
   const dates = cardioSessions.map((c) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + Math.min(Math.max(c.dayOffset, 0), 6));
+    const d = new Date(weekStart);
+    d.setDate(weekStart.getDate() + Math.min(Math.max(c.dayOffset, 0), 6));
     return toDateString(d);
   });
 

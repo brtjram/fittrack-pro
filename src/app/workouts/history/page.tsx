@@ -6,6 +6,7 @@ import { WorkoutCard } from '@/components/workouts/workout-card';
 import { EmptyState } from '@/components/shared/empty-state';
 import { History } from 'lucide-react';
 import { getRecentWorkouts } from '@/lib/stores/workout-store';
+import { parseDateOnly, toDateString, formatDateShort } from '@/lib/utils';
 import type { WorkoutSession } from '@/types';
 
 export default function WorkoutHistoryPage() {
@@ -21,10 +22,10 @@ export default function WorkoutHistoryPage() {
 
   // Group by week
   const groupedByWeek = workouts.reduce<Record<string, WorkoutSession[]>>((acc, session) => {
-    const date = new Date(session.date);
+    const date = parseDateOnly(session.date);
     const weekStart = new Date(date);
     weekStart.setDate(date.getDate() - date.getDay());
-    const key = weekStart.toISOString().split('T')[0];
+    const key = toDateString(weekStart);
     if (!acc[key]) acc[key] = [];
     acc[key].push(session);
     return acc;
@@ -52,7 +53,7 @@ export default function WorkoutHistoryPage() {
         {Object.entries(groupedByWeek).map(([weekStart, sessions]) => (
           <section key={weekStart}>
             <h2 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              Week of {new Date(weekStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              Week of {formatDateShort(weekStart)}
             </h2>
             <div className="space-y-3">
               {sessions.map((session) => (

@@ -65,6 +65,7 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [saveError, setSaveError] = useState(false);
+  const [currentStepTarget, setCurrentStepTarget] = useState<number | null>(null);
   const savedFormRef = useRef<string>('');
   const [form, setForm] = useState<FormState>({
     name: '',
@@ -106,6 +107,7 @@ export default function SettingsPage() {
         setForm(loaded);
         savedFormRef.current = JSON.stringify(loaded);
         setSaved(true);
+        setCurrentStepTarget(profile.stepTarget ?? null);
       }
       setLoading(false);
     }).catch(() => setLoading(false));
@@ -395,6 +397,28 @@ export default function SettingsPage() {
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               <p className="text-xs text-muted-foreground leading-relaxed">
                 {stepTargetRationale(form.activityLevel, form.goal)}. Updates automatically when you change your goal or activity level.
+              </p>
+            </div>
+          </section>
+        )}
+
+        {/* AI Coach Mode owns the step target — show it read-only instead of the manual picker */}
+        {form.goal === 'ai_coach' && currentStepTarget !== null && (
+          <section className="rounded-xl border border-border bg-card p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <Footprints className="h-5 w-5 text-primary" />
+              <h2 className="text-base font-semibold">Daily Step Goal</h2>
+            </div>
+            <div className="flex items-center justify-between rounded-lg bg-primary/5 px-4 py-3">
+              <span className="text-2xl font-bold text-primary">
+                {currentStepTarget.toLocaleString()}
+              </span>
+              <span className="text-sm text-muted-foreground">steps / day</span>
+            </div>
+            <div className="mt-2 flex items-start gap-1.5">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Set by your AI coach. Ask it to adjust this in chat if it needs to change.
               </p>
             </div>
           </section>
