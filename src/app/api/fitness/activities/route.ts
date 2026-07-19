@@ -49,3 +49,30 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json(activity);
 }
+
+export async function PUT(request: NextRequest) {
+  const userId = await getAuthUserId();
+  if (userId instanceof NextResponse) return userId;
+
+  const body = await request.json();
+  const { originalDate, date, steps, activeCalories, restingHeartRate, source } = body;
+
+  if (!originalDate || !date) {
+    return NextResponse.json({ error: 'originalDate and date required' }, { status: 400 });
+  }
+
+  // Moving the entry to a different date (e.g. fixing a late-night entry
+  // that landed on the wrong day) — drop the old row, then upsert the new
+  // one so it overwrites correctly if the target date already has data.
+  if (date !== originalDate) {
+    await prisma.dailyActivity.deleteMany({ where: { userId, date: originalDate } });
+  }
+
+  const activity = await prisma.dailyActivity.upsert({
+    where: { userId_date: { userId, date } },
+    update: { steps, activeCalories, restingHeartRate, source: source ?? 'manual' },
+    create: { userId, date, steps, activeCalories, restingHeartRate, source: source ?? 'manual' },
+  });
+
+  return NextResponse.json(activity);
+}

@@ -155,7 +155,7 @@ export default function AnalyticsPage() {
           <>
             <WeightChart entries={weights} targetWeight={targetWeight} />
             {activities.length > 0 && <ActivitySummary insight={activityInsight} />}
-            <SyncStatus />
+            <SyncStatus activities={activities} onChanged={loadData} />
           </>
         )}
 
@@ -176,7 +176,7 @@ export default function AnalyticsPage() {
           <>
             <StepsChart activities={activities} />
             <ActivitySummary insight={activityInsight} />
-            <SyncStatus />
+            <SyncStatus activities={activities} onChanged={loadData} />
             {activities.length === 0 && (
               <EmptyState
                 icon={Footprints}

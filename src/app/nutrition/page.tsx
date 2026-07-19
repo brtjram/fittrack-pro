@@ -7,7 +7,7 @@ import { MealCard } from '@/components/nutrition/meal-card';
 import { FoodSearch } from '@/components/nutrition/food-search';
 import { DatePicker } from '@/components/shared/date-picker';
 import { Pill, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
-import { getFoodLogByDate, addFoodLogEntry, deleteFoodLogEntry } from '@/lib/stores/nutrition-store';
+import { getFoodLogByDate, addFoodLogEntry, updateFoodLogEntry, deleteFoodLogEntry } from '@/lib/stores/nutrition-store';
 import { getWeightEntries } from '@/lib/stores/nutrition-store';
 import { getUserProfile } from '@/lib/stores/user-store';
 import { calculateMacroTargets, calculateAdaptiveAdjustment } from '@/lib/algorithms/macro-calculator';
@@ -109,6 +109,11 @@ export default function NutritionPage() {
     loadData();
   };
 
+  const handleEdit = async (id: string, updates: Partial<FoodLogEntry>) => {
+    await updateFoodLogEntry(id, updates);
+    loadData();
+  };
+
   const changeDate = (delta: number) => {
     const d = new Date(date + 'T00:00:00');
     d.setDate(d.getDate() + delta);
@@ -173,6 +178,7 @@ export default function NutritionPage() {
             entries={entries.filter((e) => e.meal === meal)}
             onAddFood={() => setSearchMeal(meal)}
             onDeleteEntry={handleDelete}
+            onEditEntry={handleEdit}
           />
         ))}
       </div>

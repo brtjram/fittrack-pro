@@ -14,6 +14,14 @@ export async function addDailyActivity(activity: Omit<DailyActivity, 'id'>): Pro
   });
 }
 
+export async function updateDailyActivity(originalDate: string, activity: Omit<DailyActivity, 'id'>): Promise<void> {
+  await fetch('/api/fitness/activities', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ originalDate, ...activity }),
+  });
+}
+
 export async function getDailyActivityByDate(date: string): Promise<DailyActivity | undefined> {
   const res = await fetch(`/api/fitness/activities?date=${date}`);
   if (!res.ok) return undefined;
