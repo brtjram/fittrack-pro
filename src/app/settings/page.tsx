@@ -265,25 +265,41 @@ export default function SettingsPage() {
         {/* Goal */}
         <section className="rounded-xl border border-border bg-card p-4">
           <h2 className="mb-3 text-base font-semibold">Goal</h2>
-          <div className="grid grid-cols-2 gap-2">
-            {goalOptions.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => updateField('goal', opt.value)}
-                className={cn(
-                  'rounded-lg border p-3 text-left transition-colors',
-                  form.goal === opt.value
-                    ? 'border-primary bg-primary/10'
-                    : 'border-border hover:bg-accent'
-                )}
-              >
-                <div className={cn('text-sm font-medium', form.goal === opt.value && 'text-primary')}>
-                  {opt.label}
-                </div>
-                <div className="mt-0.5 text-xs text-muted-foreground">{opt.desc}</div>
-              </button>
-            ))}
-          </div>
+          {form.goal === 'challenge' ? (
+            <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-red-500">
+                <Flame className="h-4 w-4" /> 12-Week Transformation Challenge active
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Your nutrition, step target, and weekly workouts are set automatically by the challenge&apos;s
+                current phase.{' '}
+                <a href="/challenge" className="underline underline-offset-2 hover:text-foreground">
+                  Manage the challenge
+                </a>{' '}
+                to change goals.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              {goalOptions.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => updateField('goal', opt.value)}
+                  className={cn(
+                    'rounded-lg border p-3 text-left transition-colors',
+                    form.goal === opt.value
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:bg-accent'
+                  )}
+                >
+                  <div className={cn('text-sm font-medium', form.goal === opt.value && 'text-primary')}>
+                    {opt.label}
+                  </div>
+                  <div className="mt-0.5 text-xs text-muted-foreground">{opt.desc}</div>
+                </button>
+              ))}
+            </div>
+          )}
 
           {form.goal === 'ai_coach' && (
             <div className="mt-3">
@@ -354,8 +370,8 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* Workout Split — AI Coach Mode decides this itself via chat */}
-        {form.goal !== 'ai_coach' && (
+        {/* Workout Split — AI Coach Mode / the Transformation Challenge decide this themselves */}
+        {form.goal !== 'ai_coach' && form.goal !== 'challenge' && (
           <section className="rounded-xl border border-border bg-card p-4">
             <h2 className="mb-3 text-base font-semibold">Preferred Split</h2>
             <div className="grid grid-cols-2 gap-2">
@@ -380,8 +396,8 @@ export default function SettingsPage() {
           </section>
         )}
 
-        {/* Step Target — auto-computed from goal + activity; AI Coach Mode sets its own instead */}
-        {form.goal !== 'ai_coach' && (
+        {/* Step Target — auto-computed from goal + activity; AI Coach Mode / the Transformation Challenge set their own instead */}
+        {form.goal !== 'ai_coach' && form.goal !== 'challenge' && (
           <section className="rounded-xl border border-border bg-card p-4">
             <div className="mb-3 flex items-center gap-2">
               <Footprints className="h-5 w-5 text-primary" />
@@ -402,8 +418,8 @@ export default function SettingsPage() {
           </section>
         )}
 
-        {/* AI Coach Mode owns the step target — show it read-only instead of the manual picker */}
-        {form.goal === 'ai_coach' && currentStepTarget !== null && (
+        {/* AI Coach Mode / the Transformation Challenge own the step target — show it read-only instead of the manual picker */}
+        {(form.goal === 'ai_coach' || form.goal === 'challenge') && currentStepTarget !== null && (
           <section className="rounded-xl border border-border bg-card p-4">
             <div className="mb-3 flex items-center gap-2">
               <Footprints className="h-5 w-5 text-primary" />
@@ -418,7 +434,9 @@ export default function SettingsPage() {
             <div className="mt-2 flex items-start gap-1.5">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Set by your AI coach. Ask it to adjust this in chat if it needs to change.
+                {form.goal === 'challenge'
+                  ? 'Set by the current Transformation Challenge phase. Updates automatically as you advance weeks.'
+                  : 'Set by your AI coach. Ask it to adjust this in chat if it needs to change.'}
               </p>
             </div>
           </section>

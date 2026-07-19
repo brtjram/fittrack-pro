@@ -1,11 +1,13 @@
 import { prisma } from '@/lib/prisma';
-import { calculateMacroTargets } from '@/lib/algorithms/macro-calculator';
+import { calculateMacroTargets, calculateTDEE } from '@/lib/algorithms/macro-calculator';
+import { getChallengePhase } from '@/lib/algorithms/challenge-phases';
+import { computeStepTarget } from '@/lib/algorithms/step-target';
 import { getWorkoutPlan } from '@/lib/data/workout-templates';
-import { scheduleUpcomingWeek, scheduleCardioSessions, type CardioSessionInput } from './workout-plan-service';
+import { scheduleUpcomingWeek, scheduleCardioSessions, getSplitOffsets, type CardioSessionInput } from './workout-plan-service';
 import { toCalcUserProfile } from './fitness-profile-adapter';
 import { addCoachMemory } from './coach-memory-service';
 import type { FitnessProfile } from '@/generated/prisma/client';
-import type { WorkoutSplit } from '@/types';
+import type { WorkoutSplit, ActivityLevel } from '@/types';
 
 // Shared with src/lib/algorithms/workout-generator.ts's CoachingNotes shape.
 export interface CoachingNotes {
@@ -189,6 +191,98 @@ export async function setAiCoachGoalAction(
     resultText: `AI Coach Mode enabled with goal: "${input.goalDescription}". Now set concrete nutrition and workout targets for it with set_nutrition_targets and schedule_workout_plan.`,
     profile: updated,
   };
+}
+
+/**
+ * The Transformation Challenge's equivalent of AI Coach Mode's tool-calling loop,
+ * but deterministic instead of LLM-driven: called directly whenever a challenge
+ * starts or advances to a new week, so the current phase's targets actually reach
+ * FitnessProfile (nutritionTargetOverride, stepTarget) and real scheduled
+ * WorkoutSession rows, instead of only being displayed on the /challenge page.
+ */
+export async function applyTransformationChallengePhaseAction(
+  userId: string,
+  profile: FitnessProfile,
+  challenge: { currentWeek: number },
+): Promise<ActionResult> {
+  const phase = getChallengePhase(challenge.currentWeek);
+
+  let current = profile;
+  if (current.goal !== 'challenge') {
+    await prisma.fitnessProfile.updateMany({ where: { userId }, data: { goal: 'challenge' } });
+    current = { ...current, goal: 'challenge' };
+  }
+
+  const tdee = calculateTDEE(toCalcUserProfile(current));
+  const targetCalories = Math.round(tdee - phase.targets.calorieDeficit);
+
+  const nutritionResult = await setNutritionTargetsAction(userId, current, {
+    calories: targetCalories,
+    reason: `Transformation Challenge Phase ${phase.phase}: ${phase.label} (week ${challenge.currentWeek}/12)`,
+  });
+  current = nutritionResult.profile;
+
+  const trainingOffsets = getWorkoutPlan(current.preferredSplit) ? getSplitOffsets(current.preferredSplit) : [1, 3, 5];
+  const cardioGap = Math.max(0, phase.targets.workoutsPerWeek - trainingOffsets.length);
+  const availableOffsets = [0, 1, 2, 3, 4, 5, 6].filter((offset) => !trainingOffsets.includes(offset));
+  const cardioSessions: CardioSessionInput[] = availableOffsets.slice(0, cardioGap).map((offset) => ({
+    dayOffset: offset,
+    name: 'Transformation Cardio',
+    durationMinutes: 30,
+    notes: `Phase ${phase.phase} (${phase.label}) NEAT/cardio target`,
+  }));
+
+  const workoutResult = await scheduleWorkoutPlanAction(userId, current, {
+    stepTarget: phase.targets.steps,
+    cardioSessions,
+  });
+  current = workoutResult.profile;
+
+  await addCoachMemory(userId, {
+    category: 'action',
+    content: `Transformation Challenge: entered Phase ${phase.phase} (${phase.label}, week ${challenge.currentWeek}/12) — ${targetCalories} kcal/day, ${phase.targets.steps.toLocaleString()} steps/day, workouts scheduled.`,
+  });
+
+  return {
+    resultText: [
+      `Transformation Challenge — Phase ${phase.phase}: ${phase.label} (week ${challenge.currentWeek}/12).`,
+      nutritionResult.resultText,
+      workoutResult.resultText,
+    ].join('\n\n'),
+    profile: current,
+  };
+}
+
+/**
+ * Called when a Transformation Challenge ends. Without this, FitnessProfile.goal
+ * stays permanently stuck at 'challenge' with the last phase's stepTarget/
+ * nutritionTargetOverride frozen in place, and the Settings UI (which hides the
+ * manual split/step pickers for goal === 'challenge') would have no way back to
+ * a normal goal. Reverts to 'maintain' — a neutral default — and clears the
+ * override/step target so the generic formulas take over again until the user
+ * picks a new goal.
+ */
+export async function releaseTransformationChallengeAction(
+  userId: string,
+  profile: FitnessProfile,
+): Promise<ActionResult> {
+  if (profile.goal !== 'challenge') {
+    return { resultText: 'No transformation challenge targets to release.', profile };
+  }
+
+  const stepTarget = computeStepTarget(profile.activityLevel as ActivityLevel, 'maintain');
+  await prisma.fitnessProfile.updateMany({
+    where: { userId },
+    data: { goal: 'maintain', nutritionTargetOverride: null, stepTarget },
+  });
+  const updated = { ...profile, goal: 'maintain', nutritionTargetOverride: null, stepTarget };
+
+  await addCoachMemory(userId, {
+    category: 'action',
+    content: 'Transformation Challenge ended — goal reverted to "maintain" and nutrition/step targets reset to the standard formula.',
+  });
+
+  return { resultText: 'Transformation Challenge ended. Goal reset to maintain.', profile: updated };
 }
 
 export async function rememberInsightAction(

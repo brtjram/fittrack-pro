@@ -6,6 +6,13 @@ import {
 import { Flame, Trophy, Target, TrendingDown, Check, ChevronRight, Footprints, Dumbbell, Utensils, X } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import * as api from '../services/api';
+import {
+  CHALLENGE_PHASES as CORE_PHASES,
+  getChallengePhase as coreGetPhase,
+  getChallengeWeekTargets as getWeekTargets,
+  type ChallengePhase as CoreChallengePhase,
+  type ChallengePhaseColor,
+} from '@fittrack/core';
 
 interface WeeklyCheckIn {
   week: number;
@@ -27,39 +34,25 @@ interface Challenge {
   weeklyData: WeeklyCheckIn[];
 }
 
-const PHASE_INFO = [
-  {
-    phase: 1, weeks: '1–4', label: 'Foundation',
-    desc: 'Establish habits. Moderate deficit (~300 cal). Build workout consistency. Hit your step target every day.',
-    color: '#3b82f6',
-    targets: { steps: 9000, calories: -300, workoutsPerWeek: 4, complianceDays: 5 },
-  },
-  {
-    phase: 2, weeks: '5–8', label: 'Acceleration',
-    desc: 'Tighten the diet (~400 cal deficit). Increase NEAT. Bump training intensity. Weekly weigh-ins are critical.',
-    color: '#f59e0b',
-    targets: { steps: 11000, calories: -400, workoutsPerWeek: 5, complianceDays: 6 },
-  },
-  {
-    phase: 3, weeks: '9–12', label: 'Peak',
-    desc: 'Aggressive deficit (~500 cal). Maximum intensity. Preserve muscle with heavy compounds. Push through the finish line.',
-    color: '#ef4444',
-    targets: { steps: 12000, calories: -500, workoutsPerWeek: 5, complianceDays: 6 },
-  },
-];
+// Phase numbers/copy live once in @fittrack/core (shared with web) so they can't
+// drift between platforms — this just maps the shared color name to a hex value
+// for React Native's style props.
+const COLOR_HEX: Record<ChallengePhaseColor, string> = {
+  blue: '#3b82f6',
+  amber: '#f59e0b',
+  red: '#ef4444',
+};
 
-function getPhase(week: number) {
-  if (week <= 4) return PHASE_INFO[0];
-  if (week <= 8) return PHASE_INFO[1];
-  return PHASE_INFO[2];
+type MobileChallengePhase = Omit<CoreChallengePhase, 'color'> & { color: string };
+
+function withColor(phase: CoreChallengePhase): MobileChallengePhase {
+  return { ...phase, color: COLOR_HEX[phase.color] };
 }
 
-function getWeekTargets(week: number, startWeight: number, targetWeight: number) {
-  const phase = getPhase(week);
-  const totalLoss = startWeight - targetWeight;
-  const weeklyLoss = totalLoss / 12;
-  const expectedWeight = startWeight - weeklyLoss * (week - 1);
-  return { ...phase.targets, expectedWeight: Math.round(expectedWeight * 10) / 10 };
+const PHASE_INFO: MobileChallengePhase[] = CORE_PHASES.map(withColor);
+
+function getPhase(week: number): MobileChallengePhase {
+  return withColor(coreGetPhase(week));
 }
 
 export function TransformationChallengeScreen() {

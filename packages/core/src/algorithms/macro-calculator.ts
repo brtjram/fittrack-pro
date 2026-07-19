@@ -15,6 +15,7 @@ const GOAL_ADJUSTMENTS = {
   recomp: -0.05,
   maintain: 0,
   ai_coach: 0,
+  challenge: 0,
 };
 
 const PROTEIN_PER_KG = 2.2;

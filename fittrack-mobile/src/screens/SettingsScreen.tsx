@@ -245,24 +245,43 @@ export function SettingsScreen() {
         {/* Goal */}
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Goal</Text>
-          <View style={styles.optionsGrid}>
-            {goalOptions.map((opt) => (
-              <TouchableOpacity
-                key={opt.value}
-                style={[
-                  styles.optionBtn,
-                  { borderColor: form.goal === opt.value ? colors.primary : colors.border },
-                  form.goal === opt.value && { backgroundColor: colors.muted },
-                ]}
-                onPress={() => updateField('goal', opt.value)}
-              >
-                <Text style={{ fontSize: 13, fontWeight: '600', color: form.goal === opt.value ? colors.primary : colors.foreground }}>
-                  {opt.label}
+          {form.goal === 'challenge' ? (
+            <TouchableOpacity
+              style={[styles.challengeBanner, { backgroundColor: '#ef444410', borderColor: '#ef444430' }]}
+              onPress={() => navigation.navigate('TransformationChallenge')}
+              activeOpacity={0.7}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Flame size={16} color="#ef4444" />
+                <Text style={{ fontSize: 13, fontWeight: '600', color: '#ef4444' }}>
+                  12-Week Transformation Challenge active
                 </Text>
-                <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 2 }}>{opt.desc}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+              </View>
+              <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 4 }}>
+                Your nutrition, step target, and weekly workouts are set automatically by the challenge&apos;s
+                current phase. Tap to manage the challenge.
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.optionsGrid}>
+              {goalOptions.map((opt) => (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[
+                    styles.optionBtn,
+                    { borderColor: form.goal === opt.value ? colors.primary : colors.border },
+                    form.goal === opt.value && { backgroundColor: colors.muted },
+                  ]}
+                  onPress={() => updateField('goal', opt.value)}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: form.goal === opt.value ? colors.primary : colors.foreground }}>
+                    {opt.label}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 2 }}>{opt.desc}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Activity Level */}
@@ -309,42 +328,46 @@ export function SettingsScreen() {
           </View>
         </View>
 
-        {/* Workout Split */}
-        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Preferred Split</Text>
-          <View style={styles.optionsGrid}>
-            {splitOptions.map((opt) => (
-              <TouchableOpacity
-                key={opt.value}
-                style={[
-                  styles.optionBtn,
-                  { borderColor: form.preferredSplit === opt.value ? colors.primary : colors.border },
-                  form.preferredSplit === opt.value && { backgroundColor: colors.muted },
-                ]}
-                onPress={() => updateField('preferredSplit', opt.value)}
-              >
-                <Text style={{ fontSize: 13, fontWeight: '600', color: form.preferredSplit === opt.value ? colors.primary : colors.foreground }}>
-                  {opt.label}
-                </Text>
-                <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 2 }}>{opt.desc}</Text>
-              </TouchableOpacity>
-            ))}
+        {/* Workout Split — the Transformation Challenge decides this itself */}
+        {form.goal !== 'challenge' && (
+          <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Preferred Split</Text>
+            <View style={styles.optionsGrid}>
+              {splitOptions.map((opt) => (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[
+                    styles.optionBtn,
+                    { borderColor: form.preferredSplit === opt.value ? colors.primary : colors.border },
+                    form.preferredSplit === opt.value && { backgroundColor: colors.muted },
+                  ]}
+                  onPress={() => updateField('preferredSplit', opt.value)}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: form.preferredSplit === opt.value ? colors.primary : colors.foreground }}>
+                    {opt.label}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 2 }}>{opt.desc}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
-        </View>
+        )}
 
-        {/* Transformation Challenge */}
-        <TouchableOpacity
-          style={[styles.section, { backgroundColor: '#ef444410', borderColor: '#ef444430', flexDirection: 'row', alignItems: 'center' }]}
-          onPress={() => navigation.navigate('TransformationChallenge')}
-          activeOpacity={0.7}
-        >
-          <Flame size={18} color="#ef4444" />
-          <View style={{ flex: 1, marginLeft: 10 }}>
-            <Text style={{ fontSize: 15, fontWeight: '600', color: colors.foreground }}>12-Week Transformation</Text>
-            <Text style={{ fontSize: 12, color: colors.mutedForeground }}>Maximum fat loss challenge — steps, food & training</Text>
-          </View>
-          <ChevronRight size={18} color={colors.mutedForeground} />
-        </TouchableOpacity>
+        {/* Transformation Challenge — hidden once active since the Goal section above already links to it */}
+        {form.goal !== 'challenge' && (
+          <TouchableOpacity
+            style={[styles.section, { backgroundColor: '#ef444410', borderColor: '#ef444430', flexDirection: 'row', alignItems: 'center' }]}
+            onPress={() => navigation.navigate('TransformationChallenge')}
+            activeOpacity={0.7}
+          >
+            <Flame size={18} color="#ef4444" />
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: colors.foreground }}>12-Week Transformation</Text>
+              <Text style={{ fontSize: 12, color: colors.mutedForeground }}>Maximum fat loss challenge — steps, food & training</Text>
+            </View>
+            <ChevronRight size={18} color={colors.mutedForeground} />
+          </TouchableOpacity>
+        )}
 
         {/* Notification Preferences */}
         <TouchableOpacity
@@ -426,6 +449,7 @@ const styles = StyleSheet.create({
   content: { padding: 16, gap: 16 },
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 13, borderRadius: 12 },
   section: { borderWidth: 1, borderRadius: 14, padding: 14 },
+  challengeBanner: { borderWidth: 1, borderRadius: 10, padding: 10 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 14, gap: 8 },
   sectionTitle: { fontSize: 15, fontWeight: '700', marginBottom: 10 },
   label: { fontSize: 11, fontWeight: '600', marginBottom: 4, marginTop: 10, textTransform: 'uppercase', letterSpacing: 0.5 },

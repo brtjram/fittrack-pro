@@ -20,6 +20,10 @@ const GOAL_ADJUSTMENTS = {
   // based on the user's stated goal, which is checked before this map is used.
   // 0 is only a fallback for the window before the coach has set a target.
   ai_coach: 0,
+  // Transformation Challenge: each phase writes its own nutritionTargetOverride
+  // (see applyTransformationChallengePhaseAction). 0 is only a fallback for the
+  // brief window before that has run.
+  challenge: 0,
 };
 
 const PROTEIN_PER_KG = 2.2; // g/kg for muscle preservation during cut

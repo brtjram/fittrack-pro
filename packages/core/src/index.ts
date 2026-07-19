@@ -6,6 +6,7 @@ export * from './algorithms/progressive-overload';
 export * from './algorithms/macro-calculator';
 export * from './algorithms/workout-generator';
 export * from './algorithms/activity-analyzer';
+export * from './algorithms/challenge-phases';
 
 // Utils
 export * from './utils';

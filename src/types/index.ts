@@ -23,7 +23,7 @@ export interface UserProfile {
 }
 
 export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
-export type Goal = 'fat_loss' | 'muscle_gain' | 'recomp' | 'maintain' | 'ai_coach';
+export type Goal = 'fat_loss' | 'muscle_gain' | 'recomp' | 'maintain' | 'ai_coach' | 'challenge';
 export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
 export type WorkoutSplit = 'ppl' | 'upper_lower' | 'full_body' | 'bro_split';
 

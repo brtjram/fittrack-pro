@@ -24,6 +24,11 @@ const SPLIT_DAY_OFFSETS: Record<string, number[]> = {
   bro_split:   [1, 2, 3, 4, 5],       // Mon–Fri
 };
 
+/** The weekday offsets (0=Sun..6=Sat) a given split trains on, for callers that need to find free days to add cardio around it. */
+export function getSplitOffsets(split: string): number[] {
+  return SPLIT_DAY_OFFSETS[split] ?? [1, 3, 5];
+}
+
 function getSundayOfWeek(d: Date): Date {
   const day = d.getDay(); // 0=Sun
   const sunday = new Date(d);

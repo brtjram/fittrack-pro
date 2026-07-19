@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Header } from '@/components/layout/header';
 import { Flame, Trophy, Target, Footprints, Dumbbell, Utensils, X, ChevronRight, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CHALLENGE_PHASES as PHASE_INFO, getChallengePhase as getPhaseInfo, getChallengeWeekTargets as getWeekTargets } from '@/lib/algorithms/challenge-phases';
 
 interface WeeklyCheckIn {
   week: number;
@@ -23,50 +24,6 @@ interface Challenge {
   currentWeek: number;
   isActive: boolean;
   weeklyData: WeeklyCheckIn[];
-}
-
-const PHASE_INFO = [
-  {
-    phase: 1, weeks: '1–4', label: 'Foundation',
-    desc: 'Establish habits. Moderate deficit (~300 cal). Build workout consistency. Hit your step target every day.',
-    color: 'blue',
-    bgClass: 'bg-blue-500/10 border-blue-500/30',
-    textClass: 'text-blue-500',
-    barClass: 'bg-blue-500',
-    targets: { steps: 9000, calories: 300, workoutsPerWeek: 4, complianceDays: 5 },
-  },
-  {
-    phase: 2, weeks: '5–8', label: 'Acceleration',
-    desc: 'Tighten the diet (~400 cal deficit). Increase NEAT. Bump training intensity. Weekly weigh-ins are critical.',
-    color: 'amber',
-    bgClass: 'bg-amber-500/10 border-amber-500/30',
-    textClass: 'text-amber-500',
-    barClass: 'bg-amber-500',
-    targets: { steps: 11000, calories: 400, workoutsPerWeek: 5, complianceDays: 6 },
-  },
-  {
-    phase: 3, weeks: '9–12', label: 'Peak',
-    desc: 'Aggressive deficit (~500 cal). Maximum intensity. Preserve muscle with heavy compounds. Push through the finish line.',
-    color: 'red',
-    bgClass: 'bg-red-500/10 border-red-500/30',
-    textClass: 'text-red-500',
-    barClass: 'bg-red-500',
-    targets: { steps: 12000, calories: 500, workoutsPerWeek: 5, complianceDays: 6 },
-  },
-];
-
-function getPhaseInfo(week: number) {
-  if (week <= 4) return PHASE_INFO[0];
-  if (week <= 8) return PHASE_INFO[1];
-  return PHASE_INFO[2];
-}
-
-function getWeekTargets(week: number, startWeight: number, targetWeight: number) {
-  const phase = getPhaseInfo(week);
-  const totalLoss = startWeight - targetWeight;
-  const weeklyLoss = totalLoss / 12;
-  const expectedWeight = Math.round((startWeight - weeklyLoss * (week - 1)) * 10) / 10;
-  return { ...phase.targets, expectedWeight };
 }
 
 export default function ChallengePage() {

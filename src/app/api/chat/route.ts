@@ -12,6 +12,7 @@ import {
   setAiCoachGoalAction,
   rememberInsightAction,
 } from '@/lib/services/coach-actions-service';
+import { getChallengePhase } from '@/lib/algorithms/challenge-phases';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -218,14 +219,15 @@ You have long-term memory of this user from past sessions (below, if any exists)
 
   if (challenge?.isActive) {
     const weeklyData = JSON.parse(challenge.weeklyData) as Array<{ week: number; endWeight?: number; avgDailySteps?: number }>;
-    const phase = challenge.currentWeek <= 4 ? 1 : challenge.currentWeek <= 8 ? 2 : 3;
+    const phase = getChallengePhase(challenge.currentWeek);
     const weightLost = challenge.startWeightLbs - (profile?.currentWeightLbs ?? challenge.startWeightLbs);
     const lastEntry = weeklyData[weeklyData.length - 1];
     const avgSteps = lastEntry?.avgDailySteps;
-    systemPrompt += `\n\nTransformation Challenge: Active (Week ${challenge.currentWeek}/12, Phase ${phase})
+    systemPrompt += `\n\nTransformation Challenge: Active (Week ${challenge.currentWeek}/12, Phase ${phase.phase}: ${phase.label})
 - Started: ${challenge.startDate}, Start weight: ${challenge.startWeightLbs}lbs, Target: ${challenge.targetWeightLbs}lbs
 - Progress: ${weightLost > 0 ? `-${weightLost.toFixed(1)}` : `+${Math.abs(weightLost).toFixed(1)}`}lbs so far${avgSteps ? `, last week avg ${avgSteps.toLocaleString()} steps/day` : ''}
-- Phase ${phase} focus: ${phase === 1 ? 'establish baseline habits, moderate deficit (~300 cal), build consistency' : phase === 2 ? 'increase training intensity, tighten diet (~400 cal deficit), increase NEAT to 11k steps/day' : 'peak intensity, aggressive deficit (~500 cal), preserve muscle with heavy compounds, 12k steps/day'}
+- Phase ${phase.phase} focus: ${phase.desc} Current targets: ~${phase.targets.calorieDeficit} cal deficit, ${phase.targets.steps.toLocaleString()} steps/day, ${phase.targets.workoutsPerWeek} workouts/week.
+- The current phase's nutrition, step target, and weekly workouts are already applied automatically (goal is set to "challenge", targets update whenever the challenge advances a week) — you don't need to call schedule_workout_plan/set_nutrition_targets for routine phase progression. Only use those tools if the user explicitly asks you to deviate from the phase plan (e.g. an injury, a missed week, wanting a different split).
 - Tailor all advice to the transformation challenge. Prioritize fat loss while protecting muscle.`;
   }
 
