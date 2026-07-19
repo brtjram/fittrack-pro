@@ -385,7 +385,12 @@ export function FoodSearch({ meal, onSelect, onSelectMultiple, onClose }: FoodSe
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-background">
+    // z-70: must clear the persistent chrome (floating-nav, chat-widget both
+    // sit at z-50) — otherwise, on a z-index tie, whichever renders later in
+    // the DOM wins the stack regardless of this component's own nested
+    // z-index, and the bottom nav/chat bubble paint over this modal's
+    // buttons instead of behind them.
+    <div className="fixed inset-0 z-70 flex flex-col bg-background">
       {/* Header */}
       <div className="flex items-center gap-3 border-b border-border px-4 py-3">
         <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
@@ -410,7 +415,7 @@ export function FoodSearch({ meal, onSelect, onSelectMultiple, onClose }: FoodSe
 
       {/* Photo Food Logging Modal */}
       {photoModalOpen && (
-        <div className="absolute inset-0 z-60 flex flex-col bg-background">
+        <div className="absolute inset-0 z-80 flex flex-col bg-background">
           <div className="flex items-center gap-3 border-b border-border px-4 py-3">
             <button onClick={closePhotoModal} className="text-muted-foreground hover:text-foreground">
               <X className="h-5 w-5" />
@@ -579,30 +584,38 @@ export function FoodSearch({ meal, onSelect, onSelectMultiple, onClose }: FoodSe
                     </div>
                   </div>
                 ))}
-                <div className="flex gap-2">
-                  <button
-                    onClick={confirmAnalyzedItems}
-                    disabled={!analyzedItems.some((i) => i.included)}
-                    className="flex-1 rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                  >
-                    Log {analyzedItems.filter((i) => i.included).length} item{analyzedItems.filter((i) => i.included).length === 1 ? '' : 's'} to {meal}
-                  </button>
-                  <button
-                    onClick={resetPhotoState}
-                    className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-accent"
-                  >
-                    Retake
-                  </button>
-                </div>
               </div>
             )}
           </div>
+
+          {/* Pinned footer — kept outside the scrollable review list so the
+              Log/Retake buttons stay reachable and tappable no matter how
+              many items the photo analysis returns (previously the last
+              scroll or safe-area-inset-bottom on notched phones could
+              swallow taps at the very bottom edge). */}
+          {analyzedItems && (
+            <div className="flex shrink-0 gap-2 border-t border-border p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+              <button
+                onClick={confirmAnalyzedItems}
+                disabled={!analyzedItems.some((i) => i.included)}
+                className="flex-1 rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                Log {analyzedItems.filter((i) => i.included).length} item{analyzedItems.filter((i) => i.included).length === 1 ? '' : 's'} to {meal}
+              </button>
+              <button
+                onClick={resetPhotoState}
+                className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-accent"
+              >
+                Retake
+              </button>
+            </div>
+          )}
         </div>
       )}
 
       {/* Barcode Scanner Modal */}
       {scannerOpen && (
-        <div className="absolute inset-0 z-60 flex flex-col bg-background">
+        <div className="absolute inset-0 z-80 flex flex-col bg-background">
           <div className="flex items-center gap-3 border-b border-border px-4 py-3">
             <button onClick={closeScannerAndCleanup} className="text-muted-foreground hover:text-foreground">
               <X className="h-5 w-5" />
