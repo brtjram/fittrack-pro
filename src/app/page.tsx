@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   Dumbbell, UtensilsCrossed, BarChart3,
   Scale, Sparkles, ArrowRight, Target,
-  Flame, Trophy, AlertCircle, CheckCircle2,
+  Flame, Trophy, AlertCircle, CheckCircle2, Footprints,
 } from 'lucide-react';
 import { StatCard } from '@/components/shared/stat-card';
 import { getUserProfile } from '@/lib/stores/user-store';
@@ -14,9 +14,9 @@ import { getRecentWorkouts } from '@/lib/stores/workout-store';
 import { getFoodLogByDate, getWeightEntries } from '@/lib/stores/nutrition-store';
 import { getDailyActivities } from '@/lib/stores/analytics-store';
 import { calculateMacroTargets, calculateAdaptiveAdjustment } from '@/lib/algorithms/macro-calculator';
-import { analyzeActivity, shouldSuggestRestDay } from '@/lib/algorithms/activity-analyzer';
+import { shouldSuggestRestDay } from '@/lib/algorithms/activity-analyzer';
 import type { UserProfile, WorkoutSession } from '@/types';
-import { toDateString } from '@/lib/utils';
+import { toDateString, cn } from '@/lib/utils';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -26,6 +26,8 @@ export default function DashboardPage() {
   const [todayProtein, setTodayProtein] = useState({ eaten: 0, target: 0 });
   const [latestWeight, setLatestWeight] = useState<number | null>(null);
   const [insights, setInsights] = useState<string[]>([]);
+  const [todaySteps, setTodaySteps] = useState(0);
+  const [stepGoal, setStepGoal] = useState(10000);
   const [generating, setGenerating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
@@ -57,8 +59,12 @@ export default function DashboardPage() {
         setTodayCalories({ eaten: eaten.calories, target: macros.calories });
         setTodayProtein({ eaten: eaten.protein, target: macros.protein });
 
+        const today = toDateString();
+        const todayActivity = activities.find((a) => a.date === today);
+        setTodaySteps(todayActivity?.steps ?? 0);
+        setStepGoal(p.stepTarget ?? 10000);
+
         const insightsList: string[] = [];
-        const activityInsight = analyzeActivity(activities);
 
         if (weights.length > 0) {
           const sorted = [...weights].sort((a, b) => b.date.localeCompare(a.date));
@@ -68,10 +74,6 @@ export default function DashboardPage() {
           if (adj.shouldAdjust) {
             insightsList.push(adj.reason);
           }
-        }
-
-        if (activityInsight.averageSteps > 0 && activityInsight.category === 'sedentary') {
-          insightsList.push('Your step count is low. Try a 15-minute walk after meals to boost daily movement.');
         }
 
         const completedThisWeek = w.filter((s) => {
@@ -176,6 +178,17 @@ export default function DashboardPage() {
   const caloriePercent = todayCalories.target > 0
     ? Math.round((todayCalories.eaten / todayCalories.target) * 100)
     : 0;
+  const stepsPercent = stepGoal > 0 ? Math.min(Math.round((todaySteps / stepGoal) * 100), 100) : 0;
+  const stepsRemaining = Math.max(stepGoal - todaySteps, 0);
+  const stepsMessage = todaySteps === 0
+    ? 'Get moving — every step counts.'
+    : stepsPercent >= 100
+      ? 'Goal crushed! Amazing work today.'
+      : stepsPercent >= 75
+        ? `Almost there — ${stepsRemaining.toLocaleString()} steps to go.`
+        : stepsPercent >= 40
+          ? `Good pace — ${stepsRemaining.toLocaleString()} steps left for your goal.`
+          : `${stepsRemaining.toLocaleString()} steps to go. A short walk adds up fast.`;
 
   return (
     <div className="min-h-screen">
@@ -220,7 +233,7 @@ export default function DashboardPage() {
           />
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
           {todayWorkout ? (
             <Link href={`/workouts/${todayWorkout.sessionId}`} className="block">
               <div className="flex items-center justify-between">
@@ -265,6 +278,31 @@ export default function DashboardPage() {
           )}
         </div>
 
+        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg bg-primary/10 p-2">
+              <Footprints className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Today&apos;s Steps</p>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-2xl font-extrabold">{todaySteps.toLocaleString()}</span>
+                <span className="text-sm text-muted-foreground">/ {stepGoal.toLocaleString()}</span>
+              </div>
+            </div>
+            <span className={cn('text-base font-extrabold', stepsPercent >= 100 ? 'text-success' : 'text-primary')}>
+              {stepsPercent}%
+            </span>
+          </div>
+          <div className="mt-3.5 h-2 w-full overflow-hidden rounded-full bg-border">
+            <div
+              className={cn('h-full rounded-full', stepsPercent >= 100 ? 'bg-success' : 'bg-primary')}
+              style={{ width: `${stepsPercent}%` }}
+            />
+          </div>
+          <p className="mt-2.5 text-xs text-muted-foreground">{stepsMessage}</p>
+        </div>
+
         {insights.length > 0 && (
           <div className="space-y-2">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
@@ -282,21 +320,21 @@ export default function DashboardPage() {
         <div className="grid grid-cols-3 gap-3">
           <Link
             href="/nutrition"
-            className="flex flex-col items-center gap-2 rounded-xl border border-border bg-card p-4 transition-colors hover:bg-accent"
+            className="flex flex-col items-center gap-2 rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:bg-accent"
           >
             <UtensilsCrossed className="h-6 w-6 text-primary" />
             <span className="text-xs font-medium">Log Food</span>
           </Link>
           <Link
             href="/analytics"
-            className="flex flex-col items-center gap-2 rounded-xl border border-border bg-card p-4 transition-colors hover:bg-accent"
+            className="flex flex-col items-center gap-2 rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:bg-accent"
           >
             <BarChart3 className="h-6 w-6 text-primary" />
             <span className="text-xs font-medium">Analytics</span>
           </Link>
           <Link
             href="/nutrition/supplements"
-            className="flex flex-col items-center gap-2 rounded-xl border border-border bg-card p-4 transition-colors hover:bg-accent"
+            className="flex flex-col items-center gap-2 rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:bg-accent"
           >
             <Trophy className="h-6 w-6 text-primary" />
             <span className="text-xs font-medium">Supplements</span>

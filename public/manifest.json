@@ -4,8 +4,8 @@
   "description": "Expert workout planner, smart nutrition tracker, and analytics dashboard",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#6366f1",
+  "background_color": "#0B0B0B",
+  "theme_color": "#0D8F6B",
   "orientation": "portrait",
   "icons": [
     {

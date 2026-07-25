@@ -3,17 +3,14 @@ import {
   View, Text, ScrollView, TouchableOpacity,
   TextInput, RefreshControl, ActivityIndicator, StyleSheet,
 } from 'react-native';
-import { Scale, Dumbbell, TrendingUp, TrendingDown, Minus, Footprints } from 'lucide-react-native';
+import { Scale, Dumbbell, TrendingUp, TrendingDown, Minus, Footprints, Plus, Pencil, X, Check } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import * as api from '../services/api';
 import { analyzeActivity } from '@fittrack/core/src/algorithms/activity-analyzer';
 import { HealthKitSync } from '../components/HealthKitSync';
+import { toDateString } from '../utils/date';
+import { cardElevation } from '../theme/elevation';
 import type { WeightEntry, DailyActivity, WorkoutSession } from '@fittrack/core';
-
-function toDateString(d?: Date): string {
-  const dt = d ?? new Date();
-  return dt.toISOString().split('T')[0];
-}
 
 type TabId = 'overview' | 'strength' | 'activity';
 
@@ -29,17 +26,34 @@ export function AnalyticsScreen() {
   const [newWeight, setNewWeight] = useState('');
   const [avgSteps, setAvgSteps] = useState(0);
 
+  // Manual activity entry (add + edit)
+  const [showManualActivity, setShowManualActivity] = useState(false);
+  const [manualDate, setManualDate] = useState(toDateString());
+  const [manualSteps, setManualSteps] = useState('');
+  const [manualCalories, setManualCalories] = useState('');
+  const [editingActivityDate, setEditingActivityDate] = useState<string | null>(null);
+  const [editDate, setEditDate] = useState('');
+  const [editSteps, setEditSteps] = useState('');
+  const [editCalories, setEditCalories] = useState('');
+  const [showAllActivity, setShowAllActivity] = useState(false);
+
   const loadData = useCallback(async () => {
     try {
       const [w, a, s] = await Promise.all([
         api.getWeightEntries(90),
-        api.getDailyActivities(30),
+        api.getDailyActivities(90),
         api.getRecentWorkouts(50),
       ]);
       setWeights(w);
       setWorkouts(s);
-      setActivities(a);
-      const insight = analyzeActivity(a);
+      // Drop malformed dates (leftover from earlier manual API testing) and
+      // any date after today, which can only be stale garbage from a sync
+      // that ran while the device's "today" was computed incorrectly (see
+      // utils/date.ts) -- a real activity row can never be dated in the future.
+      const today = toDateString();
+      const cleanActivities = a.filter((act) => /^\d{4}-\d{2}-\d{2}$/.test(act.date) && act.date <= today);
+      setActivities(cleanActivities);
+      const insight = analyzeActivity(cleanActivities);
       setAvgSteps(insight.averageSteps);
     } finally {
       setLoading(false);
@@ -60,6 +74,41 @@ export function AnalyticsScreen() {
     await api.addWeightEntry({ date: toDateString(), weightLbs: value });
     setNewWeight('');
     setShowWeightInput(false);
+    loadData();
+  };
+
+  const handleAddManualActivity = async () => {
+    await api.saveDailyActivity({
+      date: manualDate,
+      steps: parseInt(manualSteps) || 0,
+      activeCalories: parseInt(manualCalories) || 0,
+      source: 'manual',
+    });
+    setShowManualActivity(false);
+    setManualDate(toDateString());
+    setManualSteps('');
+    setManualCalories('');
+    loadData();
+  };
+
+  const startEditActivity = (activity: DailyActivity) => {
+    setEditingActivityDate(activity.date);
+    setEditDate(activity.date);
+    setEditSteps(String(activity.steps));
+    setEditCalories(String(activity.activeCalories));
+  };
+
+  const cancelEditActivity = () => setEditingActivityDate(null);
+
+  const handleEditActivitySave = async () => {
+    if (!editingActivityDate) return;
+    await api.updateDailyActivity(editingActivityDate, {
+      date: editDate,
+      steps: parseInt(editSteps) || 0,
+      activeCalories: parseInt(editCalories) || 0,
+      source: 'manual',
+    });
+    setEditingActivityDate(null);
     loadData();
   };
 
@@ -246,34 +295,175 @@ export function AnalyticsScreen() {
               </Text>
             </View>
 
-            {/* Recent Activity Log */}
-            {activities.length > 0 && (
-              <View>
-                <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Recent Activity</Text>
-                <View style={[styles.historyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  {[...activities].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 7).map((a, i) => (
-                    <View key={i} style={[styles.historyRow, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}>
-                      <View>
-                        <Text style={{ fontSize: 13, color: colors.mutedForeground }}>
-                          {new Date(a.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                        </Text>
-                        {a.source !== 'manual' && (
-                          <Text style={{ fontSize: 10, color: colors.primary, marginTop: 1 }}>{a.source}</Text>
-                        )}
-                      </View>
-                      <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground }}>
-                          {a.steps.toLocaleString()} steps
-                        </Text>
-                        <Text style={{ fontSize: 11, color: colors.mutedForeground }}>
-                          {a.activeCalories} cal{a.restingHeartRate ? ` · ${a.restingHeartRate} bpm` : ''}
-                        </Text>
-                      </View>
-                    </View>
-                  ))}
-                </View>
+            {/* Manual Activity Entry */}
+            <View style={[styles.activityCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: colors.foreground }}>Manual Activity Entry</Text>
+                <TouchableOpacity
+                  style={[styles.manualEntryBtn, { backgroundColor: colors.primary + '18' }]}
+                  onPress={() => setShowManualActivity((v) => !v)}
+                  activeOpacity={0.7}
+                >
+                  <Plus size={13} color={colors.primary} />
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: colors.primary }}>Add Entry</Text>
+                </TouchableOpacity>
               </View>
-            )}
+
+              {showManualActivity && (
+                <View style={{ marginTop: 12, gap: 8 }}>
+                  <View>
+                    <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Date</Text>
+                    <TextInput
+                      style={[styles.fieldInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+                      value={manualDate}
+                      onChangeText={setManualDate}
+                      placeholder="YYYY-MM-DD"
+                      placeholderTextColor={colors.mutedForeground}
+                    />
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Steps</Text>
+                      <TextInput
+                        style={[styles.fieldInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+                        value={manualSteps}
+                        onChangeText={setManualSteps}
+                        placeholder="e.g. 8500"
+                        placeholderTextColor={colors.mutedForeground}
+                        keyboardType="numeric"
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Active Calories</Text>
+                      <TextInput
+                        style={[styles.fieldInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+                        value={manualCalories}
+                        onChangeText={setManualCalories}
+                        placeholder="e.g. 350"
+                        placeholderTextColor={colors.mutedForeground}
+                        keyboardType="numeric"
+                      />
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.saveActivityBtn, { backgroundColor: colors.primary }]}
+                    onPress={handleAddManualActivity}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: colors.primaryForeground }}>Save Activity</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+
+            {/* Activity History (all data synced from Apple Health / manual entries) */}
+            {(() => {
+              // activities is already cleaned (valid, non-future dates) in loadData
+              const validActivities = [...activities].sort((a, b) => b.date.localeCompare(a.date));
+              const displayedActivities = showAllActivity ? validActivities : validActivities.slice(0, 7);
+              if (validActivities.length === 0) return null;
+              return (
+              <View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>
+                    Activity History{validActivities.length > 0 ? ` (${validActivities.length})` : ''}
+                  </Text>
+                </View>
+                <View style={[styles.historyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  {displayedActivities.map((a, i) =>
+                    editingActivityDate === a.date ? (
+                      <View key={a.date} style={[styles.editActivityBox, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}>
+                        <View>
+                          <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Date</Text>
+                          <TextInput
+                            style={[styles.fieldInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+                            value={editDate}
+                            onChangeText={setEditDate}
+                            placeholder="YYYY-MM-DD"
+                            placeholderTextColor={colors.mutedForeground}
+                          />
+                        </View>
+                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Steps</Text>
+                            <TextInput
+                              style={[styles.fieldInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+                              value={editSteps}
+                              onChangeText={setEditSteps}
+                              keyboardType="numeric"
+                            />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Active Calories</Text>
+                            <TextInput
+                              style={[styles.fieldInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+                              value={editCalories}
+                              onChangeText={setEditCalories}
+                              keyboardType="numeric"
+                            />
+                          </View>
+                        </View>
+                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                          <TouchableOpacity
+                            onPress={handleEditActivitySave}
+                            style={[styles.editActionBtn, { flex: 1, backgroundColor: colors.primary }]}
+                            activeOpacity={0.8}
+                          >
+                            <Check size={13} color={colors.primaryForeground ?? '#fff'} />
+                            <Text style={{ color: colors.primaryForeground ?? '#fff', fontWeight: '600', fontSize: 12 }}>Save</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={cancelEditActivity}
+                            style={[styles.editActionBtn, { borderWidth: 1, borderColor: colors.border }]}
+                            activeOpacity={0.8}
+                          >
+                            <X size={13} color={colors.mutedForeground} />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ) : (
+                      <View key={a.date} style={[styles.historyRow, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}>
+                        <View>
+                          <Text style={{ fontSize: 13, color: colors.mutedForeground }}>
+                            {new Date(a.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                          </Text>
+                          {a.source !== 'manual' && (
+                            <Text style={{ fontSize: 10, color: colors.primary, marginTop: 1 }}>{a.source}</Text>
+                          )}
+                        </View>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                          <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground }}>
+                              {a.steps.toLocaleString()} steps
+                            </Text>
+                            <Text style={{ fontSize: 11, color: colors.mutedForeground }}>
+                              {a.activeCalories} cal{a.restingHeartRate ? ` · ${a.restingHeartRate} bpm` : ''}
+                            </Text>
+                          </View>
+                          {a.source === 'manual' && (
+                            <TouchableOpacity onPress={() => startEditActivity(a)} activeOpacity={0.6}>
+                              <Pencil size={14} color={colors.mutedForeground} />
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      </View>
+                    )
+                  )}
+                </View>
+                {validActivities.length > 7 && (
+                  <TouchableOpacity
+                    onPress={() => setShowAllActivity((v) => !v)}
+                    style={styles.showAllBtn}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: colors.primary }}>
+                      {showAllActivity ? 'Show less' : `Show all ${validActivities.length} days`}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              );
+            })()}
           </View>
         )}
       </View>
@@ -285,16 +475,23 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: 16, gap: 16 },
   logWeightBtn: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-end', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
-  weightInputRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 12, padding: 12, gap: 10 },
+  weightInputRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 12, padding: 12, gap: 10, ...cardElevation },
   weightInput: { flex: 1, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14 },
   saveBtn: { borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10 },
   statsRow: { flexDirection: 'row', gap: 10 },
-  statCard: { flex: 1, borderWidth: 1, borderRadius: 12, padding: 14, alignItems: 'center' },
-  tabRow: { flexDirection: 'row', borderRadius: 8, padding: 2 },
-  tabBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 6 },
-  sectionTitle: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
-  historyCard: { borderWidth: 1, borderRadius: 12, overflow: 'hidden' },
+  statCard: { flex: 1, borderWidth: 1, borderRadius: 16, padding: 14, alignItems: 'center', ...cardElevation },
+  tabRow: { flexDirection: 'row', borderRadius: 10, padding: 3 },
+  tabBtn: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 7 },
+  sectionTitle: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6 },
+  historyCard: { borderWidth: 1, borderRadius: 16, overflow: 'hidden', ...cardElevation },
+  showAllBtn: { alignItems: 'center', paddingVertical: 12 },
   historyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14 },
   emptyState: { alignItems: 'center', paddingVertical: 40 },
-  activityCard: { borderWidth: 1, borderRadius: 12, padding: 20 },
+  activityCard: { borderWidth: 1, borderRadius: 16, padding: 20, ...cardElevation },
+  manualEntryBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+  fieldLabel: { fontSize: 11, marginBottom: 3 },
+  fieldInput: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 13 },
+  saveActivityBtn: { borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
+  editActivityBox: { padding: 14, gap: 8 },
+  editActionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 8, borderRadius: 8 },
 });

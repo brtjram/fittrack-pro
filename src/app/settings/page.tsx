@@ -174,7 +174,7 @@ export default function SettingsPage() {
           </div>
         )}
         {/* Profile Section */}
-        <section className="rounded-xl border border-border bg-card p-4">
+        <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
           <div className="mb-4 flex items-center gap-2">
             <User className="h-5 w-5 text-primary" />
             <h2 className="text-base font-semibold">Profile</h2>
@@ -263,7 +263,7 @@ export default function SettingsPage() {
         </section>
 
         {/* Goal */}
-        <section className="rounded-xl border border-border bg-card p-4">
+        <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
           <h2 className="mb-3 text-base font-semibold">Goal</h2>
           {form.goal === 'challenge' ? (
             <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-3">
@@ -280,7 +280,7 @@ export default function SettingsPage() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-3">
               {goalOptions.map((opt) => (
                 <button
                   key={opt.value}
@@ -323,7 +323,7 @@ export default function SettingsPage() {
         </section>
 
         {/* Activity Level */}
-        <section className="rounded-xl border border-border bg-card p-4">
+        <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
           <h2 className="mb-3 text-base font-semibold">Activity Level</h2>
           <div className="space-y-2">
             {activityOptions.map((opt) => (
@@ -347,9 +347,9 @@ export default function SettingsPage() {
         </section>
 
         {/* Experience */}
-        <section className="rounded-xl border border-border bg-card p-4">
+        <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
           <h2 className="mb-3 text-base font-semibold">Experience Level</h2>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-3">
             {experienceOptions.map((opt) => (
               <button
                 key={opt.value}
@@ -372,9 +372,9 @@ export default function SettingsPage() {
 
         {/* Workout Split — AI Coach Mode / the Transformation Challenge decide this themselves */}
         {form.goal !== 'ai_coach' && form.goal !== 'challenge' && (
-          <section className="rounded-xl border border-border bg-card p-4">
+          <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
             <h2 className="mb-3 text-base font-semibold">Preferred Split</h2>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-3">
               {splitOptions.map((opt) => (
                 <button
                   key={opt.value}
@@ -398,7 +398,7 @@ export default function SettingsPage() {
 
         {/* Step Target — auto-computed from goal + activity; AI Coach Mode / the Transformation Challenge set their own instead */}
         {form.goal !== 'ai_coach' && form.goal !== 'challenge' && (
-          <section className="rounded-xl border border-border bg-card p-4">
+          <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
             <div className="mb-3 flex items-center gap-2">
               <Footprints className="h-5 w-5 text-primary" />
               <h2 className="text-base font-semibold">Daily Step Goal</h2>
@@ -420,7 +420,7 @@ export default function SettingsPage() {
 
         {/* AI Coach Mode / the Transformation Challenge own the step target — show it read-only instead of the manual picker */}
         {(form.goal === 'ai_coach' || form.goal === 'challenge') && currentStepTarget !== null && (
-          <section className="rounded-xl border border-border bg-card p-4">
+          <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
             <div className="mb-3 flex items-center gap-2">
               <Footprints className="h-5 w-5 text-primary" />
               <h2 className="text-base font-semibold">Daily Step Goal</h2>
@@ -444,7 +444,7 @@ export default function SettingsPage() {
 
         {/* Menstrual Cycle Tracking — only shown for female gender */}
         {form.gender === 'female' && (
-          <section className="rounded-xl border border-border bg-card p-4">
+          <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
             <div className="mb-3 flex items-center justify-between">
               <div>
                 <h2 className="text-base font-semibold">Cycle Tracking</h2>
@@ -492,9 +492,9 @@ export default function SettingsPage() {
 
         {/* Theme */}
         {mounted && (
-          <section className="rounded-xl border border-border bg-card p-4">
+          <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
             <h2 className="mb-3 text-base font-semibold">Theme</h2>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-3">
               {[
                 { value: 'light', label: 'Light', icon: Sun },
                 { value: 'dark', label: 'Dark', icon: Moon },
@@ -521,7 +521,7 @@ export default function SettingsPage() {
         )}
 
         {/* Integrations */}
-        <section className="rounded-xl border border-border bg-card p-4">
+        <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
           <h2 className="mb-3 text-base font-semibold">Integrations</h2>
           <div className="space-y-3">
             <IntegrationRow
@@ -553,7 +553,7 @@ export default function SettingsPage() {
         </section>
 
         {/* Data Storage Info */}
-        <section className="rounded-xl border border-border bg-card p-4">
+        <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
           <h2 className="mb-2 text-base font-semibold">Data Storage</h2>
           <p className="text-sm text-muted-foreground">
             Your fitness data is stored securely in the cloud, tied to your account. Data persists across all your devices and browsers.

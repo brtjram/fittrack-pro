@@ -2,12 +2,14 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   ActivityIndicator, TextInput, StyleSheet,
-  Animated, PanResponder,
+  Animated, PanResponder, Alert,
 } from 'react-native';
-import { CheckCircle, Circle, Clock, Dumbbell, Trash2, Star } from 'lucide-react-native';
+import { CheckCircle, Circle, Clock, Dumbbell, Trash2, Star, Trophy } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
+import { cardElevation } from '../theme/elevation';
 import * as api from '../services/api';
-import type { WorkoutSession, WorkoutSet } from '@fittrack/core';
+import { checkPersonalRecord } from '@fittrack/core';
+import type { WorkoutSession, WorkoutSet, PersonalRecord } from '@fittrack/core';
 
 type Phase = 'workout' | 'rating' | 'done';
 
@@ -95,6 +97,8 @@ export function WorkoutDetailScreen({ route, navigation }: { route: any; navigat
   const [phase, setPhase] = useState<Phase>('workout');
   const [selectedRating, setSelectedRating] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [prs, setPrs] = useState<PersonalRecord[]>([]);
+  const [newPrKeys, setNewPrKeys] = useState<Set<string>>(new Set());
   const startTimeRef = useRef(Date.now());
 
   useEffect(() => {
@@ -103,10 +107,15 @@ export function WorkoutDetailScreen({ route, navigation }: { route: any; navigat
       if (s?.completed) setPhase('done');
       setLoading(false);
     });
+    api.getPersonalRecords().then(setPrs);
   }, [sessionId]);
 
   const toggleSet = useCallback(async (exerciseIdx: number, setIdx: number) => {
     if (!session) return;
+    const exercise = session.exercises[exerciseIdx];
+    const set = exercise.sets[setIdx];
+    const willComplete = !set.completed;
+
     const updated = {
       ...session,
       exercises: session.exercises.map((ex, ei) => {
@@ -121,7 +130,24 @@ export function WorkoutDetailScreen({ route, navigation }: { route: any; navigat
     };
     setSession(updated);
     await api.saveWorkout(updated);
-  }, [session]);
+
+    if (willComplete && set.actualWeight && set.actualReps) {
+      const isPR = checkPersonalRecord(exercise.exerciseId, set.actualWeight, set.actualReps, prs);
+      if (isPR) {
+        await api.savePersonalRecord({
+          exerciseId: exercise.exerciseId,
+          exerciseName: exercise.exerciseName,
+          weight: set.actualWeight,
+          reps: set.actualReps,
+          date: session.date,
+          sessionId: session.sessionId,
+        });
+        setNewPrKeys((prev) => new Set(prev).add(`${exerciseIdx}-${setIdx}`));
+        api.getPersonalRecords().then(setPrs);
+        Alert.alert('🏆 New Personal Record!', `${exercise.exerciseName}: ${set.actualWeight} lbs × ${set.actualReps} reps`);
+      }
+    }
+  }, [session, prs]);
 
   const updateSetValue = useCallback(async (exerciseIdx: number, setIdx: number, field: keyof WorkoutSet, value: number) => {
     if (!session) return;
@@ -345,6 +371,7 @@ export function WorkoutDetailScreen({ route, navigation }: { route: any; navigat
                 >
                   <View style={[styles.setRow, { borderTopColor: colors.border, backgroundColor: colors.card }]}>
                     <Text style={[styles.setNumber, { color: colors.mutedForeground }]}>{si + 1}</Text>
+                    {newPrKeys.has(`${ei}-${si}`) && <Trophy size={14} color="#f59e0b" style={{ marginRight: 2 }} />}
                     <TextInput
                       style={[styles.setInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
                       value={set.actualWeight != null ? String(set.actualWeight) : ''}
@@ -403,19 +430,19 @@ export function WorkoutDetailScreen({ route, navigation }: { route: any; navigat
 
 const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  headerCard: { margin: 16, borderWidth: 1, borderRadius: 12, padding: 16 },
+  headerCard: { margin: 16, borderWidth: 1, borderRadius: 16, padding: 16, ...cardElevation },
   sessionName: { fontSize: 20, fontWeight: '700' },
   progressBar: { height: 6, borderRadius: 3, marginTop: 12, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 3 },
   exerciseList: { paddingHorizontal: 16, paddingBottom: 8, gap: 12 },
-  exerciseCard: { borderWidth: 1, borderRadius: 12, overflow: 'hidden' },
+  exerciseCard: { borderWidth: 1, borderRadius: 16, overflow: 'hidden', ...cardElevation },
   exerciseHeader: { flexDirection: 'row', alignItems: 'center', padding: 14, paddingBottom: 10 },
   exerciseName: { fontSize: 15, fontWeight: '600' },
   setHeaderRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingBottom: 6 },
-  setHeaderText: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase' },
-  setRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, borderTopWidth: 1, gap: 8 },
+  setHeaderText: { fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
+  setRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderTopWidth: 1, gap: 8 },
   setNumber: { width: 36, fontSize: 13, fontWeight: '600', textAlign: 'center' },
-  setInput: { flex: 1, borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 14, textAlign: 'center' },
+  setInput: { flex: 1, borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 9, fontSize: 14, textAlign: 'center' },
   deleteUnderlayer: { position: 'absolute', right: 0, top: 0, bottom: 0, width: SWIPE_WIDTH, alignItems: 'center', justifyContent: 'center' },
   deleteUnderlayerBtn: { flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center', gap: 2 },
   deleteUnderlayerText: { color: '#fff', fontSize: 11, fontWeight: '600' },
@@ -424,7 +451,7 @@ const styles = StyleSheet.create({
   ratingTitle: { fontSize: 22, fontWeight: '700', marginTop: 16, textAlign: 'center' },
   ratingSubtitle: { fontSize: 14, marginTop: 4, textAlign: 'center' },
   durationBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, marginTop: 16 },
-  ratingLabel: { fontSize: 13, fontWeight: '600', marginTop: 24, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
+  ratingLabel: { fontSize: 11, fontWeight: '700', marginTop: 24, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 },
   ratingGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center', maxWidth: 300 },
   ratingBtn: { width: 52, height: 52, borderRadius: 12, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   ratingBtnText: { fontSize: 18, fontWeight: '700' },
@@ -433,9 +460,9 @@ const styles = StyleSheet.create({
   doneTitle: { fontSize: 24, fontWeight: '700', marginTop: 4 },
   doneSubtitle: { fontSize: 14, marginTop: 4 },
   doneBadges: { flexDirection: 'row', gap: 12, marginTop: 24 },
-  doneBadge: { flex: 1, borderWidth: 1, borderRadius: 12, padding: 14, alignItems: 'center', gap: 4 },
+  doneBadge: { flex: 1, borderWidth: 1, borderRadius: 16, padding: 14, alignItems: 'center', gap: 4, ...cardElevation },
   doneBadgeValue: { fontSize: 20, fontWeight: '700' },
   doneBadgeLabel: { fontSize: 11, fontWeight: '500' },
-  intensityNote: { borderWidth: 1, borderRadius: 12, padding: 14, marginTop: 20, width: '100%' },
+  intensityNote: { borderWidth: 1, borderRadius: 16, padding: 14, marginTop: 20, width: '100%', ...cardElevation },
   doneBtn: { marginTop: 24, paddingVertical: 16, paddingHorizontal: 40, borderRadius: 14, width: '100%', alignItems: 'center' },
 });

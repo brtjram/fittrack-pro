@@ -170,7 +170,7 @@ export interface DailyActivity {
   steps: number;
   activeCalories: number;
   restingHeartRate?: number;
-  source: 'apple_health' | 'manual';
+  source: 'healthkit' | 'manual';
 }
 
 export type ActivityCategory = 'sedentary' | 'light' | 'moderate' | 'active';

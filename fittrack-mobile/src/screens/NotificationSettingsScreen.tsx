@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Bell, BellOff, Dumbbell, UtensilsCrossed, Scale, Moon, Clock, Check } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
+import { cardElevation } from '../theme/elevation';
 import * as api from '../services/api';
 import type { NotificationPrefs } from '../services/api';
 import { applyNotificationSchedule, requestNotificationPermissions } from '../services/notifications';
@@ -206,7 +207,7 @@ export function NotificationSettingsScreen() {
                 <>
                   {/* Day Selector */}
                   <View style={[styles.daySelector, { borderTopColor: colors.border }]}>
-                    <Text style={{ fontSize: 12, color: colors.mutedForeground, marginBottom: 8 }}>Day</Text>
+                    <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', color: colors.mutedForeground, marginBottom: 8 }}>Day</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                       <View style={{ flexDirection: 'row', gap: 6 }}>
                         {WEEKDAYS.map((day, i) => (
@@ -262,7 +263,7 @@ export function NotificationSettingsScreen() {
               {prefs.quietHoursEnabled && (
                 <View style={[styles.quietRange, { borderTopColor: colors.border }]}>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 12, color: colors.mutedForeground, marginBottom: 6 }}>From</Text>
+                    <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', color: colors.mutedForeground, marginBottom: 6 }}>From</Text>
                     <TouchableOpacity
                       style={[styles.timeBtn, { borderColor: colors.border }]}
                       onPress={() => update('quietHoursStart', nextHour(prefs.quietHoursStart, 1))}
@@ -274,7 +275,7 @@ export function NotificationSettingsScreen() {
                   </View>
                   <Text style={{ fontSize: 14, color: colors.mutedForeground, marginTop: 20 }}>to</Text>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 12, color: colors.mutedForeground, marginBottom: 6 }}>Until</Text>
+                    <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', color: colors.mutedForeground, marginBottom: 6 }}>Until</Text>
                     <TouchableOpacity
                       style={[styles.timeBtn, { borderColor: colors.border }]}
                       onPress={() => update('quietHoursEnd', nextHour(prefs.quietHoursEnd, 1))}
@@ -370,7 +371,7 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: 16, gap: 14, paddingBottom: 40 },
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 10 },
-  card: { borderWidth: 1, borderRadius: 12, padding: 14 },
+  card: { borderWidth: 1, borderRadius: 16, padding: 14, ...cardElevation },
   row: { flexDirection: 'row', alignItems: 'center' },
   label: { fontSize: 15, fontWeight: '600' },
   timeRow: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, paddingTop: 12, marginTop: 12 },
@@ -378,6 +379,6 @@ const styles = StyleSheet.create({
   timeStepBtn: { width: 28, height: 28, borderWidth: 1, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
   mealSection: { borderTopWidth: 1, paddingTop: 12, marginTop: 12 },
   daySelector: { borderTopWidth: 1, paddingTop: 12, marginTop: 12 },
-  dayChip: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
+  dayChip: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7 },
   quietRange: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, borderTopWidth: 1, paddingTop: 12, marginTop: 12 },
 });

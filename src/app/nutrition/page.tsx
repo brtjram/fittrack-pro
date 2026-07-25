@@ -150,7 +150,7 @@ export default function NutritionPage() {
         </div>
 
         {/* Macro Rings */}
-        <div className="rounded-xl border border-border bg-card p-6">
+        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
           <div className="mb-4 text-center">
             <div className="text-3xl font-bold">{Math.round(targets.calories - totals.calories)}</div>
             <div className="text-sm text-muted-foreground">calories remaining</div>

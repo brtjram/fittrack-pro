@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { saveValue, getValue, removeValue } from './auth-storage';
+import { toDateString } from '../utils/date';
 
 // HealthKit types we care about
 const HK_STEP_COUNT = 'HKQuantityTypeIdentifierStepCount';
@@ -17,7 +18,13 @@ function getHealthKit() {
   if (Platform.OS !== 'ios') return null;
   if (!AppleHealthKit) {
     try {
-      AppleHealthKit = require('react-native-health').default;
+      // react-native-health's runtime export is `module.exports = HealthKit` (a
+      // plain CJS object, no __esModule marker) — its own index.d.ts advertises
+      // `export default`, which only holds true through the interop wrapping a
+      // real `import x from 'y'` gets from Babel. A raw runtime `require(...)`
+      // (needed here to keep this lazy/iOS-only) bypasses that interop entirely,
+      // so `.default` is undefined and this always silently returned null.
+      AppleHealthKit = require('react-native-health');
     } catch {
       return null;
     }
@@ -102,23 +109,28 @@ export function requestHealthKitPermissions(): Promise<boolean> {
 
 // ==================== Data Queries ====================
 
-function toDateString(d: Date): string {
-  return d.toISOString().split('T')[0];
-}
-
 function getSteps(startDate: Date, endDate: Date): Promise<{ date: string; value: number }[]> {
   return new Promise((resolve) => {
     const hk = getHealthKit();
     if (!hk) { resolve([]); return; }
 
     hk.getDailyStepCountSamples(
-      { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
+      // Despite the method name, react-native-health buckets results by a
+      // `period` in *minutes* that defaults to 60 (hourly) -- not by day.
+      // Without this, each returned "sample" is only one hour's steps, and
+      // callers naively treating one row per date (as this file used to)
+      // silently keep only a single random hour instead of the day's total.
+      // Request true daily buckets directly (24h = 1440min); the accumulation
+      // below is also a defensive per-date sum in case of any boundary overlap.
+      { startDate: startDate.toISOString(), endDate: endDate.toISOString(), period: 1440 },
       (err: string | null, results: Array<{ startDate: string; value: number }>) => {
         if (err || !results) { resolve([]); return; }
-        resolve(results.map((r) => ({
-          date: toDateString(new Date(r.startDate)),
-          value: Math.round(r.value),
-        })));
+        const byDate = new Map<string, number>();
+        for (const r of results) {
+          const d = toDateString(new Date(r.startDate));
+          byDate.set(d, (byDate.get(d) ?? 0) + Math.round(r.value));
+        }
+        resolve(Array.from(byDate.entries()).map(([date, value]) => ({ date, value })));
       },
     );
   });
@@ -130,10 +142,14 @@ function getActiveCalories(startDate: Date, endDate: Date): Promise<{ date: stri
     if (!hk) { resolve([]); return; }
 
     hk.getActiveEnergyBurned(
+      // Also period-bucketed (see getSteps above) -- request daily buckets
+      // directly; the per-date sum below is still correct either way since
+      // it accumulates rather than overwriting.
       {
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
         ascending: true,
+        period: 1440,
       },
       (err: string | null, results: Array<{ startDate: string; value: number }>) => {
         if (err || !results) { resolve([]); return; }

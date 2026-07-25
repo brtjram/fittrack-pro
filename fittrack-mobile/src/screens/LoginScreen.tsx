@@ -7,6 +7,7 @@ import {
 import Svg, { Path } from 'react-native-svg';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../theme/useTheme';
+import { cardElevation } from '../theme/elevation';
 import { LogoMark } from '../components/Logo';
 import { registerUser } from '../services/api';
 
@@ -259,19 +260,22 @@ const styles = StyleSheet.create({
   tabLabel: { fontSize: 13, fontWeight: '700' },
   googleBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    borderWidth: 1, borderRadius: 14, paddingVertical: 14,
+    borderWidth: 1, borderRadius: 16, paddingVertical: 14, ...cardElevation,
   },
   googleLabel: { fontSize: 15, fontWeight: '600' },
   divider: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 20 },
   dividerLine: { flex: 1, height: 1 },
   dividerText: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.8 },
   banner: { borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 14 },
-  inputWrap: { borderWidth: 1, borderRadius: 14, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 10 },
-  inputLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 4 },
+  inputWrap: { borderWidth: 1, borderRadius: 16, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 10, ...cardElevation },
+  inputLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 4 },
   input: { fontSize: 15, paddingVertical: 2 },
   passwordHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   forgotLink: { fontSize: 11, fontWeight: '700' },
-  submitBtn: { borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 20 },
+  submitBtn: {
+    borderRadius: 16, paddingVertical: 16, alignItems: 'center', marginTop: 20,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 16, elevation: 4,
+  },
   submitLabel: { fontSize: 14, fontWeight: '800', letterSpacing: 1.5 },
   footer: { fontSize: 12, textAlign: 'center', marginTop: 24, lineHeight: 18 },
 });

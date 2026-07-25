@@ -3,13 +3,15 @@ import {
   View, Text, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, Alert, StyleSheet,
 } from 'react-native';
-import { Dumbbell, UtensilsCrossed, BarChart3, Flame, Target, Scale, Zap, ChevronRight, TrendingUp } from 'lucide-react-native';
+import { Dumbbell, UtensilsCrossed, BarChart3, Flame, Target, Scale, Zap, ChevronRight, TrendingUp, Footprints } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import { useAuth } from '../hooks/useAuth';
 import { LogoMark } from '../components/Logo';
 import * as api from '../services/api';
 import { calculateMacroTargets, calculateAdaptiveAdjustment } from '@fittrack/core/src/algorithms/macro-calculator';
-import { analyzeActivity, shouldSuggestRestDay } from '@fittrack/core/src/algorithms/activity-analyzer';
+import { shouldSuggestRestDay } from '@fittrack/core/src/algorithms/activity-analyzer';
+import { toDateString } from '../utils/date';
+import { cardElevation } from '../theme/elevation';
 import type { WorkoutSession } from '@fittrack/core';
 
 function getGreeting(): string {
@@ -17,11 +19,6 @@ function getGreeting(): string {
   if (hour < 12) return 'Morning';
   if (hour < 17) return 'Afternoon';
   return 'Evening';
-}
-
-function toDateString(d?: Date): string {
-  const dt = d ?? new Date();
-  return dt.toISOString().split('T')[0];
 }
 
 export function DashboardScreen({ navigation }: { navigation: any }) {
@@ -35,6 +32,8 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
   const [todayProtein, setTodayProtein] = useState({ eaten: 0, target: 0 });
   const [latestWeight, setLatestWeight] = useState<number | null>(null);
   const [insights, setInsights] = useState<string[]>([]);
+  const [todaySteps, setTodaySteps] = useState(0);
+  const [stepGoal, setStepGoal] = useState(10000);
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -58,18 +57,18 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
         setTodayCalories({ eaten: eaten.calories, target: macros.calories });
         setTodayProtein({ eaten: eaten.protein, target: macros.protein });
 
+        const today = toDateString();
+        const todayActivity = activities.find((a) => a.date === today);
+        setTodaySteps(todayActivity?.steps ?? 0);
+        setStepGoal(profile.stepTarget ?? 10000);
+
         const insightsList: string[] = [];
-        const activityInsight = analyzeActivity(activities);
 
         if (weights.length > 0) {
           const sorted = [...weights].sort((a, b) => b.date.localeCompare(a.date));
           setLatestWeight(sorted[0].weightLbs);
           const adj = calculateAdaptiveAdjustment(macros.calories, weights, profile.goal);
           if (adj.shouldAdjust) insightsList.push(adj.reason);
-        }
-
-        if (activityInsight.averageSteps > 0 && activityInsight.category === 'sedentary') {
-          insightsList.push('Step count low. Try a 15-min walk after meals.');
         }
 
         const completedThisWeek = w.filter((s) => {
@@ -133,6 +132,17 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
   const proteinPercent = todayProtein.target > 0
     ? Math.min(Math.round((todayProtein.eaten / todayProtein.target) * 100), 100)
     : 0;
+  const stepsPercent = stepGoal > 0 ? Math.min(Math.round((todaySteps / stepGoal) * 100), 100) : 0;
+  const stepsRemaining = Math.max(stepGoal - todaySteps, 0);
+  const stepsMessage = todaySteps === 0
+    ? 'Get moving — every step counts.'
+    : stepsPercent >= 100
+      ? 'Goal crushed! Amazing work today.'
+      : stepsPercent >= 75
+        ? `Almost there — ${stepsRemaining.toLocaleString()} steps to go.`
+        : stepsPercent >= 40
+          ? `Good pace — ${stepsRemaining.toLocaleString()} steps left for your goal.`
+          : `${stepsRemaining.toLocaleString()} steps to go. A short walk adds up fast.`;
 
   const bg = colors.background;
   const accent = colors.primary;
@@ -235,6 +245,34 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
         )}
       </View>
 
+      {/* Today's Steps */}
+      <View style={[styles.stepsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={styles.stepsHeaderRow}>
+          <View style={[styles.stepsIconWrap, { backgroundColor: accent + '18' }]}>
+            <Footprints size={20} color={accent} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.stepsLabel, { color: colors.mutedForeground }]}>TODAY&apos;S STEPS</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+              <Text style={[styles.stepsValue, { color: colors.foreground }]}>{todaySteps.toLocaleString()}</Text>
+              <Text style={{ fontSize: 13, color: colors.mutedForeground }}>/ {stepGoal.toLocaleString()}</Text>
+            </View>
+          </View>
+          <Text style={[styles.stepsPercent, { color: stepsPercent >= 100 ? colors.success : accent }]}>
+            {stepsPercent}%
+          </Text>
+        </View>
+        <View style={[styles.stepsBarTrack, { backgroundColor: colors.border }]}>
+          <View style={[styles.stepsBarFill, {
+            width: `${stepsPercent}%` as any,
+            backgroundColor: stepsPercent >= 100 ? colors.success : accent,
+          }]} />
+        </View>
+        <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 10, lineHeight: 17 }}>
+          {stepsMessage}
+        </Text>
+      </View>
+
       {/* Quick Actions */}
       <View style={styles.sectionHeader}>
         <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>QUICK ACTIONS</Text>
@@ -330,14 +368,15 @@ const styles = StyleSheet.create({
   name: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5, marginTop: 2 },
   trainCta: {
     marginHorizontal: 16, borderRadius: 20, padding: 20, marginBottom: 16,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 16, elevation: 4,
   },
   trainCtaContent: { flexDirection: 'row', alignItems: 'center' },
   trainCtaLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 4 },
   trainCtaTitle: { fontSize: 20, fontWeight: '800', letterSpacing: -0.3 },
   trainCtaArrow: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  statsRow: { flexDirection: 'row', gap: 10, marginHorizontal: 16, marginBottom: 24 },
+  statsRow: { flexDirection: 'row', gap: 10, marginHorizontal: 16, marginBottom: 16 },
   macroRing: {
-    flex: 1, borderWidth: 1, borderRadius: 16, padding: 12, alignItems: 'center',
+    flex: 1, borderWidth: 1, borderRadius: 16, padding: 12, alignItems: 'center', ...cardElevation,
   },
   macroValue: { fontSize: 18, fontWeight: '800', letterSpacing: -0.5 },
   macroUnit: { fontSize: 10, fontWeight: '700', marginTop: -2 },
@@ -346,19 +385,29 @@ const styles = StyleSheet.create({
   macroBarFill: { height: 3, borderRadius: 2 },
   macroTarget: { fontSize: 9, marginTop: 4 },
   statPill: {
-    flex: 1, borderWidth: 1, borderRadius: 16, padding: 12, alignItems: 'center', gap: 2,
+    flex: 1, borderWidth: 1, borderRadius: 16, padding: 12, alignItems: 'center', gap: 2, ...cardElevation,
   },
   statPillValue: { fontSize: 18, fontWeight: '800', letterSpacing: -0.5 },
   statPillLabel: { fontSize: 10, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.3 },
+  stepsCard: {
+    marginHorizontal: 16, marginBottom: 24, borderWidth: 1, borderRadius: 18, padding: 16, ...cardElevation,
+  },
+  stepsHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  stepsIconWrap: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  stepsLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 0.8, marginBottom: 2 },
+  stepsValue: { fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
+  stepsPercent: { fontSize: 15, fontWeight: '800' },
+  stepsBarTrack: { width: '100%', height: 8, borderRadius: 4, marginTop: 14, overflow: 'hidden' },
+  stepsBarFill: { height: 8, borderRadius: 4 },
   sectionHeader: { paddingHorizontal: 20, marginBottom: 10 },
   sectionTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 1 },
   quickGrid: { flexDirection: 'row', gap: 10, marginHorizontal: 16, marginBottom: 24 },
-  quickAction: { flex: 1, borderWidth: 1, borderRadius: 16, padding: 14, alignItems: 'center' },
+  quickAction: { flex: 1, borderWidth: 1, borderRadius: 16, padding: 14, alignItems: 'center', ...cardElevation },
   quickActionIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   insightCard: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10,
     marginHorizontal: 16, borderWidth: 1, borderRadius: 14,
-    padding: 14, marginBottom: 8,
+    padding: 14, marginBottom: 8, ...cardElevation,
   },
   insightDot: { width: 6, height: 6, borderRadius: 3, marginTop: 6 },
 });

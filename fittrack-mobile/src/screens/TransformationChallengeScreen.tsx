@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Flame, Trophy, Target, TrendingDown, Check, ChevronRight, Footprints, Dumbbell, Utensils, X } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
+import { cardElevation } from '../theme/elevation';
 import * as api from '../services/api';
 import {
   CHALLENGE_PHASES as CORE_PHASES,
@@ -333,7 +334,7 @@ export function TransformationChallengeScreen() {
 
 function StatBox({ label, value, highlight, colors }: { label: string; value: string; highlight?: boolean; colors: any }) {
   return (
-    <View style={{ flex: 1, alignItems: 'center', padding: 10, backgroundColor: highlight ? colors.primary + '15' : colors.card, borderRadius: 10, marginHorizontal: 3 }}>
+    <View style={{ flex: 1, alignItems: 'center', padding: 13, backgroundColor: highlight ? colors.primary + '15' : colors.card, borderRadius: 14, marginHorizontal: 3 }}>
       <Text style={{ fontSize: 11, color: colors.mutedForeground, marginBottom: 2 }}>{label}</Text>
       <Text style={{ fontSize: 14, fontWeight: '700', color: highlight ? colors.primary : colors.foreground }}>{value}</Text>
     </View>
@@ -364,18 +365,18 @@ function styles(colors: any) {
     container: { flex: 1, backgroundColor: colors.background },
     content: { padding: 16, gap: 14 },
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
-    heroCard: { alignItems: 'center', backgroundColor: colors.card, borderRadius: 16, padding: 24, gap: 12, borderWidth: 1, borderColor: colors.border },
+    heroCard: { alignItems: 'center', backgroundColor: colors.card, borderRadius: 16, padding: 24, gap: 12, borderWidth: 1, borderColor: colors.border, ...cardElevation },
     heroTitle: { fontSize: 22, fontWeight: '800', color: colors.foreground, textAlign: 'center' },
     heroSubtitle: { fontSize: 13, color: colors.mutedForeground, textAlign: 'center', lineHeight: 20 },
     phases: { gap: 10 },
-    phaseCard: { backgroundColor: colors.card, borderRadius: 12, padding: 14, borderLeftWidth: 4, borderWidth: 1, borderColor: colors.border },
-    phaseLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+    phaseCard: { backgroundColor: colors.card, borderRadius: 16, padding: 14, borderLeftWidth: 4, borderWidth: 1, borderColor: colors.border, ...cardElevation },
+    phaseLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 },
     phaseName: { fontSize: 15, fontWeight: '700', marginTop: 2 },
     phaseDesc: { fontSize: 12, lineHeight: 18, marginTop: 4 },
     phaseTargets: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
     startBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ef4444', borderRadius: 14, paddingVertical: 16, gap: 8 },
     startBtnText: { fontSize: 16, fontWeight: '700', color: 'white' },
-    headerCard: { borderRadius: 14, padding: 14, borderWidth: 1 },
+    headerCard: { borderRadius: 16, padding: 14, borderWidth: 1, ...cardElevation },
     headerRow: { flexDirection: 'row', alignItems: 'center' },
     headerTitle: { fontSize: 18, fontWeight: '800' },
     headerPhase: { fontSize: 13, fontWeight: '600', marginTop: 1 },
@@ -383,7 +384,7 @@ function styles(colors: any) {
     progressFill: { height: 6, borderRadius: 3 },
     progressLabel: { fontSize: 11, marginTop: 4 },
     statsRow: { flexDirection: 'row' },
-    section: { backgroundColor: colors.card, borderRadius: 14, padding: 14, borderWidth: 1 },
+    section: { backgroundColor: colors.card, borderRadius: 16, padding: 14, borderWidth: 1, ...cardElevation },
     sectionTitle: { fontSize: 14, fontWeight: '700', marginBottom: 10 },
     logRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1 },
     logWeek: { width: 36, fontSize: 12 },
@@ -392,7 +393,7 @@ function styles(colors: any) {
     logWorkouts: { fontSize: 11 },
     checkInBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 14, paddingVertical: 16, gap: 8 },
     checkInBtnText: { fontSize: 15, fontWeight: '700', color: 'white', flex: 1, textAlign: 'center' },
-    inputLabel: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4, marginTop: 12 },
+    inputLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4, marginTop: 12 },
     input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14 },
     cancelBtn: { flex: 1, borderWidth: 1, borderRadius: 10, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
     submitBtn: { flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 12 },

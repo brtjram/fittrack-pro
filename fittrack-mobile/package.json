@@ -10,7 +10,8 @@
     "build:preview": "eas build --profile preview --platform ios",
     "build:prod": "eas build --profile production --platform ios",
     "submit:ios": "eas submit --platform ios",
-    "update": "eas update"
+    "update": "eas update",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@fittrack/core": "file:../packages/core",
@@ -39,6 +40,7 @@
   },
   "devDependencies": {
     "@types/react": "~18.3.0",
+    "patch-package": "^8.0.1",
     "typescript": "~5.3.3"
   },
   "private": true

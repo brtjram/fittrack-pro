@@ -3,7 +3,7 @@ import { StatusBar, ActivityIndicator, View, Linking } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/hooks/useAuth';
-import { useTheme } from './src/theme/useTheme';
+import { ThemeProvider, useTheme } from './src/theme/useTheme';
 import { useNotifications } from './src/hooks/useNotifications';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { NetworkStatus } from './src/components/NetworkStatus';
@@ -85,9 +85,11 @@ export default function App() {
   return (
     <ErrorBoundary>
       <SafeAreaProvider>
-        <AuthProvider>
-          <AppContent />
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <AppContent />
+          </AuthProvider>
+        </ThemeProvider>
       </SafeAreaProvider>
     </ErrorBoundary>
   );

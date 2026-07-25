@@ -94,7 +94,7 @@ export default function AnalyticsPage() {
       <div className="mx-auto max-w-lg space-y-6 p-4">
         {/* Weight Input */}
         {showWeightInput && (
-          <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
+          <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-sm">
             <NumericInput
               value={Number(newWeight) || 0}
               onChange={(v) => setNewWeight(String(v || ''))}
