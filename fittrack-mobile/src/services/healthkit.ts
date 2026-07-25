@@ -115,13 +115,22 @@ function getSteps(startDate: Date, endDate: Date): Promise<{ date: string; value
     if (!hk) { resolve([]); return; }
 
     hk.getDailyStepCountSamples(
-      { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
+      // Despite the method name, react-native-health buckets results by a
+      // `period` in *minutes* that defaults to 60 (hourly) -- not by day.
+      // Without this, each returned "sample" is only one hour's steps, and
+      // callers naively treating one row per date (as this file used to)
+      // silently keep only a single random hour instead of the day's total.
+      // Request true daily buckets directly (24h = 1440min); the accumulation
+      // below is also a defensive per-date sum in case of any boundary overlap.
+      { startDate: startDate.toISOString(), endDate: endDate.toISOString(), period: 1440 },
       (err: string | null, results: Array<{ startDate: string; value: number }>) => {
         if (err || !results) { resolve([]); return; }
-        resolve(results.map((r) => ({
-          date: toDateString(new Date(r.startDate)),
-          value: Math.round(r.value),
-        })));
+        const byDate = new Map<string, number>();
+        for (const r of results) {
+          const d = toDateString(new Date(r.startDate));
+          byDate.set(d, (byDate.get(d) ?? 0) + Math.round(r.value));
+        }
+        resolve(Array.from(byDate.entries()).map(([date, value]) => ({ date, value })));
       },
     );
   });
@@ -133,10 +142,14 @@ function getActiveCalories(startDate: Date, endDate: Date): Promise<{ date: stri
     if (!hk) { resolve([]); return; }
 
     hk.getActiveEnergyBurned(
+      // Also period-bucketed (see getSteps above) -- request daily buckets
+      // directly; the per-date sum below is still correct either way since
+      // it accumulates rather than overwriting.
       {
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
         ascending: true,
+        period: 1440,
       },
       (err: string | null, results: Array<{ startDate: string; value: number }>) => {
         if (err || !results) { resolve([]); return; }
