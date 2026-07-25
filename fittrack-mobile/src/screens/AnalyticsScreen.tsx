@@ -357,7 +357,11 @@ export function AnalyticsScreen() {
               <View>
                 <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Recent Activity</Text>
                 <View style={[styles.historyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  {[...activities].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 7).map((a, i) =>
+                  {[...activities]
+                    .filter((a) => /^\d{4}-\d{2}-\d{2}$/.test(a.date))
+                    .sort((a, b) => b.date.localeCompare(a.date))
+                    .slice(0, 7)
+                    .map((a, i) =>
                     editingActivityDate === a.date ? (
                       <View key={a.date} style={[styles.editActivityBox, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}>
                         <View>
