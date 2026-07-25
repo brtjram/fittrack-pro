@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Home, Dumbbell, UtensilsCrossed, BarChart3, Settings, Bot, Pill } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/useTheme';
 
 import { DashboardScreen } from '../screens/DashboardScreen';
@@ -97,6 +98,7 @@ const tabStyles = StyleSheet.create({
 
 export function AppNavigator() {
   const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
 
   return (
     <Tab.Navigator
@@ -105,9 +107,13 @@ export function AppNavigator() {
           backgroundColor: isDark ? '#111111' : colors.card,
           borderTopColor: colors.border,
           borderTopWidth: 1,
-          paddingBottom: 8,
+          // A fixed height/padding here overrides react-navigation's own
+          // safe-area handling, so on devices with a home indicator the tab
+          // bar sat only 8px above it and got visually clipped. Pad by the
+          // real bottom inset instead.
+          paddingBottom: Math.max(insets.bottom, 8),
           paddingTop: 8,
-          height: 64,
+          height: 56 + Math.max(insets.bottom, 8),
         },
         tabBarActiveTintColor: isDark ? colors.primary : colors.primary,
         tabBarInactiveTintColor: colors.mutedForeground,

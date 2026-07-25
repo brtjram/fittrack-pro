@@ -8,7 +8,7 @@ interface LogoMarkProps {
   bg?: string;
 }
 
-export function LogoMark({ size = 32, color = '#C8FF00', bg = '#0B0B0B' }: LogoMarkProps) {
+export function LogoMark({ size = 32, color = '#2FBF8F', bg = '#0B0B0B' }: LogoMarkProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 32 32">
       {/* Rounded square background */}
@@ -34,7 +34,7 @@ interface LogoWordmarkProps {
 
 export function LogoWordmark({
   size = 'md',
-  accentColor = '#C8FF00',
+  accentColor = '#2FBF8F',
   textColor = '#FFFFFF',
 }: LogoWordmarkProps) {
   const fontSize = size === 'sm' ? 16 : size === 'md' ? 22 : 30;
