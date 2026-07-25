@@ -45,8 +45,14 @@ export function AnalyticsScreen() {
       ]);
       setWeights(w);
       setWorkouts(s);
-      setActivities(a);
-      const insight = analyzeActivity(a);
+      // Drop malformed dates (leftover from earlier manual API testing) and
+      // any date after today, which can only be stale garbage from a sync
+      // that ran while the device's "today" was computed incorrectly (see
+      // utils/date.ts) -- a real activity row can never be dated in the future.
+      const today = toDateString();
+      const cleanActivities = a.filter((act) => /^\d{4}-\d{2}-\d{2}$/.test(act.date) && act.date <= today);
+      setActivities(cleanActivities);
+      const insight = analyzeActivity(cleanActivities);
       setAvgSteps(insight.averageSteps);
     } finally {
       setLoading(false);
@@ -351,9 +357,8 @@ export function AnalyticsScreen() {
 
             {/* Activity History (all data synced from Apple Health / manual entries) */}
             {(() => {
-              const validActivities = [...activities]
-                .filter((a) => /^\d{4}-\d{2}-\d{2}$/.test(a.date))
-                .sort((a, b) => b.date.localeCompare(a.date));
+              // activities is already cleaned (valid, non-future dates) in loadData
+              const validActivities = [...activities].sort((a, b) => b.date.localeCompare(a.date));
               const displayedActivities = showAllActivity ? validActivities : validActivities.slice(0, 7);
               if (validActivities.length === 0) return null;
               return (
