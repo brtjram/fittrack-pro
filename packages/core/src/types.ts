@@ -14,6 +14,10 @@ export interface UserProfile {
   healthSyncApiKey?: string;
   nutritionTargetOverride?: string | null;
   aiCoachGoal?: string | null;
+  trackCycle?: boolean;
+  cycleLength?: number;
+  lastPeriodDate?: string;
+  stepTarget?: number;
   createdAt: string;
   updatedAt: string;
 }

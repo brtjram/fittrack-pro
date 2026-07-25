@@ -154,6 +154,13 @@ export async function addFoodLogEntry(entry: Omit<FoodLogEntry, 'id'>): Promise<
   });
 }
 
+export async function updateFoodLogEntry(id: string, entry: Partial<FoodLogEntry>): Promise<void> {
+  await apiFetch('/api/fitness/food-log', {
+    method: 'PUT',
+    body: JSON.stringify({ id, ...entry }),
+  });
+}
+
 export async function deleteFoodLogEntry(id: string): Promise<void> {
   await apiFetch(`/api/fitness/food-log?id=${id}`, { method: 'DELETE' });
 }
@@ -225,6 +232,19 @@ export async function saveDailyActivity(data: {
   await apiFetch('/api/fitness/activities', {
     method: 'POST',
     body: JSON.stringify(data),
+  });
+}
+
+export async function updateDailyActivity(originalDate: string, data: {
+  date: string;
+  steps: number;
+  activeCalories: number;
+  restingHeartRate?: number;
+  source?: string;
+}): Promise<void> {
+  await apiFetch('/api/fitness/activities', {
+    method: 'PUT',
+    body: JSON.stringify({ originalDate, ...data }),
   });
 }
 

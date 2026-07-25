@@ -2,12 +2,13 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   ActivityIndicator, TextInput, StyleSheet,
-  Animated, PanResponder,
+  Animated, PanResponder, Alert,
 } from 'react-native';
-import { CheckCircle, Circle, Clock, Dumbbell, Trash2, Star } from 'lucide-react-native';
+import { CheckCircle, Circle, Clock, Dumbbell, Trash2, Star, Trophy } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import * as api from '../services/api';
-import type { WorkoutSession, WorkoutSet } from '@fittrack/core';
+import { checkPersonalRecord } from '@fittrack/core';
+import type { WorkoutSession, WorkoutSet, PersonalRecord } from '@fittrack/core';
 
 type Phase = 'workout' | 'rating' | 'done';
 
@@ -95,6 +96,8 @@ export function WorkoutDetailScreen({ route, navigation }: { route: any; navigat
   const [phase, setPhase] = useState<Phase>('workout');
   const [selectedRating, setSelectedRating] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [prs, setPrs] = useState<PersonalRecord[]>([]);
+  const [newPrKeys, setNewPrKeys] = useState<Set<string>>(new Set());
   const startTimeRef = useRef(Date.now());
 
   useEffect(() => {
@@ -103,10 +106,15 @@ export function WorkoutDetailScreen({ route, navigation }: { route: any; navigat
       if (s?.completed) setPhase('done');
       setLoading(false);
     });
+    api.getPersonalRecords().then(setPrs);
   }, [sessionId]);
 
   const toggleSet = useCallback(async (exerciseIdx: number, setIdx: number) => {
     if (!session) return;
+    const exercise = session.exercises[exerciseIdx];
+    const set = exercise.sets[setIdx];
+    const willComplete = !set.completed;
+
     const updated = {
       ...session,
       exercises: session.exercises.map((ex, ei) => {
@@ -121,7 +129,24 @@ export function WorkoutDetailScreen({ route, navigation }: { route: any; navigat
     };
     setSession(updated);
     await api.saveWorkout(updated);
-  }, [session]);
+
+    if (willComplete && set.actualWeight && set.actualReps) {
+      const isPR = checkPersonalRecord(exercise.exerciseId, set.actualWeight, set.actualReps, prs);
+      if (isPR) {
+        await api.savePersonalRecord({
+          exerciseId: exercise.exerciseId,
+          exerciseName: exercise.exerciseName,
+          weight: set.actualWeight,
+          reps: set.actualReps,
+          date: session.date,
+          sessionId: session.sessionId,
+        });
+        setNewPrKeys((prev) => new Set(prev).add(`${exerciseIdx}-${setIdx}`));
+        api.getPersonalRecords().then(setPrs);
+        Alert.alert('🏆 New Personal Record!', `${exercise.exerciseName}: ${set.actualWeight} lbs × ${set.actualReps} reps`);
+      }
+    }
+  }, [session, prs]);
 
   const updateSetValue = useCallback(async (exerciseIdx: number, setIdx: number, field: keyof WorkoutSet, value: number) => {
     if (!session) return;
@@ -345,6 +370,7 @@ export function WorkoutDetailScreen({ route, navigation }: { route: any; navigat
                 >
                   <View style={[styles.setRow, { borderTopColor: colors.border, backgroundColor: colors.card }]}>
                     <Text style={[styles.setNumber, { color: colors.mutedForeground }]}>{si + 1}</Text>
+                    {newPrKeys.has(`${ei}-${si}`) && <Trophy size={14} color="#f59e0b" style={{ marginRight: 2 }} />}
                     <TextInput
                       style={[styles.setInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
                       value={set.actualWeight != null ? String(set.actualWeight) : ''}

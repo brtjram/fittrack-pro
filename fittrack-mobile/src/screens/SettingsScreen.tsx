@@ -3,20 +3,30 @@ import {
   View, Text, ScrollView, TouchableOpacity,
   TextInput, Alert, ActivityIndicator, Linking, StyleSheet,
 } from 'react-native';
-import { User, LogOut, Check, Save, Shield, FileText, Info, ExternalLink, Bell, ChevronRight, Flame } from 'lucide-react-native';
+import { User, LogOut, Check, Save, Shield, FileText, Info, ExternalLink, Bell, ChevronRight, Flame, Sun, Moon, Monitor, Footprints } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import Constants from 'expo-constants';
-import { useTheme } from '../theme/useTheme';
+import { useTheme, ThemeMode } from '../theme/useTheme';
 import { useAuth } from '../hooks/useAuth';
 import { HealthKitSync } from '../components/HealthKitSync';
 import * as api from '../services/api';
+import { computeStepTarget, stepTargetRationale } from '../utils/step-target';
 import type { ActivityLevel, Goal, ExperienceLevel, WorkoutSplit } from '@fittrack/core';
+
+const SUPPORT_URL_BASE = 'https://myfittrack.pro';
 
 const goalOptions: { value: Goal; label: string; desc: string }[] = [
   { value: 'fat_loss', label: 'Fat Loss', desc: 'Maximize fat loss, preserve muscle' },
   { value: 'muscle_gain', label: 'Muscle Gain', desc: 'Build muscle with lean surplus' },
   { value: 'recomp', label: 'Recomposition', desc: 'Lose fat and gain muscle simultaneously' },
   { value: 'maintain', label: 'Maintain', desc: 'Maintain current weight and performance' },
+  { value: 'ai_coach', label: 'AI Coach Mode', desc: 'Describe your goal — the coach sets nutrition & workouts' },
+];
+
+const themeOptions: { value: ThemeMode; label: string; icon: typeof Sun }[] = [
+  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'dark', label: 'Dark', icon: Moon },
+  { value: 'system', label: 'System', icon: Monitor },
 ];
 
 const activityOptions: { value: ActivityLevel; label: string; desc: string }[] = [
@@ -51,16 +61,21 @@ type FormState = {
   goal: Goal;
   experienceLevel: ExperienceLevel;
   preferredSplit: WorkoutSplit;
+  trackCycle: boolean;
+  cycleLength: number;
+  lastPeriodDate: string;
+  aiCoachGoal: string;
 };
 
 export function SettingsScreen() {
-  const { colors } = useTheme();
+  const { colors, themeMode, setThemeMode } = useTheme();
   const { logout } = useAuth();
   const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [currentStepTarget, setCurrentStepTarget] = useState<number | null>(null);
   const savedFormRef = useRef<string>('');
   const [form, setForm] = useState<FormState>({
     name: '',
@@ -73,6 +88,10 @@ export function SettingsScreen() {
     goal: 'fat_loss',
     experienceLevel: 'intermediate',
     preferredSplit: 'ppl',
+    trackCycle: false,
+    cycleLength: 28,
+    lastPeriodDate: '',
+    aiCoachGoal: '',
   });
 
   useEffect(() => {
@@ -90,10 +109,15 @@ export function SettingsScreen() {
             goal: profile.goal,
             experienceLevel: profile.experienceLevel,
             preferredSplit: profile.preferredSplit,
+            trackCycle: profile.trackCycle ?? false,
+            cycleLength: profile.cycleLength ?? 28,
+            lastPeriodDate: profile.lastPeriodDate ?? '',
+            aiCoachGoal: profile.aiCoachGoal ?? '',
           };
           setForm(loaded);
           savedFormRef.current = JSON.stringify(loaded);
           setSaved(true);
+          setCurrentStepTarget(profile.stepTarget ?? null);
         }
       })
       .catch(() => { /* network error — show empty form */ })
@@ -282,6 +306,28 @@ export function SettingsScreen() {
               ))}
             </View>
           )}
+
+          {form.goal === 'ai_coach' && (
+            <View style={{ marginTop: 12 }}>
+              <Text style={[styles.label, { color: colors.mutedForeground }]}>
+                Tell the coach what you&apos;re training for
+              </Text>
+              <TextInput
+                style={[styles.input, styles.textarea, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+                value={form.aiCoachGoal}
+                onChangeText={(v) => updateField('aiCoachGoal', v)}
+                placeholder='e.g. "Train for a marathon in 16 weeks while keeping the muscle I&apos;ve built"'
+                placeholderTextColor={colors.mutedForeground}
+                multiline
+                numberOfLines={3}
+              />
+              <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 6, lineHeight: 16 }}>
+                Save this, then open the Coach chat and ask it to build your plan — it will set your daily
+                nutrition, training split, step goal, and weekly workouts from this goal, and keep adjusting
+                them as you go.
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Activity Level */}
@@ -328,8 +374,8 @@ export function SettingsScreen() {
           </View>
         </View>
 
-        {/* Workout Split — the Transformation Challenge decides this itself */}
-        {form.goal !== 'challenge' && (
+        {/* Workout Split — AI Coach Mode / the Transformation Challenge decide this themselves */}
+        {form.goal !== 'ai_coach' && form.goal !== 'challenge' && (
           <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Preferred Split</Text>
             <View style={styles.optionsGrid}>
@@ -352,6 +398,121 @@ export function SettingsScreen() {
             </View>
           </View>
         )}
+
+        {/* Step Target — auto-computed from goal + activity; AI Coach Mode / the Transformation Challenge set their own instead */}
+        {form.goal !== 'ai_coach' && form.goal !== 'challenge' && (
+          <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.sectionHeader}>
+              <Footprints size={18} color={colors.primary} />
+              <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 0 }]}>Daily Step Goal</Text>
+            </View>
+            <View style={[styles.stepGoalRow, { backgroundColor: colors.primary + '0D' }]}>
+              <Text style={[styles.stepGoalValue, { color: colors.primary }]}>
+                {computeStepTarget(form.activityLevel, form.goal).toLocaleString()}
+              </Text>
+              <Text style={{ fontSize: 13, color: colors.mutedForeground }}>steps / day</Text>
+            </View>
+            <View style={{ flexDirection: 'row', marginTop: 8, gap: 6 }}>
+              <Info size={13} color={colors.mutedForeground} style={{ marginTop: 1 }} />
+              <Text style={{ flex: 1, fontSize: 11, color: colors.mutedForeground, lineHeight: 16 }}>
+                {stepTargetRationale(form.activityLevel, form.goal)}. Updates automatically when you change your goal or activity level.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* AI Coach Mode / the Transformation Challenge own the step target — show it read-only instead */}
+        {(form.goal === 'ai_coach' || form.goal === 'challenge') && currentStepTarget !== null && (
+          <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.sectionHeader}>
+              <Footprints size={18} color={colors.primary} />
+              <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 0 }]}>Daily Step Goal</Text>
+            </View>
+            <View style={[styles.stepGoalRow, { backgroundColor: colors.primary + '0D' }]}>
+              <Text style={[styles.stepGoalValue, { color: colors.primary }]}>
+                {currentStepTarget.toLocaleString()}
+              </Text>
+              <Text style={{ fontSize: 13, color: colors.mutedForeground }}>steps / day</Text>
+            </View>
+            <View style={{ flexDirection: 'row', marginTop: 8, gap: 6 }}>
+              <Info size={13} color={colors.mutedForeground} style={{ marginTop: 1 }} />
+              <Text style={{ flex: 1, fontSize: 11, color: colors.mutedForeground, lineHeight: 16 }}>
+                {form.goal === 'challenge'
+                  ? 'Set by the current Transformation Challenge phase. Updates automatically as you advance weeks.'
+                  : 'Set by your AI coach. Ask it to adjust this in chat if it needs to change.'}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Menstrual Cycle Tracking — only shown for female gender */}
+        {form.gender === 'female' && (
+          <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 0 }]}>Cycle Tracking</Text>
+                <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 2 }}>
+                  Personalizes workout intensity by cycle phase
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => updateField('trackCycle', !form.trackCycle)}
+                style={[styles.toggle, { backgroundColor: form.trackCycle ? colors.primary : colors.muted }]}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.toggleThumb, form.trackCycle && { transform: [{ translateX: 20 }] }]} />
+              </TouchableOpacity>
+            </View>
+            {form.trackCycle && (
+              <View style={[styles.row, { marginTop: 12 }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.label, { color: colors.mutedForeground, marginTop: 0 }]}>Cycle Length (days)</Text>
+                  <TextInput
+                    style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+                    value={String(form.cycleLength)}
+                    onChangeText={(v) => updateField('cycleLength', parseInt(v) || 28)}
+                    keyboardType="numeric"
+                    placeholder="28"
+                    placeholderTextColor={colors.mutedForeground}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.label, { color: colors.mutedForeground, marginTop: 0 }]}>Last Period Start</Text>
+                  <TextInput
+                    style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+                    value={form.lastPeriodDate}
+                    onChangeText={(v) => updateField('lastPeriodDate', v)}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor={colors.mutedForeground}
+                  />
+                </View>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Theme */}
+        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Theme</Text>
+          <View style={styles.optionsRow}>
+            {themeOptions.map((opt) => (
+              <TouchableOpacity
+                key={opt.value}
+                style={[
+                  styles.themeBtn,
+                  { borderColor: themeMode === opt.value ? colors.primary : colors.border },
+                  themeMode === opt.value && { backgroundColor: colors.muted },
+                ]}
+                onPress={() => setThemeMode(opt.value)}
+              >
+                <opt.icon size={18} color={themeMode === opt.value ? colors.primary : colors.mutedForeground} />
+                <Text style={{ fontSize: 12, fontWeight: '600', marginTop: 6, color: themeMode === opt.value ? colors.primary : colors.foreground }}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
 
         {/* Transformation Challenge — hidden once active since the Goal section above already links to it */}
         {form.goal !== 'challenge' && (
@@ -391,7 +552,7 @@ export function SettingsScreen() {
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Legal & Support</Text>
           <TouchableOpacity
             style={[styles.linkRow, { borderBottomColor: colors.border }]}
-            onPress={() => Linking.openURL('https://your-app.vercel.app/privacy-policy.html')}
+            onPress={() => Linking.openURL(`${SUPPORT_URL_BASE}/privacy`)}
             activeOpacity={0.6}
           >
             <Shield size={16} color={colors.primary} />
@@ -400,7 +561,7 @@ export function SettingsScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.linkRow, { borderBottomColor: colors.border }]}
-            onPress={() => Linking.openURL('https://your-app.vercel.app/terms-of-service.html')}
+            onPress={() => Linking.openURL(`${SUPPORT_URL_BASE}/terms`)}
             activeOpacity={0.6}
           >
             <FileText size={16} color={colors.primary} />
@@ -451,6 +612,12 @@ const styles = StyleSheet.create({
   section: { borderWidth: 1, borderRadius: 14, padding: 14 },
   challengeBanner: { borderWidth: 1, borderRadius: 10, padding: 10 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 14, gap: 8 },
+  textarea: { minHeight: 72, textAlignVertical: 'top', paddingTop: 10 },
+  stepGoalRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, marginTop: 4 },
+  stepGoalValue: { fontSize: 22, fontWeight: '800' },
+  toggle: { width: 44, height: 26, borderRadius: 13, padding: 3, justifyContent: 'center' },
+  toggleThumb: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#FFFFFF' },
+  themeBtn: { flex: 1, alignItems: 'center', borderWidth: 1, borderRadius: 10, paddingVertical: 12 },
   sectionTitle: { fontSize: 15, fontWeight: '700', marginBottom: 10 },
   label: { fontSize: 11, fontWeight: '600', marginBottom: 4, marginTop: 10, textTransform: 'uppercase', letterSpacing: 0.5 },
   input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14 },

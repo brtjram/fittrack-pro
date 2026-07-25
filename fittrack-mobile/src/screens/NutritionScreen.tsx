@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity,
   TextInput, Modal, FlatList, ActivityIndicator, StyleSheet, Image,
 } from 'react-native';
-import { ChevronLeft, ChevronRight, Plus, Trash2, Search, X, Camera, Upload, Sparkles, Check, Clock } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Plus, Trash2, Search, X, Camera, Upload, Sparkles, Check, Clock, AlertCircle, Pencil } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { useTheme } from '../theme/useTheme';
@@ -20,6 +20,15 @@ interface ReviewItem extends AnalyzedFoodItem {
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 const meals: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
+
+interface EditEntryState {
+  foodName: string;
+  servings: string;
+  calories: string;
+  protein: string;
+  carbs: string;
+  fat: string;
+}
 
 function toDateString(d?: Date): string {
   const dt = d ?? new Date();
@@ -38,6 +47,9 @@ export function NutritionScreen() {
   const [tab, setTab] = useState<'common' | 'usda'>('common');
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [recentFoods, setRecentFoods] = useState<FoodItem[]>([]);
+  const [adjustmentNote, setAdjustmentNote] = useState<string | null>(null);
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const [editEntry, setEditEntry] = useState<EditEntryState | null>(null);
 
   // ==================== Photo food logging ====================
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
@@ -64,6 +76,7 @@ export function NutritionScreen() {
         calories: adj.newCalories,
         carbs: macros.carbs + Math.round(adj.adjustment / 4),
       } : macros);
+      setAdjustmentNote(adj.reason);
     }
   }, [date]);
 
@@ -138,6 +151,38 @@ export function NutritionScreen() {
 
   const handleDeleteEntry = async (id: string) => {
     await api.deleteFoodLogEntry(id);
+    loadData();
+  };
+
+  const startEditEntry = (entry: FoodLogEntry) => {
+    if (!entry.id) return;
+    setEditingEntryId(entry.id);
+    setEditEntry({
+      foodName: entry.foodName,
+      servings: String(entry.servings),
+      calories: String(Math.round(entry.calories)),
+      protein: String(Math.round(entry.protein)),
+      carbs: String(Math.round(entry.carbs)),
+      fat: String(Math.round(entry.fat)),
+    });
+  };
+
+  const cancelEditEntry = () => {
+    setEditingEntryId(null);
+    setEditEntry(null);
+  };
+
+  const saveEditEntry = async () => {
+    if (!editingEntryId || !editEntry) return;
+    await api.updateFoodLogEntry(editingEntryId, {
+      foodName: editEntry.foodName,
+      servings: Number(editEntry.servings) || 0,
+      calories: Number(editEntry.calories) || 0,
+      protein: Number(editEntry.protein) || 0,
+      carbs: Number(editEntry.carbs) || 0,
+      fat: Number(editEntry.fat) || 0,
+    });
+    cancelEditEntry();
     loadData();
   };
 
@@ -262,6 +307,14 @@ export function NutritionScreen() {
             </View>
           </View>
 
+          {/* Adaptive Adjustment Note */}
+          {!!adjustmentNote && (
+            <View style={[styles.adjustmentNote, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <AlertCircle size={14} color={colors.primary} style={{ marginTop: 1 }} />
+              <Text style={{ flex: 1, fontSize: 11, color: colors.mutedForeground, lineHeight: 16 }}>{adjustmentNote}</Text>
+            </View>
+          )}
+
           {/* Meals */}
           {meals.map((meal) => {
             const mealEntries = entries.filter((e) => e.meal === meal);
@@ -286,19 +339,69 @@ export function NutritionScreen() {
                   </TouchableOpacity>
                 </View>
 
-                {mealEntries.map((entry) => (
-                  <View key={entry.id} style={[styles.entryRow, { borderTopColor: colors.border }]}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 14, color: colors.foreground }}>{entry.foodName}</Text>
-                      <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 1 }}>
-                        {Math.round(entry.calories)} cal · {Math.round(entry.protein)}p · {Math.round(entry.carbs)}c · {Math.round(entry.fat)}f
-                      </Text>
+                {mealEntries.map((entry) =>
+                  entry.id && editingEntryId === entry.id && editEntry ? (
+                    <View key={entry.id} style={[styles.editEntryBox, { borderTopColor: colors.border }]}>
+                      <TextInput
+                        value={editEntry.foodName}
+                        onChangeText={(v) => setEditEntry({ ...editEntry, foodName: v })}
+                        style={[styles.editNameInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background }]}
+                        placeholderTextColor={colors.mutedForeground}
+                      />
+                      <View style={{ flexDirection: 'row', gap: 6 }}>
+                        {([
+                          ['servings', 'srv'],
+                          ['calories', 'cal'],
+                          ['protein', 'P'],
+                          ['carbs', 'C'],
+                          ['fat', 'F'],
+                        ] as const).map(([key, label]) => (
+                          <View key={key} style={{ flex: 1, alignItems: 'center' }}>
+                            <TextInput
+                              value={editEntry[key]}
+                              onChangeText={(v) => setEditEntry({ ...editEntry, [key]: v })}
+                              keyboardType="numeric"
+                              style={[styles.editFieldInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background }]}
+                            />
+                            <Text style={{ fontSize: 9, color: colors.mutedForeground, marginTop: 2 }}>{label}</Text>
+                          </View>
+                        ))}
+                      </View>
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <TouchableOpacity
+                          onPress={saveEditEntry}
+                          style={[styles.editActionBtn, { flex: 1, backgroundColor: colors.primary }]}
+                          activeOpacity={0.8}
+                        >
+                          <Check size={14} color={colors.primaryForeground ?? '#fff'} />
+                          <Text style={{ color: colors.primaryForeground ?? '#fff', fontWeight: '600', fontSize: 12 }}>Save</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={cancelEditEntry}
+                          style={[styles.editActionBtn, { borderWidth: 1, borderColor: colors.border }]}
+                          activeOpacity={0.8}
+                        >
+                          <X size={14} color={colors.mutedForeground} />
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                    <TouchableOpacity onPress={() => handleDeleteEntry(entry.id!)} activeOpacity={0.6}>
-                      <Trash2 size={16} color={colors.destructive} />
-                    </TouchableOpacity>
-                  </View>
-                ))}
+                  ) : (
+                    <View key={entry.id} style={[styles.entryRow, { borderTopColor: colors.border }]}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 14, color: colors.foreground }}>{entry.foodName}</Text>
+                        <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 1 }}>
+                          {Math.round(entry.calories)} cal · {Math.round(entry.protein)}p · {Math.round(entry.carbs)}c · {Math.round(entry.fat)}f
+                        </Text>
+                      </View>
+                      <TouchableOpacity onPress={() => startEditEntry(entry)} activeOpacity={0.6} style={{ marginRight: 14 }}>
+                        <Pencil size={15} color={colors.mutedForeground} />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleDeleteEntry(entry.id!)} activeOpacity={0.6}>
+                        <Trash2 size={16} color={colors.destructive} />
+                      </TouchableOpacity>
+                    </View>
+                  )
+                )}
               </View>
             );
           })}
@@ -579,6 +682,11 @@ const styles = StyleSheet.create({
   mealTitle: { fontSize: 15, fontWeight: '600' },
   addBtn: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   entryRow: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, paddingTop: 10, marginTop: 10 },
+  adjustmentNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderWidth: 1, borderRadius: 10, padding: 10 },
+  editEntryBox: { borderTopWidth: 1, paddingTop: 10, marginTop: 10, gap: 8 },
+  editNameInput: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, fontSize: 13 },
+  editFieldInput: { borderWidth: 1, borderRadius: 6, width: '100%', textAlign: 'center', fontSize: 12, paddingVertical: 4 },
+  editActionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 8, borderRadius: 8 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 16, paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1 },
   modalTitle: { fontSize: 17, fontWeight: '600' },
   tabRow: { flexDirection: 'row', margin: 16, borderRadius: 8, padding: 2 },

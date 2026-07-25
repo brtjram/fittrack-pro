@@ -1,14 +1,15 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Home, Dumbbell, UtensilsCrossed, BarChart3, Settings, Bot } from 'lucide-react-native';
+import { Home, Dumbbell, UtensilsCrossed, BarChart3, Settings, Bot, Pill } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { WorkoutsScreen } from '../screens/WorkoutsScreen';
 import { WorkoutDetailScreen } from '../screens/WorkoutDetailScreen';
 import { NutritionScreen } from '../screens/NutritionScreen';
+import { SupplementsScreen } from '../screens/SupplementsScreen';
 import { AnalyticsScreen } from '../screens/AnalyticsScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { NotificationSettingsScreen } from '../screens/NotificationSettingsScreen';
@@ -17,6 +18,7 @@ import { ChatScreen } from '../screens/ChatScreen';
 
 const Tab = createBottomTabNavigator();
 const WorkoutStack = createNativeStackNavigator();
+const NutritionStack = createNativeStackNavigator();
 const SettingsStack = createNativeStackNavigator();
 
 function WorkoutsStackNavigator() {
@@ -31,6 +33,37 @@ function WorkoutsStackNavigator() {
       <WorkoutStack.Screen name="WorkoutsList" component={WorkoutsScreen} options={{ headerShown: false }} />
       <WorkoutStack.Screen name="WorkoutDetail" component={WorkoutDetailScreen} options={{ title: 'Workout' }} />
     </WorkoutStack.Navigator>
+  );
+}
+
+function NutritionStackNavigator() {
+  const { colors } = useTheme();
+  return (
+    <NutritionStack.Navigator screenOptions={{
+      headerStyle: { backgroundColor: colors.background },
+      headerTintColor: colors.foreground,
+      headerShadowVisible: false,
+      headerTitleStyle: { fontWeight: '700', fontSize: 17 },
+    }}>
+      <NutritionStack.Screen
+        name="NutritionMain"
+        component={NutritionScreen}
+        options={({ navigation }) => ({
+          title: 'Nutrition',
+          headerRight: () => (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Supplements')}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 4 }}
+              activeOpacity={0.7}
+            >
+              <Pill size={16} color={colors.primary} />
+              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.primary }}>Supplements</Text>
+            </TouchableOpacity>
+          ),
+        })}
+      />
+      <NutritionStack.Screen name="Supplements" component={SupplementsScreen} options={{ title: 'Supplements' }} />
+    </NutritionStack.Navigator>
   );
 }
 
@@ -118,10 +151,10 @@ export function AppNavigator() {
       />
       <Tab.Screen
         name="Eat"
-        component={NutritionScreen}
+        component={NutritionStackNavigator}
         options={{
+          headerShown: false,
           title: 'Nutrition',
-          headerTitle: 'Nutrition',
           tabBarIcon: ({ color, focused }) => (
             <TabIcon
               icon={<UtensilsCrossed size={22} color={color} strokeWidth={focused ? 2.5 : 2} />}
