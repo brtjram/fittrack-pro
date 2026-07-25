@@ -17,7 +17,13 @@ function getHealthKit() {
   if (Platform.OS !== 'ios') return null;
   if (!AppleHealthKit) {
     try {
-      AppleHealthKit = require('react-native-health').default;
+      // react-native-health's runtime export is `module.exports = HealthKit` (a
+      // plain CJS object, no __esModule marker) — its own index.d.ts advertises
+      // `export default`, which only holds true through the interop wrapping a
+      // real `import x from 'y'` gets from Babel. A raw runtime `require(...)`
+      // (needed here to keep this lazy/iOS-only) bypasses that interop entirely,
+      // so `.default` is undefined and this always silently returned null.
+      AppleHealthKit = require('react-native-health');
     } catch {
       return null;
     }
