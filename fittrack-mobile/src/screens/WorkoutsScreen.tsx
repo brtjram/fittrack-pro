@@ -7,6 +7,7 @@ import { Dumbbell, Trash2, RotateCcw, CheckCircle, ChevronRight, Zap, Calendar }
 import { useTheme } from '../theme/useTheme';
 import * as api from '../services/api';
 import { toDateString } from '../utils/date';
+import { cardElevation } from '../theme/elevation';
 import type { WorkoutSession } from '@fittrack/core';
 
 export function WorkoutsScreen({ navigation }: { navigation: any }) {
@@ -279,7 +280,7 @@ export function WorkoutsScreen({ navigation }: { navigation: any }) {
 function Section({ title, colors, children }: { title: string; colors: any; children: React.ReactNode }) {
   return (
     <View style={{ marginBottom: 24 }}>
-      <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>{title.toUpperCase()}</Text>
+      <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>{title}</Text>
       {children}
     </View>
   );
@@ -295,9 +296,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12, borderRadius: 12, gap: 6,
   },
   generateBtnText: { fontSize: 13, fontWeight: '700' },
-  sectionTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 10 },
+  sectionTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 10 },
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  card: { flex: 1, borderWidth: 1, borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'center' },
+  card: { flex: 1, borderWidth: 1, borderRadius: 16, padding: 14, flexDirection: 'row', alignItems: 'center', ...cardElevation },
   cardLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
   cardIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   cardName: { fontSize: 14, fontWeight: '700', marginBottom: 2 },

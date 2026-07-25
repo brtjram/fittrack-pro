@@ -109,11 +109,11 @@ export default function ChallengePage() {
         <Header title="12-Week Transformation" />
         <div className="mx-auto max-w-lg space-y-6 p-4">
           {/* Hero */}
-          <div className="rounded-2xl border border-border bg-card p-6 text-center">
+          <div className="rounded-xl border border-border bg-card p-6 text-center shadow-sm">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10">
               <Flame className="h-8 w-8 text-red-500" />
             </div>
-            <h1 className="text-2xl font-extrabold">12-Week Transformation</h1>
+            <h1 className="text-xl font-bold">12-Week Transformation</h1>
             <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
               A structured body transformation program to maximize fat loss while preserving muscle.
               Close tracking of steps, food, and training with adjustments every 4 weeks.
@@ -123,8 +123,8 @@ export default function ChallengePage() {
           {/* Phases */}
           <div className="space-y-3">
             {PHASE_INFO.map((p) => (
-              <div key={p.phase} className={cn('rounded-xl border p-4', p.bgClass)}>
-                <div className={cn('text-xs font-bold uppercase tracking-wide', p.textClass)}>
+              <div key={p.phase} className={cn('rounded-xl border p-4 shadow-sm', p.bgClass)}>
+                <div className={cn('text-sm font-semibold uppercase tracking-wide', p.textClass)}>
                   Phase {p.phase} — Weeks {p.weeks}
                 </div>
                 <div className="mt-1 text-base font-bold">{p.label}</div>
@@ -169,7 +169,7 @@ export default function ChallengePage() {
       <Header title="Transformation Challenge" />
       <div className="mx-auto max-w-lg space-y-5 p-4">
         {/* Header card */}
-        <div className={cn('rounded-xl border p-4', phase.bgClass)}>
+        <div className={cn('rounded-xl border p-4 shadow-sm', phase.bgClass)}>
           <div className="flex items-center gap-3">
             <Flame className={cn('h-6 w-6', phase.textClass)} />
             <div className="flex-1">
@@ -190,14 +190,14 @@ export default function ChallengePage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-4 gap-3">
           {[
             { label: 'Start', value: `${challenge.startWeightLbs}lbs` },
             { label: 'Lost', value: actualLoss > 0 ? `-${actualLoss.toFixed(1)}lbs` : '—', highlight: true },
             { label: 'Target', value: `${challenge.targetWeightLbs}lbs` },
             { label: 'To Go', value: `${Math.max(0, totalLoss - actualLoss).toFixed(1)}lbs` },
           ].map((s) => (
-            <div key={s.label} className={cn('rounded-xl border p-3 text-center', s.highlight ? 'border-primary/30 bg-primary/10' : 'border-border bg-card')}>
+            <div key={s.label} className={cn('rounded-xl border p-3 text-center shadow-sm', s.highlight ? 'border-primary/30 bg-primary/10' : 'border-border bg-card')}>
               <div className="text-xs text-muted-foreground">{s.label}</div>
               <div className={cn('mt-1 text-sm font-bold', s.highlight && 'text-primary')}>{s.value}</div>
             </div>
@@ -205,13 +205,13 @@ export default function ChallengePage() {
         </div>
 
         {/* This phase */}
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
           <h3 className="font-semibold">This Phase</h3>
           <p className="mt-1 text-sm text-muted-foreground">{phase.desc}</p>
         </div>
 
         {/* Week targets */}
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
           <h3 className="mb-3 font-semibold">Week {challenge.currentWeek} Targets</h3>
           <div className="space-y-2">
             {[
@@ -233,7 +233,7 @@ export default function ChallengePage() {
 
         {/* Progress log */}
         {challenge.weeklyData.length > 0 && (
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
             <h3 className="mb-3 font-semibold">Progress Log</h3>
             <div className="space-y-1">
               {challenge.weeklyData.map((w) => (
@@ -250,11 +250,11 @@ export default function ChallengePage() {
 
         {/* Check-in */}
         {showCheckIn ? (
-          <div className={cn('rounded-xl border-2 p-4', phase.bgClass)}>
+          <div className={cn('rounded-xl border-2 p-4 shadow-sm', phase.bgClass)}>
             <h3 className="mb-4 font-semibold">Week {challenge.currentWeek} Check-In</h3>
             <div className="space-y-3">
               <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Weight this morning (lbs)</label>
+                <label className="mb-1 block text-sm text-muted-foreground">Weight this morning (lbs)</label>
                 <input
                   type="number"
                   step="0.1"
@@ -265,7 +265,7 @@ export default function ChallengePage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Avg daily steps</label>
+                <label className="mb-1 block text-sm text-muted-foreground">Avg daily steps</label>
                 <input
                   type="number"
                   placeholder="e.g. 9500"
@@ -276,7 +276,7 @@ export default function ChallengePage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Workouts done</label>
+                  <label className="mb-1 block text-sm text-muted-foreground">Workouts done</label>
                   <input
                     type="number"
                     placeholder="e.g. 4"
@@ -286,7 +286,7 @@ export default function ChallengePage() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">On-plan food days</label>
+                  <label className="mb-1 block text-sm text-muted-foreground">On-plan food days</label>
                   <input
                     type="number"
                     max={7}
@@ -298,7 +298,7 @@ export default function ChallengePage() {
                 </div>
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Notes</label>
+                <label className="mb-1 block text-sm text-muted-foreground">Notes</label>
                 <textarea
                   rows={2}
                   placeholder="How did this week feel?"

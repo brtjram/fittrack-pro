@@ -9,6 +9,7 @@ import * as api from '../services/api';
 import { analyzeActivity } from '@fittrack/core/src/algorithms/activity-analyzer';
 import { HealthKitSync } from '../components/HealthKitSync';
 import { toDateString } from '../utils/date';
+import { cardElevation } from '../theme/elevation';
 import type { WeightEntry, DailyActivity, WorkoutSession } from '@fittrack/core';
 
 type TabId = 'overview' | 'strength' | 'activity';
@@ -469,14 +470,6 @@ export function AnalyticsScreen() {
     </ScrollView>
   );
 }
-
-const cardElevation = {
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 3 },
-  shadowOpacity: 0.05,
-  shadowRadius: 10,
-  elevation: 2,
-};
 
 const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },

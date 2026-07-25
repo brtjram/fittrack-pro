@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { Shield, FlaskConical, Leaf } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
+import { cardElevation } from '../theme/elevation';
 import * as api from '../services/api';
 import { getSupplementsByGoal, getCoreSupplements } from '@fittrack/core/src/data/supplements';
 import type { Supplement, Goal } from '@fittrack/core';
@@ -125,13 +126,13 @@ function evidenceColor(level: Supplement['evidenceLevel'], colors: ReturnType<ty
 
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 16 },
-  section: { borderWidth: 1, borderRadius: 14, padding: 14 },
+  section: { borderWidth: 1, borderRadius: 16, padding: 14, ...cardElevation },
   sectionTitle: { fontSize: 15, fontWeight: '700' },
-  categoryLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  card: { borderWidth: 1, borderRadius: 14, padding: 14 },
-  iconWrap: { borderRadius: 10, padding: 8 },
+  categoryLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 },
+  card: { borderWidth: 1, borderRadius: 16, padding: 14, ...cardElevation },
+  iconWrap: { borderRadius: 10, padding: 9 },
   evidenceBadge: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
   benefitPill: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
-  warnBox: { borderRadius: 10, padding: 8, marginTop: 8 },
+  warnBox: { borderRadius: 10, padding: 10, marginTop: 8 },
   disclaimer: { borderRadius: 12, padding: 14 },
 });

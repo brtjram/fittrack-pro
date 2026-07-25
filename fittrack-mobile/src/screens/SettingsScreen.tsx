@@ -11,6 +11,7 @@ import { useAuth } from '../hooks/useAuth';
 import { HealthKitSync } from '../components/HealthKitSync';
 import * as api from '../services/api';
 import { computeStepTarget, stepTargetRationale } from '../utils/step-target';
+import { cardElevation } from '../theme/elevation';
 import type { ActivityLevel, Goal, ExperienceLevel, WorkoutSplit } from '@fittrack/core';
 
 const SUPPORT_URL_BASE = 'https://myfittrack.pro';
@@ -609,7 +610,7 @@ const styles = StyleSheet.create({
   pageTitle: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
   content: { padding: 16, gap: 16 },
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 13, borderRadius: 12 },
-  section: { borderWidth: 1, borderRadius: 14, padding: 14 },
+  section: { borderWidth: 1, borderRadius: 16, padding: 14, ...cardElevation },
   challengeBanner: { borderWidth: 1, borderRadius: 10, padding: 10 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 14, gap: 8 },
   textarea: { minHeight: 72, textAlignVertical: 'top', paddingTop: 10 },
@@ -619,7 +620,7 @@ const styles = StyleSheet.create({
   toggleThumb: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#FFFFFF' },
   themeBtn: { flex: 1, alignItems: 'center', borderWidth: 1, borderRadius: 10, paddingVertical: 12 },
   sectionTitle: { fontSize: 15, fontWeight: '700', marginBottom: 10 },
-  label: { fontSize: 11, fontWeight: '600', marginBottom: 4, marginTop: 10, textTransform: 'uppercase', letterSpacing: 0.5 },
+  label: { fontSize: 11, fontWeight: '700', marginBottom: 4, marginTop: 10, textTransform: 'uppercase', letterSpacing: 1 },
   input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14 },
   row: { flexDirection: 'row', gap: 10 },
   genderBtn: { flex: 1, borderWidth: 1, borderRadius: 10, paddingVertical: 9, alignItems: 'center' },

@@ -12,6 +12,7 @@ import type { AnalyzedFoodItem } from '../services/api';
 import { calculateMacroTargets, calculateAdaptiveAdjustment } from '@fittrack/core/src/algorithms/macro-calculator';
 import { foods as COMMON_FOODS } from '@fittrack/core/src/data/foods';
 import { toDateString } from '../utils/date';
+import { cardElevation } from '../theme/elevation';
 import type { FoodLogEntry, FoodItem, MacroTargets } from '@fittrack/core';
 
 interface ReviewItem extends AnalyzedFoodItem {
@@ -417,8 +418,8 @@ export function NutritionScreen() {
                 onPress={() => { resetPhotoState(); setPhotoModalOpen(true); }}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
               >
-                <Camera size={18} color={colors.primary} />
-                <Text style={{ fontSize: 13, fontWeight: '600', color: colors.primary }}>Photo</Text>
+                <Sparkles size={18} color={colors.primary} />
+                <Text style={{ fontSize: 13, fontWeight: '600', color: colors.primary }}>AI Photo</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => { setSearchMeal(null); setSearchQuery(''); }}>
                 <X size={22} color={colors.foreground} />
@@ -668,12 +669,12 @@ const styles = StyleSheet.create({
   dateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   dateBtn: { padding: 8 },
   dateText: { fontSize: 16, fontWeight: '600' },
-  macroCard: { borderWidth: 1, borderRadius: 12, padding: 20, alignItems: 'center' },
+  macroCard: { borderWidth: 1, borderRadius: 16, padding: 20, alignItems: 'center', ...cardElevation },
   remainingNum: { fontSize: 32, fontWeight: '700' },
   macroRow: { flexDirection: 'row', marginTop: 20, gap: 16, width: '100%' },
   barTrack: { width: 8, height: 60, borderRadius: 4, overflow: 'hidden', justifyContent: 'flex-end' },
   barFill: { width: '100%', borderRadius: 4 },
-  mealCard: { borderWidth: 1, borderRadius: 12, padding: 14 },
+  mealCard: { borderWidth: 1, borderRadius: 16, padding: 14, ...cardElevation },
   mealHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   mealTitle: { fontSize: 15, fontWeight: '600' },
   addBtn: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
@@ -681,7 +682,7 @@ const styles = StyleSheet.create({
   adjustmentNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderWidth: 1, borderRadius: 10, padding: 10 },
   editEntryBox: { borderTopWidth: 1, paddingTop: 10, marginTop: 10, gap: 8 },
   editNameInput: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, fontSize: 13 },
-  editFieldInput: { borderWidth: 1, borderRadius: 6, width: '100%', textAlign: 'center', fontSize: 12, paddingVertical: 4 },
+  editFieldInput: { borderWidth: 1, borderRadius: 6, width: '100%', textAlign: 'center', fontSize: 12, paddingVertical: 6 },
   editActionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 8, borderRadius: 8 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 16, paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1 },
   modalTitle: { fontSize: 17, fontWeight: '600' },

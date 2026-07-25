@@ -11,6 +11,7 @@ import * as api from '../services/api';
 import { calculateMacroTargets, calculateAdaptiveAdjustment } from '@fittrack/core/src/algorithms/macro-calculator';
 import { shouldSuggestRestDay } from '@fittrack/core/src/algorithms/activity-analyzer';
 import { toDateString } from '../utils/date';
+import { cardElevation } from '../theme/elevation';
 import type { WorkoutSession } from '@fittrack/core';
 
 function getGreeting(): string {
@@ -356,16 +357,6 @@ function QuickAction({ icon, label, colors, onPress }: {
     </TouchableOpacity>
   );
 }
-
-// Soft elevation used across Home's cards for a bit of depth beyond the flat
-// 1px border — mostly visible in light mode; dark mode leans on the border.
-const cardElevation = {
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 3 },
-  shadowOpacity: 0.05,
-  shadowRadius: 10,
-  elevation: 2,
-};
 
 const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },

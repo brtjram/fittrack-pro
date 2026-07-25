@@ -399,10 +399,11 @@ export function FoodSearch({ meal, onSelect, onSelectMultiple, onClose }: FoodSe
         <h2 className="flex-1 font-semibold capitalize">Add to {meal}</h2>
         <button
           onClick={openPhotoModal}
+          title="Estimate calories and macros from a photo using AI"
           className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
         >
-          <Camera className="h-4 w-4" />
-          Photo
+          <Sparkles className="h-4 w-4" />
+          AI Photo
         </button>
         <button
           onClick={startScanner}
