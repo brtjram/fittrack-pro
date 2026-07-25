@@ -11,6 +11,7 @@ import * as api from '../services/api';
 import type { AnalyzedFoodItem } from '../services/api';
 import { calculateMacroTargets, calculateAdaptiveAdjustment } from '@fittrack/core/src/algorithms/macro-calculator';
 import { foods as COMMON_FOODS } from '@fittrack/core/src/data/foods';
+import { toDateString } from '../utils/date';
 import type { FoodLogEntry, FoodItem, MacroTargets } from '@fittrack/core';
 
 interface ReviewItem extends AnalyzedFoodItem {
@@ -28,11 +29,6 @@ interface EditEntryState {
   protein: string;
   carbs: string;
   fat: string;
-}
-
-function toDateString(d?: Date): string {
-  const dt = d ?? new Date();
-  return dt.toISOString().split('T')[0];
 }
 
 export function NutritionScreen() {

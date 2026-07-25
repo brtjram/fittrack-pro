@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { saveValue, getValue, removeValue } from './auth-storage';
+import { toDateString } from '../utils/date';
 
 // HealthKit types we care about
 const HK_STEP_COUNT = 'HKQuantityTypeIdentifierStepCount';
@@ -107,10 +108,6 @@ export function requestHealthKitPermissions(): Promise<boolean> {
 }
 
 // ==================== Data Queries ====================
-
-function toDateString(d: Date): string {
-  return d.toISOString().split('T')[0];
-}
 
 function getSteps(startDate: Date, endDate: Date): Promise<{ date: string; value: number }[]> {
   return new Promise((resolve) => {

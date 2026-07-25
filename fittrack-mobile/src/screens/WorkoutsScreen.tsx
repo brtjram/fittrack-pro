@@ -6,12 +6,8 @@ import {
 import { Dumbbell, Trash2, RotateCcw, CheckCircle, ChevronRight, Zap, Calendar } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import * as api from '../services/api';
+import { toDateString } from '../utils/date';
 import type { WorkoutSession } from '@fittrack/core';
-
-function toDateString(d?: Date): string {
-  const dt = d ?? new Date();
-  return dt.toISOString().split('T')[0];
-}
 
 export function WorkoutsScreen({ navigation }: { navigation: any }) {
   const { colors } = useTheme();

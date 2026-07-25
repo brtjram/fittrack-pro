@@ -8,12 +8,8 @@ import { useTheme } from '../theme/useTheme';
 import * as api from '../services/api';
 import { analyzeActivity } from '@fittrack/core/src/algorithms/activity-analyzer';
 import { HealthKitSync } from '../components/HealthKitSync';
+import { toDateString } from '../utils/date';
 import type { WeightEntry, DailyActivity, WorkoutSession } from '@fittrack/core';
-
-function toDateString(d?: Date): string {
-  const dt = d ?? new Date();
-  return dt.toISOString().split('T')[0];
-}
 
 type TabId = 'overview' | 'strength' | 'activity';
 
@@ -38,12 +34,13 @@ export function AnalyticsScreen() {
   const [editDate, setEditDate] = useState('');
   const [editSteps, setEditSteps] = useState('');
   const [editCalories, setEditCalories] = useState('');
+  const [showAllActivity, setShowAllActivity] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
       const [w, a, s] = await Promise.all([
         api.getWeightEntries(90),
-        api.getDailyActivities(30),
+        api.getDailyActivities(90),
         api.getRecentWorkouts(50),
       ]);
       setWeights(w);
@@ -352,16 +349,22 @@ export function AnalyticsScreen() {
               )}
             </View>
 
-            {/* Recent Activity Log */}
-            {activities.length > 0 && (
+            {/* Activity History (all data synced from Apple Health / manual entries) */}
+            {(() => {
+              const validActivities = [...activities]
+                .filter((a) => /^\d{4}-\d{2}-\d{2}$/.test(a.date))
+                .sort((a, b) => b.date.localeCompare(a.date));
+              const displayedActivities = showAllActivity ? validActivities : validActivities.slice(0, 7);
+              if (validActivities.length === 0) return null;
+              return (
               <View>
-                <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Recent Activity</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>
+                    Activity History{validActivities.length > 0 ? ` (${validActivities.length})` : ''}
+                  </Text>
+                </View>
                 <View style={[styles.historyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  {[...activities]
-                    .filter((a) => /^\d{4}-\d{2}-\d{2}$/.test(a.date))
-                    .sort((a, b) => b.date.localeCompare(a.date))
-                    .slice(0, 7)
-                    .map((a, i) =>
+                  {displayedActivities.map((a, i) =>
                     editingActivityDate === a.date ? (
                       <View key={a.date} style={[styles.editActivityBox, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}>
                         <View>
@@ -441,8 +444,20 @@ export function AnalyticsScreen() {
                     )
                   )}
                 </View>
+                {validActivities.length > 7 && (
+                  <TouchableOpacity
+                    onPress={() => setShowAllActivity((v) => !v)}
+                    style={styles.showAllBtn}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: colors.primary }}>
+                      {showAllActivity ? 'Show less' : `Show all ${validActivities.length} days`}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
-            )}
+              );
+            })()}
           </View>
         )}
       </View>
@@ -450,22 +465,31 @@ export function AnalyticsScreen() {
   );
 }
 
+const cardElevation = {
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 3 },
+  shadowOpacity: 0.05,
+  shadowRadius: 10,
+  elevation: 2,
+};
+
 const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: 16, gap: 16 },
   logWeightBtn: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-end', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
-  weightInputRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 12, padding: 12, gap: 10 },
+  weightInputRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 12, padding: 12, gap: 10, ...cardElevation },
   weightInput: { flex: 1, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14 },
   saveBtn: { borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10 },
   statsRow: { flexDirection: 'row', gap: 10 },
-  statCard: { flex: 1, borderWidth: 1, borderRadius: 12, padding: 14, alignItems: 'center' },
-  tabRow: { flexDirection: 'row', borderRadius: 8, padding: 2 },
-  tabBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 6 },
-  sectionTitle: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
-  historyCard: { borderWidth: 1, borderRadius: 12, overflow: 'hidden' },
+  statCard: { flex: 1, borderWidth: 1, borderRadius: 16, padding: 14, alignItems: 'center', ...cardElevation },
+  tabRow: { flexDirection: 'row', borderRadius: 10, padding: 3 },
+  tabBtn: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 7 },
+  sectionTitle: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6 },
+  historyCard: { borderWidth: 1, borderRadius: 16, overflow: 'hidden', ...cardElevation },
+  showAllBtn: { alignItems: 'center', paddingVertical: 12 },
   historyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14 },
   emptyState: { alignItems: 'center', paddingVertical: 40 },
-  activityCard: { borderWidth: 1, borderRadius: 12, padding: 20 },
+  activityCard: { borderWidth: 1, borderRadius: 16, padding: 20, ...cardElevation },
   manualEntryBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
   fieldLabel: { fontSize: 11, marginBottom: 3 },
   fieldInput: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 13 },

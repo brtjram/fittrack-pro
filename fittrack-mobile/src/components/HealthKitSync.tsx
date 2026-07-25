@@ -44,22 +44,23 @@ export function HealthKitSync({ onSyncComplete }: HealthKitSyncProps) {
       await setHealthKitEnabled(true);
       setStatus((s) => ({ ...s, enabled: true }));
 
-      // Immediately sync on first enable
-      handleSync();
+      // Backfill a full history on first connect, not just the last week,
+      // so the Activity tab reflects everything Health already has.
+      handleSync(90);
     } else {
       await setHealthKitEnabled(false);
       setStatus((s) => ({ ...s, enabled: false }));
     }
   };
 
-  const handleSync = async () => {
+  const handleSync = async (days = 7) => {
     setSyncing(true);
     setSyncResult(null);
     try {
       const result = await syncHealthKitToServer(
         api.saveDailyActivity,
         api.addWeightEntry,
-        7,
+        days,
       );
       setSyncResult(result);
       setStatus((s) => ({ ...s, lastSync: new Date().toISOString() }));
@@ -118,7 +119,7 @@ export function HealthKitSync({ onSyncComplete }: HealthKitSyncProps) {
             </View>
             <TouchableOpacity
               style={[styles.syncBtn, { backgroundColor: colors.primary + '15' }]}
-              onPress={handleSync}
+              onPress={() => handleSync()}
               disabled={syncing}
               activeOpacity={0.7}
             >
