@@ -58,6 +58,11 @@ export function LogFoodScreen({ navigation }: { navigation: any }) {
   const [results, setResults] = useState<FoodItem[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
+  const [barcodeMode, setBarcodeMode] = useState(false);
+  const [lookingUpBarcode, setLookingUpBarcode] = useState(false);
+  const [barcodeError, setBarcodeError] = useState('');
+  const scanLockRef = useRef(false);
+
   // Live viewfinder (mockup "1d" — camera-first capture sheet).
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
@@ -115,6 +120,12 @@ export function LogFoodScreen({ navigation }: { navigation: any }) {
   const closeSearch = useCallback(() => {
     setSearchOpen(false);
     setQuery('');
+  }, []);
+
+  const closeBarcode = useCallback(() => {
+    setBarcodeMode(false);
+    setBarcodeError('');
+    scanLockRef.current = false;
   }, []);
 
   const processPickedImage = useCallback(async (uri: string) => {
@@ -210,6 +221,26 @@ export function LogFoodScreen({ navigation }: { navigation: any }) {
     });
     navigation.goBack();
   }, [meal, navigation]);
+
+  const handleBarcodeScanned = useCallback(async (result: { data: string }) => {
+    if (scanLockRef.current) return;
+    scanLockRef.current = true;
+    setLookingUpBarcode(true);
+    setBarcodeError('');
+    try {
+      const food = await api.getFoodByBarcode(result.data);
+      if (food) {
+        await logFoodItem(food);
+        return;
+      }
+      setBarcodeError("Couldn't find that product. Try again or search by name.");
+    } catch {
+      setBarcodeError("Couldn't find that product. Try again or search by name.");
+    } finally {
+      setLookingUpBarcode(false);
+      scanLockRef.current = false;
+    }
+  }, [logFoodItem]);
 
   const showPlainHeader = !!photoUri || describeMode || searchOpen;
 
@@ -366,6 +397,8 @@ export function LogFoodScreen({ navigation }: { navigation: any }) {
                 facing="back"
                 flash={flashOn ? 'on' : 'off'}
                 onCameraReady={() => setCameraReady(true)}
+                barcodeScannerSettings={barcodeMode ? { barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e'] } : undefined}
+                onBarcodeScanned={barcodeMode ? handleBarcodeScanned : undefined}
               />
             ) : (
               <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.surfaceInset }]} />
@@ -413,14 +446,25 @@ export function LogFoodScreen({ navigation }: { navigation: any }) {
 
             <View style={styles.cameraBottomBlock}>
               {cameraGranted ? (
-                <>
-                  <Text style={[styles.cameraHeadline, { fontFamily: Fonts.serif, color: colors.ink }]}>
-                    Point at your plate
-                  </Text>
-                  <Text style={[styles.cameraSubtitle, { fontFamily: Fonts.sans, color: colors.mutedStrong }]}>
-                    I'll name the food and estimate the macros. You correct me if I'm wrong.
-                  </Text>
-                </>
+                barcodeMode ? (
+                  <>
+                    <Text style={[styles.cameraHeadline, { fontFamily: Fonts.serif, color: colors.ink }]}>
+                      Scan a barcode
+                    </Text>
+                    <Text style={[styles.cameraSubtitle, { fontFamily: Fonts.sans, color: colors.mutedStrong }]}>
+                      {lookingUpBarcode ? 'Looking up product…' : 'Point at the barcode on the package.'}
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={[styles.cameraHeadline, { fontFamily: Fonts.serif, color: colors.ink }]}>
+                      Point at your plate
+                    </Text>
+                    <Text style={[styles.cameraSubtitle, { fontFamily: Fonts.sans, color: colors.mutedStrong }]}>
+                      I'll name the food and estimate the macros. You correct me if I'm wrong.
+                    </Text>
+                  </>
+                )
               ) : (
                 <View style={{ alignItems: 'center', marginBottom: 22 }}>
                   <Text style={[styles.cameraHeadline, { fontFamily: Fonts.serif, color: colors.ink }]}>
@@ -443,55 +487,69 @@ export function LogFoodScreen({ navigation }: { navigation: any }) {
                 </View>
               )}
 
-              {!!analyzeError && (
+              {!!analyzeError && !barcodeMode && (
                 <Text style={{ color: colors.danger, fontSize: 12.5, textAlign: 'center', marginBottom: 12 }}>
                   {analyzeError}
                 </Text>
               )}
+              {!!barcodeError && barcodeMode && (
+                <Text style={{ color: colors.danger, fontSize: 12.5, textAlign: 'center', marginBottom: 12 }}>
+                  {barcodeError}
+                </Text>
+              )}
 
-              <View style={styles.cameraActionRow}>
-                <TouchableOpacity onPress={pickFromLibrary} style={styles.cameraActionCol} activeOpacity={0.7}>
-                  <View style={[styles.cameraActionIcon, { backgroundColor: colors.surfaceInset }]}>
-                    <ImageIcon size={21} color={colors.mutedStrong} />
-                  </View>
-                  <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 10.5, color: colors.mutedStrong }}>Library</Text>
-                </TouchableOpacity>
+              {barcodeMode ? (
+                <View style={{ alignItems: 'center' }}>
+                  {lookingUpBarcode && <ActivityIndicator color={colors.signal} style={{ marginBottom: 12 }} />}
+                  <PillButton label="Cancel" colors={colors} tone="ghost" onPress={closeBarcode} />
+                </View>
+              ) : (
+                <View style={styles.cameraActionRow}>
+                  <TouchableOpacity onPress={pickFromLibrary} style={styles.cameraActionCol} activeOpacity={0.7}>
+                    <View style={[styles.cameraActionIcon, { backgroundColor: colors.surfaceInset }]}>
+                      <ImageIcon size={21} color={colors.mutedStrong} />
+                    </View>
+                    <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 10.5, color: colors.mutedStrong }}>Library</Text>
+                  </TouchableOpacity>
 
-                <TouchableOpacity
-                  onPress={capturePhoto}
-                  activeOpacity={0.85}
-                  disabled={capturing}
-                  style={[styles.shutterBtn, { backgroundColor: colors.signal, opacity: capturing ? 0.7 : 1 }]}
-                >
-                  {capturing ? (
-                    <ActivityIndicator color={colors.signalForeground} />
-                  ) : (
-                    <Camera size={30} color={colors.signalForeground} strokeWidth={2.2} />
-                  )}
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={capturePhoto}
+                    activeOpacity={0.85}
+                    disabled={capturing}
+                    style={[styles.shutterBtn, { backgroundColor: colors.signal, opacity: capturing ? 0.7 : 1 }]}
+                  >
+                    {capturing ? (
+                      <ActivityIndicator color={colors.signalForeground} />
+                    ) : (
+                      <Camera size={30} color={colors.signalForeground} strokeWidth={2.2} />
+                    )}
+                  </TouchableOpacity>
 
-                <TouchableOpacity onPress={() => setSearchOpen(true)} style={styles.cameraActionCol} activeOpacity={0.7}>
-                  <View style={[styles.cameraActionIcon, { backgroundColor: colors.surfaceInset }]}>
-                    <ScanBarcode size={21} color={colors.mutedStrong} />
-                  </View>
-                  <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 10.5, color: colors.mutedStrong }}>Barcode</Text>
-                </TouchableOpacity>
-              </View>
+                  <TouchableOpacity onPress={() => setBarcodeMode(true)} style={styles.cameraActionCol} activeOpacity={0.7}>
+                    <View style={[styles.cameraActionIcon, { backgroundColor: colors.surfaceInset }]}>
+                      <ScanBarcode size={21} color={colors.mutedStrong} />
+                    </View>
+                    <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 10.5, color: colors.mutedStrong }}>Barcode</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           </View>
 
-          <View style={[styles.cameraFooter, { backgroundColor: colors.surfaceRaised, borderTopColor: colors.hairline, paddingBottom: insets.bottom + 20 }]}>
-            <TouchableOpacity
-              onPress={() => setDescribeMode(true)}
-              style={[styles.footerSearchRow, { backgroundColor: colors.surfaceInset }]}
-              activeOpacity={0.7}
-            >
-              <Search size={17} color={colors.mutedForeground} />
-              <Text style={{ flex: 1, fontFamily: Fonts.sans, fontSize: 14, color: colors.mutedForeground }}>
-                Or type it — "200g chicken, 1 cup rice"
-              </Text>
-            </TouchableOpacity>
-          </View>
+          {!barcodeMode && (
+            <View style={[styles.cameraFooter, { backgroundColor: colors.surfaceRaised, borderTopColor: colors.hairline, paddingBottom: insets.bottom + 20 }]}>
+              <TouchableOpacity
+                onPress={() => setDescribeMode(true)}
+                style={[styles.footerSearchRow, { backgroundColor: colors.surfaceInset }]}
+                activeOpacity={0.7}
+              >
+                <Search size={17} color={colors.mutedForeground} />
+                <Text style={{ flex: 1, fontFamily: Fonts.sans, fontSize: 14, color: colors.mutedForeground }}>
+                  Or type it — "200g chicken, 1 cup rice"
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       )}
     </View>

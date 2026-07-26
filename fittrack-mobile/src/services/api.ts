@@ -447,3 +447,9 @@ export async function searchUSDAFoods(query: string): Promise<FoodItem[]> {
   if (!res.ok) return [];
   return res.json();
 }
+
+export async function getFoodByBarcode(code: string): Promise<FoodItem | null> {
+  const res = await apiFetch(`/api/food-barcode?code=${encodeURIComponent(code)}`);
+  if (!res.ok) return null;
+  return res.json();
+}
