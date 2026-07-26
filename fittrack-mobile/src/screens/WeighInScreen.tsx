@@ -8,7 +8,11 @@ import * as api from '../services/api';
 import type { WeightEntry } from '@fittrack/core';
 
 function toDateString(d?: Date): string {
-  return (d ?? new Date()).toISOString().split('T')[0];
+  const dt = d ?? new Date();
+  const year = dt.getFullYear();
+  const month = String(dt.getMonth() + 1).padStart(2, '0');
+  const day = String(dt.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export function WeighInScreen({ navigation }: { navigation: any }) {

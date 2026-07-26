@@ -80,6 +80,12 @@
           "cameraPermission": "FitTrack Pro uses your camera to estimate calories and macros for meals you log by photo."
         }
       ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "FitTrack Pro uses your camera to photograph meals so it can estimate calories and macros."
+        }
+      ],
       "expo-font"
     ],
     "extra": {

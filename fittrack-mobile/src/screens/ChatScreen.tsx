@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  KeyboardAvoidingView, Platform, ActivityIndicator,
+  Keyboard, Platform, ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowUp, ArrowUpRight, Sparkles, Check } from 'lucide-react-native';
@@ -58,11 +58,27 @@ export function ChatScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollToEnd({ animated: true });
   }, [messages, loading]);
+
+  // Reacts to the keyboard's own reported height instead of KeyboardAvoidingView's
+  // measured on-screen position — that measurement can still be stale/zero when
+  // this screen is reached mid-navigation-transition (e.g. from a dismissing
+  // modal), which left the keyboard covering the input with no padding applied.
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, (e) => setKeyboardHeight(e.endCoordinates.height));
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const send = useCallback(async (text: string) => {
     const trimmed = text.trim();
@@ -119,10 +135,8 @@ export function ChatScreen() {
   const showQuickReplies = !loading && lastMessage?.role === 'assistant' && !!lastMessage.plan;
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.canvas }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={0}
+    <View
+      style={{ flex: 1, backgroundColor: colors.canvas, paddingBottom: keyboardHeight }}
     >
       <View style={{ paddingTop: insets.top + 18, paddingHorizontal: 24, paddingBottom: 18 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -249,7 +263,7 @@ export function ChatScreen() {
             : <ArrowUp size={20} color={colors.signalForeground} strokeWidth={2.6} />}
         </TouchableOpacity>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

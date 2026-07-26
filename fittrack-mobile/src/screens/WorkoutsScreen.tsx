@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, Alert, StyleSheet,
@@ -11,7 +11,10 @@ import type { WorkoutSession } from '@fittrack/core';
 
 function toDateString(d?: Date): string {
   const dt = d ?? new Date();
-  return dt.toISOString().split('T')[0];
+  const year = dt.getFullYear();
+  const month = String(dt.getMonth() + 1).padStart(2, '0');
+  const day = String(dt.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export function WorkoutsScreen({ navigation }: { navigation: any }) {
@@ -24,6 +27,13 @@ export function WorkoutsScreen({ navigation }: { navigation: any }) {
   const [refreshing, setRefreshing] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generatingWeek, setGeneratingWeek] = useState(false);
+  // Deletion is deferred: tapping "Delete" removes the card from view immediately
+  // and shows it under "Deleted", but the actual server-side delete (which is
+  // permanent — there's no server-side trash/soft-delete) only fires after this
+  // grace period. Restoring within the window cancels the pending API call
+  // entirely, so a same-second "oops" tap never touches the database.
+  const DELETE_GRACE_MS = 8000;
+  const pendingDeletes = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const loadWorkouts = useCallback(async () => {
     try {
@@ -49,10 +59,17 @@ export function WorkoutsScreen({ navigation }: { navigation: any }) {
     Alert.alert('Delete Workout', `Delete "${workout.name}"?`, [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Delete', style: 'destructive', onPress: async () => {
+        text: 'Delete', style: 'destructive', onPress: () => {
           setWorkouts((prev) => prev.filter((w) => w.sessionId !== sessionId));
           setDeletedWorkouts((prev) => [...prev, workout]);
-          await api.deleteWorkout(sessionId);
+
+          // Don't call the (permanent, unrecoverable) delete API right away —
+          // give the user a real window to hit "Restore" before it's gone for good.
+          const timer = setTimeout(() => {
+            pendingDeletes.current.delete(sessionId);
+            api.deleteWorkout(sessionId).catch(() => {});
+          }, DELETE_GRACE_MS);
+          pendingDeletes.current.set(sessionId, timer);
         },
       },
     ]);
@@ -99,7 +116,18 @@ export function WorkoutsScreen({ navigation }: { navigation: any }) {
   const handleReinstate = useCallback(async (sessionId: string) => {
     const workout = deletedWorkouts.find((w) => w.sessionId === sessionId);
     if (!workout) return;
-    await api.saveWorkout(workout);
+
+    const timer = pendingDeletes.current.get(sessionId);
+    if (timer) {
+      // Still within the grace window — the API delete never fired, so there's
+      // nothing to undo server-side, just cancel it.
+      clearTimeout(timer);
+      pendingDeletes.current.delete(sessionId);
+    } else {
+      // Grace period already elapsed and the row is actually gone server-side —
+      // recreate it.
+      await api.saveWorkout(workout);
+    }
     setDeletedWorkouts((prev) => prev.filter((w) => w.sessionId !== sessionId));
     setWorkouts((prev) => [...prev, workout].sort((a, b) => b.date.localeCompare(a.date)));
   }, [deletedWorkouts]);

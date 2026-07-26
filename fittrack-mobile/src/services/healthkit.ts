@@ -102,8 +102,15 @@ export function requestHealthKitPermissions(): Promise<boolean> {
 
 // ==================== Data Queries ====================
 
+// HealthKit buckets samples by the device's local calendar day (e.g. a
+// startDate of local midnight), so converting through toISOString() here
+// would shift the date across the UTC boundary for any non-UTC timezone —
+// e.g. evening steps landing on "tomorrow", making "today" look like 0.
 function toDateString(d: Date): string {
-  return d.toISOString().split('T')[0];
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function getSteps(startDate: Date, endDate: Date): Promise<{ date: string; value: number }[]> {

@@ -21,20 +21,25 @@ export function AppleHealthScreen({ navigation }: { navigation: any }) {
 
   const load = useCallback(async () => {
     try {
-      const [hk, activities, weights] = await Promise.all([
+      // Settled independently — if the activities/weights fetch fails
+      // transiently, that shouldn't blank out `status` back to its default
+      // (available: false), which hides the enable toggle entirely.
+      const [hk, activities, weights] = await Promise.allSettled([
         getHealthKitStatus(),
         api.getDailyActivities(7),
         api.getWeightEntries(1),
       ]);
-      setStatus(hk);
-      const sorted = [...activities].sort((a, b) => b.date.localeCompare(a.date));
+      if (hk.status === 'fulfilled') setStatus(hk.value);
+      const activityList = activities.status === 'fulfilled' ? activities.value : [];
+      const weightList = weights.status === 'fulfilled' ? weights.value : [];
+      const sorted = [...activityList].sort((a, b) => b.date.localeCompare(a.date));
       setLatest({
         steps: sorted[0]?.steps ?? null,
         activeCalories: sorted[0]?.activeCalories ?? null,
         restingHeartRate: sorted[0]?.restingHeartRate ?? null,
-        weight: weights[0]?.weightLbs ?? null,
+        weight: weightList[0]?.weightLbs ?? null,
       });
-      setDaysSynced(activities.filter((a) => a.source === 'apple_health').length);
+      setDaysSynced(activityList.filter((a) => a.source === 'apple_health').length);
     } finally {
       setLoading(false);
     }

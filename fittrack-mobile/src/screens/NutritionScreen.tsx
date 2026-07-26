@@ -15,7 +15,10 @@ const meals: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 
 function toDateString(d?: Date): string {
   const dt = d ?? new Date();
-  return dt.toISOString().split('T')[0];
+  const year = dt.getFullYear();
+  const month = String(dt.getMonth() + 1).padStart(2, '0');
+  const day = String(dt.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 // Day log editor — view/edit what's logged for a date and add foods manually
