@@ -1,5 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { parseDateOnly, toDateString } from '@/lib/utils';
+
+// The Shortcut's "date" field is whatever variable the user wires into it
+// (often Shortcuts' verbose "Current Date" string, not a plain YYYY-MM-DD),
+// so normalize it the same way the rest of the app stores dates instead of
+// trusting it verbatim — an unnormalized value here renders as "Invalid Date"
+// in the app's habit list.
+function normalizeDate(raw: unknown): string | null {
+  if (typeof raw !== 'string' || !raw) return null;
+  const isDateOnly = /^\d{4}-\d{2}-\d{2}/.test(raw);
+  const parsed = isDateOnly ? parseDateOnly(raw) : new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return toDateString(parsed);
+}
 
 // This endpoint is hit by the iOS Shortcut described in Settings > Apple Health,
 // which authenticates with an `apiKey` field in the JSON body (there's no way to
@@ -24,10 +38,14 @@ export async function POST(request: NextRequest) {
     if (!date) {
       return NextResponse.json({ error: 'Missing required field: date' }, { status: 400 });
     }
+    const normalizedDate = normalizeDate(date);
+    if (!normalizedDate) {
+      return NextResponse.json({ error: 'Invalid date' }, { status: 400 });
+    }
 
     // Upsert daily activity with HealthKit source
     const activity = await prisma.dailyActivity.upsert({
-      where: { userId_date: { userId, date: String(date) } },
+      where: { userId_date: { userId, date: normalizedDate } },
       update: {
         steps: Number(steps) || 0,
         activeCalories: Number(activeCalories) || 0,
@@ -36,7 +54,7 @@ export async function POST(request: NextRequest) {
       },
       create: {
         userId,
-        date: String(date),
+        date: normalizedDate,
         steps: Number(steps) || 0,
         activeCalories: Number(activeCalories) || 0,
         restingHeartRate: restingHeartRate ? Number(restingHeartRate) : null,
@@ -47,9 +65,9 @@ export async function POST(request: NextRequest) {
     // Also sync weight if provided
     if (weight && Number(weight) > 0) {
       await prisma.weightEntry.upsert({
-        where: { userId_date: { userId, date: String(date) } },
+        where: { userId_date: { userId, date: normalizedDate } },
         update: { weightLbs: Number(weight) },
-        create: { userId, date: String(date), weightLbs: Number(weight) },
+        create: { userId, date: normalizedDate, weightLbs: Number(weight) },
       });
     }
 

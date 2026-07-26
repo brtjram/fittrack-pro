@@ -170,6 +170,12 @@ export async function getFoodLogByDate(date: string): Promise<FoodLogEntry[]> {
   return res.json();
 }
 
+export async function getFoodLogByDateRange(startDate: string, endDate: string): Promise<FoodLogEntry[]> {
+  const res = await apiFetch(`/api/fitness/food-log?startDate=${startDate}&endDate=${endDate}`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
 export async function addFoodLogEntry(entry: Omit<FoodLogEntry, 'id'>): Promise<void> {
   const res = await apiFetch('/api/fitness/food-log', {
     method: 'POST',

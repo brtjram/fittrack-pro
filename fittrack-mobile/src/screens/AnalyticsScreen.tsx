@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Footprints } from 'lucide-react-native';
+import { Footprints, UtensilsCrossed } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import { Fonts } from '../theme/fonts';
-import { SectionLabel, Sparkline } from '../components/ui';
+import { SectionLabel, Sparkline, TargetBarChart } from '../components/ui';
 import * as api from '../services/api';
-import type { WeightEntry, DailyActivity, WorkoutSession, UserProfile } from '@fittrack/core';
+import { calculateMacroTargets, toDateString } from '@fittrack/core';
+import type { WeightEntry, DailyActivity, WorkoutSession, UserProfile, FoodLogEntry } from '@fittrack/core';
+
+const DEFAULT_STEP_TARGET = 10000;
 
 type TabId = 'body' | 'strength' | 'habits';
-
-const SPLIT_DAYS_PER_WEEK: Record<string, number> = { ppl: 6, upper_lower: 4, full_body: 3, bro_split: 5 };
 
 function estimatedOneRM(weight: number, reps: number): number {
   return weight * (1 + reps / 30);
@@ -66,19 +67,25 @@ export function AnalyticsScreen({ navigation }: { navigation: any }) {
   const [workouts, setWorkouts] = useState<WorkoutSession[]>([]);
   const [activities, setActivities] = useState<DailyActivity[]>([]);
   const [profile, setProfile] = useState<UserProfile | undefined>();
+  const [foodLogs, setFoodLogs] = useState<FoodLogEntry[]>([]);
 
   const loadData = useCallback(async () => {
     try {
-      const [w, a, s, p] = await Promise.all([
+      const today = new Date();
+      const sevenDaysAgoStr = toDateString(new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000));
+      const todayStr = toDateString(today);
+      const [w, a, s, p, f] = await Promise.all([
         api.getWeightEntries(90),
         api.getDailyActivities(60),
         api.getRecentWorkouts(60),
         api.getUserProfile(),
+        api.getFoodLogByDateRange(sevenDaysAgoStr, todayStr),
       ]);
       setWeights(w);
       setWorkouts(s);
       setActivities(a);
       setProfile(p);
+      setFoodLogs(f);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -102,14 +109,46 @@ export function AnalyticsScreen({ navigation }: { navigation: any }) {
     ? sortedWeights[sortedWeights.length - 1].weightLbs - sortedWeights[Math.max(0, sortedWeights.length - 8)].weightLbs
     : 0;
 
-  const sixWeeksAgo = new Date(Date.now() - 42 * 24 * 60 * 60 * 1000);
-  const recentCompleted = workouts.filter((w) => w.completed && new Date(w.date) >= sixWeeksAgo);
-  const daysPerWeek = profile ? (SPLIT_DAYS_PER_WEEK[profile.preferredSplit] ?? 4) : 4;
-  const sessionsPlanned = daysPerWeek * 6;
-  const daysLoggedSet = new Set([
-    ...activities.filter((a) => new Date(a.date) >= sixWeeksAgo).map((a) => a.date),
-    ...weights.filter((w) => new Date(w.date) >= sixWeeksAgo).map((w) => w.date),
-  ]);
+  const stepTarget = profile?.stepTarget ?? DEFAULT_STEP_TARGET;
+  const validActivities = activities.filter((a) => /^\d{4}-\d{2}-\d{2}$/.test(a.date));
+
+  const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+  const recentSteps = validActivities.filter((a) => new Date(a.date) >= fourteenDaysAgo);
+  const avgDailySteps = recentSteps.length
+    ? Math.round(recentSteps.reduce((sum, a) => sum + a.steps, 0) / recentSteps.length)
+    : null;
+  const stepGoalPct = avgDailySteps !== null ? Math.round((avgDailySteps / stepTarget) * 100) : null;
+
+  const firstWeight = sortedWeights.length ? sortedWeights[0].weightLbs : null;
+  const weightToGo = profile && latestWeight !== null ? Math.round(Math.abs(latestWeight - profile.targetWeightLbs) * 10) / 10 : null;
+  let weightGoalPct: number | null = null;
+  if (profile && firstWeight !== null && latestWeight !== null && firstWeight !== profile.targetWeightLbs) {
+    const pct = ((firstWeight - latestWeight) / (firstWeight - profile.targetWeightLbs)) * 100;
+    weightGoalPct = Math.round(Math.max(0, Math.min(100, pct)));
+  }
+
+  const last7Dates = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    return toDateString(d);
+  });
+  const dayLabels = last7Dates.map((d) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'narrow' }));
+
+  const stepsByDate = new Map(validActivities.map((a) => [a.date, a.steps]));
+  const stepsSeries = last7Dates.map((d) => stepsByDate.get(d) ?? 0);
+  const stepGoalDays = stepsSeries.filter((s) => s >= stepTarget).length;
+
+  const caloriesByDate = new Map<string, number>();
+  for (const f of foodLogs) {
+    if (!/^\d{4}-\d{2}-\d{2}/.test(f.date)) continue;
+    const key = f.date.slice(0, 10);
+    caloriesByDate.set(key, (caloriesByDate.get(key) ?? 0) + f.calories);
+  }
+  const caloriesSeries = last7Dates.map((d) => Math.round(caloriesByDate.get(d) ?? 0));
+  const calorieTarget = profile ? calculateMacroTargets(profile).calories : null;
+  const calorieGoalDays = calorieTarget !== null
+    ? caloriesSeries.filter((c) => c > 0 && Math.abs(c - calorieTarget) <= calorieTarget * 0.1).length
+    : 0;
 
   let projectionText: string | null = null;
   if (profile && latestWeight !== null && weeklyRate !== 0) {
@@ -180,8 +219,20 @@ export function AnalyticsScreen({ navigation }: { navigation: any }) {
           )}
 
           <View style={styles.tileRow}>
-            <Tile colors={colors} label="Sessions" value={recentCompleted.length} suffix={`/ ${sessionsPlanned} planned`} sub="6 weeks" />
-            <Tile colors={colors} label="Days logged" value={daysLoggedSet.size} suffix="/ 42" sub={`${Math.round((daysLoggedSet.size / 42) * 100)}%`} />
+            <Tile
+              colors={colors}
+              label="Weight progress"
+              value={weightGoalPct !== null ? weightGoalPct : '--'}
+              suffix={weightGoalPct !== null ? '% to goal' : ''}
+              sub={weightToGo !== null ? `${weightToGo} lb to go` : 'Log weigh-ins to track'}
+            />
+            <Tile
+              colors={colors}
+              label="Avg daily steps"
+              value={avgDailySteps !== null ? avgDailySteps.toLocaleString() : '--'}
+              suffix={`/ ${stepTarget.toLocaleString()}`}
+              sub={stepGoalPct !== null ? `${stepGoalPct}% of goal` : 'Connect Apple Health'}
+            />
           </View>
 
           {mainLifts.length > 0 && (
@@ -219,29 +270,64 @@ export function AnalyticsScreen({ navigation }: { navigation: any }) {
       {tab === 'habits' && (
         <View style={{ paddingBottom: 24, paddingTop: 22, paddingHorizontal: 16, gap: 16 }}>
           <View style={[styles.card, { backgroundColor: colors.surface }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <Footprints size={18} color={colors.info} />
-              <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 13, color: colors.ink }}>Average daily steps</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Footprints size={18} color={colors.info} />
+                <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 13, color: colors.ink }}>Steps vs target</Text>
+              </View>
+              <View style={[styles.trendBadge, { backgroundColor: 'rgba(63,110,150,0.14)' }]}>
+                <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12, color: colors.info }}>{stepGoalDays}/7 days</Text>
+              </View>
             </View>
-            <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 28, color: colors.ink }}>
-              {activities.length > 0 ? `${(activities.reduce((a, d) => a + d.steps, 0) / activities.length / 1000).toFixed(1)}k` : '--'}
+            <Text style={{ fontFamily: Fonts.sans, fontSize: 12, color: colors.mutedForeground, marginBottom: 14 }}>
+              {avgDailySteps !== null ? `${avgDailySteps.toLocaleString()} avg` : 'No steps logged yet'} · goal {stepTarget.toLocaleString()}/day
             </Text>
-            <Text style={{ fontFamily: Fonts.sans, fontSize: 12, color: colors.mutedForeground, marginTop: 4 }}>
-              Connect Apple Health from Profile to auto-track steps.
-            </Text>
+            <TargetBarChart
+              values={stepsSeries}
+              labels={dayLabels}
+              target={stepTarget}
+              width={296}
+              height={84}
+              color={colors.info}
+              mutedColor={colors.trackMuted}
+              targetColor={colors.mutedStrong}
+            />
           </View>
-          {activities.length > 0 && (
-            <View style={[styles.card, { backgroundColor: colors.surface, padding: 0 }]}>
-              {[...activities].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 7).map((a, i, arr) => (
-                <View key={i} style={[styles.habitRow, i < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.hairline }]}>
-                  <Text style={{ fontFamily: Fonts.sans, fontSize: 12.5, color: colors.mutedForeground }}>
-                    {new Date(a.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                  </Text>
-                  <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 13.5, color: colors.ink }}>{a.steps.toLocaleString()} steps</Text>
+
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <UtensilsCrossed size={18} color={colors.signal} />
+                <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 13, color: colors.ink }}>Diet adherence</Text>
+              </View>
+              {calorieTarget !== null && (
+                <View style={[styles.trendBadge, { backgroundColor: 'rgba(245,145,72,0.14)' }]}>
+                  <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12, color: colors.signal }}>{calorieGoalDays}/7 days</Text>
                 </View>
-              ))}
+              )}
             </View>
-          )}
+            {calorieTarget !== null ? (
+              <>
+                <Text style={{ fontFamily: Fonts.sans, fontSize: 12, color: colors.mutedForeground, marginBottom: 14 }}>
+                  Within 10% of goal · target {calorieTarget.toLocaleString()} kcal/day
+                </Text>
+                <TargetBarChart
+                  values={caloriesSeries}
+                  labels={dayLabels}
+                  target={calorieTarget}
+                  width={296}
+                  height={84}
+                  color={colors.signal}
+                  mutedColor={colors.trackMuted}
+                  targetColor={colors.mutedStrong}
+                />
+              </>
+            ) : (
+              <Text style={{ fontFamily: Fonts.sans, fontSize: 12, color: colors.mutedForeground }}>
+                Complete your profile to see a calorie target.
+              </Text>
+            )}
+          </View>
         </View>
       )}
     </ScrollView>
@@ -270,7 +356,7 @@ function LiftRow({ lift, colors, isLast, navigation }: { lift: LiftTrend; colors
   );
 }
 
-function Tile({ colors, label, value, suffix, sub }: { colors: any; label: string; value: number; suffix: string; sub: string }) {
+function Tile({ colors, label, value, suffix, sub }: { colors: any; label: string; value: number | string; suffix: string; sub: string }) {
   return (
     <View style={[styles.tile, { backgroundColor: colors.surface }]}>
       <SectionLabel colors={colors} style={{ fontSize: 10 }}>{label}</SectionLabel>
@@ -302,5 +388,4 @@ const styles = StyleSheet.create({
   tile: { flex: 1, borderRadius: 16, padding: 16 },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 12 },
   liftRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 18, paddingVertical: 14 },
-  habitRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingVertical: 13 },
 });

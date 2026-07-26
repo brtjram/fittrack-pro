@@ -236,6 +236,45 @@ export function BarChart({ values, labels, width = 300, height = 76, color, mute
   );
 }
 
+// Bar chart with a dashed reference line for a daily target (steps goal,
+// calorie target, etc). Bars that meet/exceed the target are highlighted.
+export function TargetBarChart({
+  values, labels, target, width = 300, height = 90, color, mutedColor, targetColor,
+}: {
+  values: number[]; labels?: string[]; target: number; width?: number; height?: number;
+  color: string; mutedColor: string; targetColor: string;
+}) {
+  const max = Math.max(...values, target, 1);
+  const gap = 9;
+  const targetY = height - (Math.min(target, max) / max) * height;
+  return (
+    <View style={{ width }}>
+      <View style={{ width, height }}>
+        <View style={{ width, height, flexDirection: 'row', alignItems: 'flex-end', gap }}>
+          {values.map((v, i) => {
+            const h = Math.max(3, (v / max) * height);
+            return (
+              <View key={i} style={{ flex: 1, height, justifyContent: 'flex-end' }}>
+                <View style={{ width: '100%', height: h, borderRadius: 4, backgroundColor: v >= target ? color : mutedColor }} />
+              </View>
+            );
+          })}
+        </View>
+        <Svg width={width} height={height} style={{ position: 'absolute', top: 0, left: 0 }}>
+          <Line x1={0} y1={targetY} x2={width} y2={targetY} stroke={targetColor} strokeWidth={1.5} strokeDasharray="4,4" />
+        </Svg>
+      </View>
+      {labels && (
+        <View style={{ flexDirection: 'row', gap, marginTop: 6 }}>
+          {labels.map((l, i) => (
+            <Text key={i} style={{ flex: 1, textAlign: 'center', fontSize: 9.5, fontFamily: Fonts.sans, color: mutedColor }}>{l}</Text>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
 export function Divider({ colors }: { colors: ThemeColors }) {
   return <View style={{ height: 1, backgroundColor: colors.hairline }} />;
 }

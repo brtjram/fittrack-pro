@@ -23,7 +23,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.brtjram.fittrackpro",
-      "buildNumber": "15",
+      "buildNumber": "16",
       "config": {
         "usesNonExemptEncryption": false
       },

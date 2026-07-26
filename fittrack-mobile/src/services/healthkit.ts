@@ -121,14 +121,24 @@ function getSteps(startDate: Date, endDate: Date): Promise<{ date: string; value
     const hk = getHealthKit();
     if (!hk) { resolve([]); return; }
 
+    // react-native-health's `period` option is in minutes and defaults to 60
+    // (hourly buckets), despite the method being named getDailyStepCountSamples.
+    // Without an explicit 1440 (24h) here, HealthKit returns ~24 rows per day
+    // and only the last hourly bucket survives the by-date merge below,
+    // making "today's steps" look like a single hour's worth.
     hk.getDailyStepCountSamples(
-      { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
+      { startDate: startDate.toISOString(), endDate: endDate.toISOString(), period: 24 * 60 },
       (err: string | null, results: Array<{ startDate: string; value: number }>) => {
         if (err || !results) { resolve([]); return; }
-        resolve(results.map((r) => ({
-          date: toDateString(new Date(r.startDate)),
-          value: Math.round(r.value),
-        })));
+
+        // Aggregate by date in case HealthKit still returns more than one
+        // bucket for a calendar day (e.g. DST transitions).
+        const byDate = new Map<string, number>();
+        for (const r of results) {
+          const d = toDateString(new Date(r.startDate));
+          byDate.set(d, (byDate.get(d) || 0) + Math.round(r.value));
+        }
+        resolve(Array.from(byDate.entries()).map(([date, value]) => ({ date, value })));
       },
     );
   });

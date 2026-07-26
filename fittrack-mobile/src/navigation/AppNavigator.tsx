@@ -9,7 +9,6 @@ import { Fonts } from '../theme/fonts';
 
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { WorkoutsScreen } from '../screens/WorkoutsScreen';
-import { WorkoutDetailScreen } from '../screens/WorkoutDetailScreen';
 import { WorkoutSessionScreen } from '../screens/WorkoutSessionScreen';
 import { WorkoutSummaryScreen } from '../screens/WorkoutSummaryScreen';
 import { NutritionScreen } from '../screens/NutritionScreen';
@@ -51,7 +50,6 @@ function TrainStackNavigator() {
   return (
     <TrainStack.Navigator screenOptions={noHeader(colors)}>
       <TrainStack.Screen name="WorkoutsList" component={WorkoutsScreen} options={{ headerShown: false }} />
-      <TrainStack.Screen name="WorkoutDetail" component={WorkoutDetailScreen} options={{ title: 'Workout' }} />
       <TrainStack.Screen name="WorkoutSession" component={WorkoutSessionScreen} options={{ headerShown: false }} />
       <TrainStack.Screen name="WorkoutSummary" component={WorkoutSummaryScreen} options={{ headerShown: false, gestureEnabled: false }} />
     </TrainStack.Navigator>

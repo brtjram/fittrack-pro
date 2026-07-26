@@ -20,6 +20,7 @@ export interface UserProfile {
   weekStartsOn?: WeekStart;
   trainingDays?: string;
   sessionLengthMin?: number;
+  stepTarget?: number;
   createdAt: string;
   updatedAt: string;
 }

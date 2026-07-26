@@ -105,7 +105,7 @@ export function WorkoutsScreen({ navigation }: { navigation: any }) {
         return;
       }
       setWorkouts((prev) => [session, ...prev]);
-      navigation.navigate('WorkoutDetail', { sessionId: session.sessionId });
+      navigation.navigate('WorkoutSession', { sessionId: session.sessionId });
     } catch {
       Alert.alert('Error', 'Could not generate workout. Please try again.');
     } finally {
@@ -162,7 +162,7 @@ export function WorkoutsScreen({ navigation }: { navigation: any }) {
             { backgroundColor: colors.card, borderColor: isToday && !session.completed ? colors.primary : colors.border },
             isToday && !session.completed && { borderWidth: 1.5 },
           ]}
-          onPress={() => navigation.navigate('WorkoutDetail', { sessionId: session.sessionId })}
+          onPress={() => navigation.navigate('WorkoutSession', { sessionId: session.sessionId })}
           activeOpacity={0.7}
         >
           <View style={styles.cardLeft}>

@@ -5,12 +5,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  ChevronLeft, ChevronRight, Ellipsis, Play, Repeat, ChartLine,
-  CircleCheckBig, Circle, Plus, ArrowRight,
+  ChevronLeft, Ellipsis, Play, Repeat, ChartLine,
+  CircleCheckBig, Circle, Plus, X,
 } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import { Fonts } from '../theme/fonts';
-import { Ring, Divider } from '../components/ui';
+import { Ring } from '../components/ui';
 import * as api from '../services/api';
 import type { WorkoutSession, WorkoutSet } from '@fittrack/core';
 
@@ -27,19 +27,13 @@ export function WorkoutSessionScreen({ route, navigation }: { route: any; naviga
   const [session, setSession] = useState<WorkoutSession | null>(null);
   const [previousSession, setPreviousSession] = useState<WorkoutSession | null>(null);
   const [loading, setLoading] = useState(true);
-  const [exerciseIdx, setExerciseIdx] = useState(0);
   const [restRemaining, setRestRemaining] = useState(0);
+  const [restExerciseIdx, setRestExerciseIdx] = useState<number | null>(null);
   const startTimeRef = useRef(Date.now());
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
-    api.getWorkoutById(sessionId).then((s) => {
-      if (s) {
-        const firstIncomplete = s.exercises.findIndex((e) => !e.sets.every((set) => set.completed));
-        setExerciseIdx(firstIncomplete >= 0 ? firstIncomplete : 0);
-      }
-      setSession(s ?? null);
-    }).finally(() => setLoading(false));
+    api.getWorkoutById(sessionId).then((s) => setSession(s ?? null)).finally(() => setLoading(false));
     api.getRecentWorkouts(30).then((list) => {
       const prior = list.find((w) => w.sessionId !== sessionId && w.completed);
       setPreviousSession(prior ?? null);
@@ -57,20 +51,18 @@ export function WorkoutSessionScreen({ route, navigation }: { route: any; naviga
     return () => clearInterval(t);
   }, [restRemaining > 0]);
 
-  const exercise = session?.exercises[exerciseIdx];
-
-  const lastSetFor = useCallback((setNumber: number): WorkoutSet | undefined => {
-    if (!exercise || !previousSession) return undefined;
+  const lastSetFor = useCallback((exercise: WorkoutSession['exercises'][number], setNumber: number): WorkoutSet | undefined => {
+    if (!previousSession) return undefined;
     const priorEx = previousSession.exercises.find((e) => e.exerciseId === exercise.exerciseId);
     return priorEx?.sets.find((s) => s.setNumber === setNumber);
-  }, [exercise, previousSession]);
+  }, [previousSession]);
 
   const persist = useCallback(async (updated: WorkoutSession) => {
     setSession(updated);
     await api.saveWorkout(updated);
   }, []);
 
-  const updateSet = useCallback((setIdx: number, patch: Partial<WorkoutSet>) => {
+  const updateSet = useCallback((exerciseIdx: number, setIdx: number, patch: Partial<WorkoutSet>) => {
     if (!session) return;
     const updated = {
       ...session,
@@ -79,18 +71,23 @@ export function WorkoutSessionScreen({ route, navigation }: { route: any; naviga
       }),
     };
     persist(updated);
-  }, [session, exerciseIdx, persist]);
+  }, [session, persist]);
 
-  const toggleSet = useCallback((setIdx: number) => {
-    if (!exercise) return;
+  const toggleSet = useCallback((exerciseIdx: number, setIdx: number) => {
+    if (!session) return;
+    const exercise = session.exercises[exerciseIdx];
     const set = exercise.sets[setIdx];
     const willComplete = !set.completed;
-    updateSet(setIdx, { completed: willComplete });
-    if (willComplete && exercise.restSeconds > 0) setRestRemaining(exercise.restSeconds);
-  }, [exercise, updateSet]);
+    updateSet(exerciseIdx, setIdx, { completed: willComplete });
+    if (willComplete && exercise.restSeconds > 0) {
+      setRestExerciseIdx(exerciseIdx);
+      setRestRemaining(exercise.restSeconds);
+    }
+  }, [session, updateSet]);
 
-  const addSet = useCallback(() => {
-    if (!session || !exercise) return;
+  const addSet = useCallback((exerciseIdx: number) => {
+    if (!session) return;
+    const exercise = session.exercises[exerciseIdx];
     const last = exercise.sets[exercise.sets.length - 1];
     const newSet: WorkoutSet = {
       setNumber: exercise.sets.length + 1,
@@ -103,12 +100,22 @@ export function WorkoutSessionScreen({ route, navigation }: { route: any; naviga
       exercises: session.exercises.map((ex, ei) => ei !== exerciseIdx ? ex : { ...ex, sets: [...ex.sets, newSet] }),
     };
     persist(updated);
-  }, [session, exercise, exerciseIdx, persist]);
+  }, [session, persist]);
 
-  const goToExercise = useCallback((idx: number) => {
-    setExerciseIdx(idx);
-    setRestRemaining(0);
-  }, []);
+  const deleteSet = useCallback((exerciseIdx: number, setIdx: number) => {
+    if (!session) return;
+    const exercise = session.exercises[exerciseIdx];
+    if (exercise.sets.length <= 1) return;
+    const updated = {
+      ...session,
+      exercises: session.exercises.map((ex, ei) => {
+        if (ei !== exerciseIdx) return ex;
+        const newSets = ex.sets.filter((_, si) => si !== setIdx).map((s, i) => ({ ...s, setNumber: i + 1 }));
+        return { ...ex, sets: newSets };
+      }),
+    };
+    persist(updated);
+  }, [session, persist]);
 
   const finishWorkout = useCallback(async () => {
     if (!session) return;
@@ -118,9 +125,20 @@ export function WorkoutSessionScreen({ route, navigation }: { route: any; naviga
     navigation.replace('WorkoutSummary', { sessionId: finished.sessionId });
   }, [session, navigation]);
 
+  const confirmFinishAnyway = useCallback((remaining: number) => {
+    Alert.alert(
+      'Finish workout?',
+      `You still have ${remaining} set${remaining === 1 ? '' : 's'} left. Finish anyway?`,
+      [
+        { text: 'Keep going', style: 'cancel' },
+        { text: 'Finish anyway', style: 'destructive', onPress: finishWorkout },
+      ],
+    );
+  }, [finishWorkout]);
+
   const notBuilt = (feature: string) => Alert.alert(feature, 'Not available yet — coming in a future update.');
 
-  if (loading || !session || !exercise) {
+  if (loading || !session) {
     return (
       <View style={[styles.centered, { backgroundColor: colors.canvas }]}>
         <ActivityIndicator size="large" color={colors.signal} />
@@ -128,8 +146,10 @@ export function WorkoutSessionScreen({ route, navigation }: { route: any; naviga
     );
   }
 
-  const isLast = exerciseIdx === session.exercises.length - 1;
-  const allSetsComplete = exercise.sets.every((s) => s.completed);
+  const totalSets = session.exercises.reduce((a, e) => a + e.sets.length, 0);
+  const doneSets = session.exercises.reduce((a, e) => a + e.sets.filter((s) => s.completed).length, 0);
+  const allComplete = totalSets > 0 && doneSets === totalSets;
+  const restingExercise = restRemaining > 0 && restExerciseIdx !== null ? session.exercises[restExerciseIdx] : null;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.canvas }}>
@@ -141,7 +161,7 @@ export function WorkoutSessionScreen({ route, navigation }: { route: any; naviga
         <View style={{ alignItems: 'center' }}>
           <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 13, color: colors.ink }}>{session.name}</Text>
           <Text style={{ fontFamily: Fonts.sans, fontSize: 10.5, color: colors.mutedForeground, marginTop: 1 }}>
-            Exercise {exerciseIdx + 1} of {session.exercises.length} · {elapsed}:00
+            {session.exercises.length} exercises · {elapsed}:00
           </Text>
         </View>
         <TouchableOpacity onPress={() => notBuilt('Options')} style={[styles.circleBtn, { backgroundColor: colors.surface }]}>
@@ -149,122 +169,142 @@ export function WorkoutSessionScreen({ route, navigation }: { route: any; naviga
         </TouchableOpacity>
       </View>
 
-      {/* Exercise progress segments */}
-      <View style={styles.segmentRow}>
-        {session.exercises.map((ex, i) => (
-          <TouchableOpacity key={i} style={{ flex: 1 }} onPress={() => goToExercise(i)}>
-            <View style={[styles.segment, {
-              backgroundColor: ex.sets.every((s) => s.completed) ? colors.progress : i === exerciseIdx ? colors.signal : colors.surfaceInset,
-            }]} />
-          </TouchableOpacity>
-        ))}
+      {/* Overall progress */}
+      <View style={[styles.overallCard, { backgroundColor: colors.surface }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
+          <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 10, letterSpacing: 0.6, textTransform: 'uppercase', color: colors.mutedForeground }}>
+            Overall progress
+          </Text>
+          <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12.5, color: colors.ink }}>{doneSets}/{totalSets} sets</Text>
+        </View>
+        <View style={[styles.overallTrack, { backgroundColor: colors.trackMuted }]}>
+          <View style={[styles.overallFill, { backgroundColor: colors.progress, width: `${totalSets > 0 ? (doneSets / totalSets) * 100 : 0}%` }]} />
+        </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 12 }}>
-        <Text style={{ fontFamily: Fonts.serif, fontSize: 28, lineHeight: 32, color: colors.ink }}>{exercise.exerciseName}</Text>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 6, paddingBottom: 12 }}>
+        {session.exercises.map((exercise, ei) => {
+          const allSetsComplete = exercise.sets.every((s) => s.completed);
+          return (
+            <View key={ei} style={[styles.exCard, { backgroundColor: colors.surface }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                <Text style={{ fontFamily: Fonts.serif, fontSize: 22, lineHeight: 26, color: colors.ink, flex: 1 }}>{exercise.exerciseName}</Text>
+                {allSetsComplete && <CircleCheckBig size={18} color={colors.progress} style={{ marginTop: 4 }} />}
+              </View>
 
-        <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
-          <Pill colors={colors} onPress={() => notBuilt('How to')} label="How to" icon={<Play size={9} color={colors.canvas} strokeWidth={3} />} highlight />
-          <Pill colors={colors} onPress={() => notBuilt('Swap exercise')} label="Swap" icon={<Repeat size={13} color={colors.mutedStrong} />} />
-          <Pill
-            colors={colors}
-            onPress={() => navigation.getParent()?.navigate('Progress', { screen: 'StrengthDetail', params: { exerciseId: exercise.exerciseId, exerciseName: exercise.exerciseName } })}
-            label="History"
-            icon={<ChartLine size={13} color={colors.mutedStrong} />}
-          />
-        </View>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 12, marginBottom: 4 }}>
+                <Pill colors={colors} onPress={() => notBuilt('How to')} label="How to" icon={<Play size={9} color={colors.canvas} strokeWidth={3} />} highlight />
+                <Pill colors={colors} onPress={() => notBuilt('Swap exercise')} label="Swap" icon={<Repeat size={13} color={colors.mutedStrong} />} />
+                <Pill
+                  colors={colors}
+                  onPress={() => navigation.getParent()?.navigate('Progress', { screen: 'StrengthDetail', params: { exerciseId: exercise.exerciseId, exerciseName: exercise.exerciseName } })}
+                  label="History"
+                  icon={<ChartLine size={13} color={colors.mutedStrong} />}
+                />
+              </View>
 
-        <View style={[styles.setTable, { backgroundColor: colors.surface }]}>
-          <View style={[styles.setHeaderRow, { borderBottomColor: colors.hairline }]}>
-            <Text style={[styles.setHeaderText, { color: colors.mutedForeground, width: 34 }]}>Set</Text>
-            <Text style={[styles.setHeaderText, { color: colors.mutedForeground, flex: 1 }]}>Weight</Text>
-            <Text style={[styles.setHeaderText, { color: colors.mutedForeground, flex: 1 }]}>Reps</Text>
-            <View style={{ width: 44 }} />
-          </View>
-          {exercise.sets.map((set, si) => {
-            const last = lastSetFor(set.setNumber);
-            const isCurrent = !set.completed && exercise.sets.slice(0, si).every((s) => s.completed);
-            return (
-              <View
-                key={si}
-                style={[
-                  styles.setRow,
-                  si > 0 && { borderTopWidth: 1, borderTopColor: colors.hairline },
-                  isCurrent && { backgroundColor: colors.surfaceInset },
-                ]}
-              >
-                <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 14, color: isCurrent ? colors.signal : colors.mutedForeground, width: 34, textAlign: 'center' }}>
-                  {set.setNumber}
-                </Text>
-                <View style={{ flex: 1 }}>
-                  <TextInput
-                    value={set.actualWeight != null ? String(set.actualWeight) : ''}
-                    onChangeText={(t) => updateSet(si, { actualWeight: parseFloat(t) || 0 })}
-                    keyboardType="numeric"
-                    placeholder={String(set.targetWeight)}
-                    placeholderTextColor={colors.mutedForeground}
-                    style={{ fontFamily: Fonts.sansSemiBold, fontSize: isCurrent ? 24 : 16, color: colors.ink, padding: 0 }}
-                  />
-                  {last?.actualWeight != null && <Text style={{ fontFamily: Fonts.sans, fontSize: 10, color: colors.mutedForeground }}>last: {last.actualWeight}</Text>}
+              <View style={[styles.setTable, { backgroundColor: colors.surfaceInset }]}>
+                <View style={[styles.setHeaderRow, { borderBottomColor: colors.hairline }]}>
+                  <Text style={[styles.setHeaderText, { color: colors.mutedForeground, width: 30 }]}>Set</Text>
+                  <Text style={[styles.setHeaderText, { color: colors.mutedForeground, flex: 1 }]}>Weight</Text>
+                  <Text style={[styles.setHeaderText, { color: colors.mutedForeground, flex: 1 }]}>Reps</Text>
+                  <View style={{ width: 32 }} />
+                  <View style={{ width: 22 }} />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <TextInput
-                    value={set.actualReps != null ? String(set.actualReps) : ''}
-                    onChangeText={(t) => updateSet(si, { actualReps: parseInt(t) || 0 })}
-                    keyboardType="numeric"
-                    placeholder={String(set.targetReps)}
-                    placeholderTextColor={colors.mutedForeground}
-                    style={{ fontFamily: Fonts.sansSemiBold, fontSize: isCurrent ? 24 : 16, color: colors.ink, padding: 0 }}
-                  />
-                  {last?.actualReps != null && <Text style={{ fontFamily: Fonts.sans, fontSize: 10, color: colors.mutedForeground }}>last: {last.actualReps}</Text>}
-                </View>
-                <TouchableOpacity onPress={() => toggleSet(si)} style={{ width: 44, alignItems: 'flex-end' }}>
-                  {set.completed
-                    ? <CircleCheckBig size={isCurrent ? 44 : 24} color={colors.progress} />
-                    : <Circle size={24} color={colors.surfaceInset} />}
+                {exercise.sets.map((set, si) => {
+                  const last = lastSetFor(exercise, set.setNumber);
+                  const isCurrent = !set.completed && exercise.sets.slice(0, si).every((s) => s.completed);
+                  return (
+                    <View
+                      key={si}
+                      style={[
+                        styles.setRow,
+                        si > 0 && { borderTopWidth: 1, borderTopColor: colors.hairline },
+                        isCurrent && { backgroundColor: colors.surface },
+                      ]}
+                    >
+                      <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 13, color: isCurrent ? colors.signal : colors.mutedForeground, width: 30, textAlign: 'center' }}>
+                        {set.setNumber}
+                      </Text>
+                      <View style={{ flex: 1 }}>
+                        <TextInput
+                          value={set.actualWeight != null ? String(set.actualWeight) : ''}
+                          onChangeText={(t) => updateSet(ei, si, { actualWeight: parseFloat(t) || 0 })}
+                          keyboardType="numeric"
+                          placeholder={String(set.targetWeight)}
+                          placeholderTextColor={colors.mutedForeground}
+                          style={{ fontFamily: Fonts.sansSemiBold, fontSize: isCurrent ? 20 : 15, color: colors.ink, padding: 0 }}
+                        />
+                        {last?.actualWeight != null && <Text style={{ fontFamily: Fonts.sans, fontSize: 9.5, color: colors.mutedForeground }}>last: {last.actualWeight}</Text>}
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <TextInput
+                          value={set.actualReps != null ? String(set.actualReps) : ''}
+                          onChangeText={(t) => updateSet(ei, si, { actualReps: parseInt(t) || 0 })}
+                          keyboardType="numeric"
+                          placeholder={String(set.targetReps)}
+                          placeholderTextColor={colors.mutedForeground}
+                          style={{ fontFamily: Fonts.sansSemiBold, fontSize: isCurrent ? 20 : 15, color: colors.ink, padding: 0 }}
+                        />
+                        {last?.actualReps != null && <Text style={{ fontFamily: Fonts.sans, fontSize: 9.5, color: colors.mutedForeground }}>last: {last.actualReps}</Text>}
+                      </View>
+                      <TouchableOpacity onPress={() => toggleSet(ei, si)} style={{ width: 32, alignItems: 'center' }}>
+                        {set.completed
+                          ? <CircleCheckBig size={isCurrent ? 30 : 22} color={colors.progress} />
+                          : <Circle size={22} color={colors.trackMuted} />}
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => deleteSet(ei, si)}
+                        disabled={exercise.sets.length <= 1}
+                        style={{ width: 22, alignItems: 'center', opacity: exercise.sets.length <= 1 ? 0.25 : 1 }}
+                      >
+                        <X size={15} color={colors.mutedForeground} />
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })}
+                <TouchableOpacity onPress={() => addSet(ei)} style={[styles.addSetBtn, { borderTopColor: colors.hairline }]}>
+                  <Plus size={14} color={colors.mutedForeground} />
+                  <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12, color: colors.mutedForeground }}>Add set</Text>
                 </TouchableOpacity>
               </View>
-            );
-          })}
-          <TouchableOpacity onPress={addSet} style={[styles.addSetBtn, { borderTopColor: colors.hairline }]}>
-            <Plus size={14} color={colors.mutedForeground} />
-            <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12, color: colors.mutedForeground }}>Add set</Text>
-          </TouchableOpacity>
-        </View>
+            </View>
+          );
+        })}
+      </ScrollView>
 
-        {restRemaining > 0 && (
-          <View style={[styles.restCard, { backgroundColor: colors.surface }]}>
-            <Ring size={36} stroke={3.5} percent={1 - restRemaining / exercise.restSeconds} trackColor={colors.trackMuted} fillColor={colors.info} />
+      {/* Footer: rest timer takes over when active, otherwise finish/progress */}
+      <View style={[styles.footer, { backgroundColor: colors.surfaceRaised, borderTopColor: colors.hairline }]}>
+        {restingExercise ? (
+          <View style={styles.restRow}>
+            <Ring size={36} stroke={3.5} percent={1 - restRemaining / restingExercise.restSeconds} trackColor={colors.trackMuted} fillColor={colors.info} />
             <View style={{ flex: 1 }}>
               <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 13.5, color: colors.ink }}>Rest {fmtClock(restRemaining)}</Text>
-              <Text style={{ fontFamily: Fonts.sans, fontSize: 11, color: colors.mutedForeground, marginTop: 2 }}>Tap when you're back on the bench</Text>
+              <Text style={{ fontFamily: Fonts.sans, fontSize: 11, color: colors.mutedForeground, marginTop: 2 }}>{restingExercise.exerciseName}</Text>
             </View>
             <TouchableOpacity onPress={() => setRestRemaining(0)}>
               <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12, color: colors.info }}>Skip</Text>
             </TouchableOpacity>
           </View>
+        ) : (
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+            <View style={[styles.progressChip, { backgroundColor: colors.surfaceInset }]}>
+              <View style={[styles.progressChipTrack, { backgroundColor: colors.trackMuted }]}>
+                <View style={[styles.progressChipFill, { backgroundColor: colors.progress, width: `${totalSets > 0 ? (doneSets / totalSets) * 100 : 0}%` }]} />
+              </View>
+              <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12.5, color: colors.mutedStrong }}>{doneSets}/{totalSets} sets</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.finishPill, { backgroundColor: allComplete ? colors.signal : colors.surfaceInset }]}
+              onPress={allComplete ? finishWorkout : () => confirmFinishAnyway(totalSets - doneSets)}
+              activeOpacity={0.85}
+            >
+              <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 14, color: allComplete ? colors.signalForeground : colors.mutedStrong }}>
+                {allComplete ? 'Finish workout' : 'Finish anyway'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         )}
-      </ScrollView>
-
-      {/* Footer nav */}
-      <View style={[styles.footer, { backgroundColor: colors.surfaceRaised, borderTopColor: colors.hairline }]}>
-        <TouchableOpacity
-          disabled={exerciseIdx === 0}
-          onPress={() => goToExercise(exerciseIdx - 1)}
-          style={[styles.footerBackBtn, { backgroundColor: colors.surfaceInset, opacity: exerciseIdx === 0 ? 0.4 : 1 }]}
-        >
-          <ChevronLeft size={22} color={colors.mutedStrong} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.footerNextBtn, { backgroundColor: isLast ? colors.signal : colors.ink }]}
-          onPress={() => (isLast ? finishWorkout() : goToExercise(exerciseIdx + 1))}
-          activeOpacity={0.85}
-        >
-          <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 15, color: isLast ? colors.signalForeground : colors.canvas }}>
-            {isLast ? (allSetsComplete ? 'Finish workout' : `${exercise.sets.filter((s) => s.completed).length}/${exercise.sets.length} sets done`) : `Next: ${session.exercises[exerciseIdx + 1].exerciseName}`}
-          </Text>
-          {isLast ? null : <ArrowRight size={18} color={colors.canvas} strokeWidth={2.5} />}
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -283,17 +323,21 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 56, paddingHorizontal: 20 },
   circleBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  segmentRow: { flexDirection: 'row', gap: 5, paddingHorizontal: 20, marginTop: 16 },
-  segment: { height: 3, borderRadius: 2 },
+  overallCard: { marginHorizontal: 20, marginTop: 16, padding: 14, borderRadius: 16 },
+  overallTrack: { height: 5, borderRadius: 3, marginTop: 10, overflow: 'hidden' },
+  overallFill: { height: '100%', borderRadius: 3 },
   pillBtn: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 13, paddingVertical: 8, borderRadius: 99 },
   pillIconWrap: { width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  setTable: { marginTop: 24, borderRadius: 18, overflow: 'hidden' },
-  setHeaderRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 14, borderBottomWidth: 1 },
-  setHeaderText: { fontFamily: Fonts.sansMedium, fontSize: 10.5, letterSpacing: 0.6, textTransform: 'uppercase' },
-  setRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 11, gap: 10 },
-  addSetBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 13, borderTopWidth: 1 },
-  restCard: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 16, borderRadius: 16, padding: 15 },
-  footer: { flexDirection: 'row', gap: 10, padding: 16, paddingBottom: 30, borderTopWidth: 1 },
-  footerBackBtn: { width: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  footerNextBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, paddingVertical: 16 },
+  exCard: { borderRadius: 18, padding: 18, marginBottom: 14 },
+  setTable: { marginTop: 12, borderRadius: 14, overflow: 'hidden' },
+  setHeaderRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1 },
+  setHeaderText: { fontFamily: Fonts.sansMedium, fontSize: 10, letterSpacing: 0.5, textTransform: 'uppercase' },
+  setRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 9, gap: 8 },
+  addSetBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 12, borderTopWidth: 1 },
+  footer: { padding: 16, paddingBottom: 30, borderTopWidth: 1 },
+  restRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  progressChip: { flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 99, paddingHorizontal: 14, paddingVertical: 13 },
+  progressChipTrack: { width: 34, height: 4, borderRadius: 2, overflow: 'hidden' },
+  progressChipFill: { height: '100%', borderRadius: 2 },
+  finishPill: { alignItems: 'center', justifyContent: 'center', borderRadius: 99, paddingVertical: 15, paddingHorizontal: 22 },
 });
