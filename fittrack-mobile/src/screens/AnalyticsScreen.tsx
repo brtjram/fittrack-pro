@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Footprints, UtensilsCrossed } from 'lucide-react-native';
+import { Footprints, UtensilsCrossed, Flame } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import { Fonts } from '../theme/fonts';
 import { SectionLabel, Sparkline, TargetBarChart } from '../components/ui';
 import * as api from '../services/api';
-import { calculateMacroTargets, toDateString } from '@fittrack/core';
+import { calculateMacroTargets, calculateBMR, toDateString } from '@fittrack/core';
 import type { WeightEntry, DailyActivity, WorkoutSession, UserProfile, FoodLogEntry } from '@fittrack/core';
 
 const DEFAULT_STEP_TARGET = 10000;
@@ -149,6 +149,23 @@ export function AnalyticsScreen({ navigation }: { navigation: any }) {
   const calorieGoalDays = calorieTarget !== null
     ? caloriesSeries.filter((c) => c > 0 && Math.abs(c - calorieTarget) <= calorieTarget * 0.1).length
     : 0;
+
+  // "Calories out" per day = BMR (maintenance at rest) + that day's actual
+  // active calories burned — not the flat calculateTDEE() number, which just
+  // assumes a fixed activity-level multiplier and would double-count (or
+  // miss) whatever HealthKit actually measured that specific day.
+  const bmr = profile ? Math.round(calculateBMR(profile)) : null;
+  const activeCaloriesByDate = new Map(validActivities.map((a) => [a.date, a.activeCalories]));
+  const caloriesOutSeries = last7Dates.map((d) => (bmr ?? 0) + (activeCaloriesByDate.get(d) ?? 0));
+
+  const loggedDayIdx = caloriesSeries.map((c, i) => (c > 0 ? i : -1)).filter((i) => i >= 0);
+  const avgConsumed = loggedDayIdx.length
+    ? Math.round(loggedDayIdx.reduce((a, i) => a + caloriesSeries[i], 0) / loggedDayIdx.length)
+    : null;
+  const avgCaloriesOut = loggedDayIdx.length
+    ? Math.round(loggedDayIdx.reduce((a, i) => a + caloriesOutSeries[i], 0) / loggedDayIdx.length)
+    : null;
+  const avgDeficit = bmr !== null && avgConsumed !== null && avgCaloriesOut !== null ? avgCaloriesOut - avgConsumed : null;
 
   let projectionText: string | null = null;
   if (profile && latestWeight !== null && weeklyRate !== 0) {
@@ -325,6 +342,43 @@ export function AnalyticsScreen({ navigation }: { navigation: any }) {
             ) : (
               <Text style={{ fontFamily: Fonts.sans, fontSize: 12, color: colors.mutedForeground }}>
                 Complete your profile to see a calorie target.
+              </Text>
+            )}
+          </View>
+
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Flame size={18} color={colors.progress} />
+                <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 13, color: colors.ink }}>Calories vs total burn</Text>
+              </View>
+              {avgDeficit !== null && (
+                <View style={[styles.trendBadge, { backgroundColor: 'rgba(201,232,74,0.14)' }]}>
+                  <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12, color: colors.progress }}>
+                    {Math.abs(avgDeficit).toLocaleString()} cal {avgDeficit >= 0 ? 'deficit' : 'surplus'}
+                  </Text>
+                </View>
+              )}
+            </View>
+            {bmr !== null ? (
+              <>
+                <Text style={{ fontFamily: Fonts.sans, fontSize: 12, color: colors.mutedForeground, marginBottom: 14 }}>
+                  Consumed vs maintenance ({bmr.toLocaleString()}) plus daily active calories burned
+                </Text>
+                <TargetBarChart
+                  values={caloriesSeries}
+                  labels={dayLabels}
+                  target={caloriesOutSeries}
+                  width={296}
+                  height={84}
+                  color={colors.progress}
+                  mutedColor={colors.trackMuted}
+                  targetColor={colors.mutedStrong}
+                />
+              </>
+            ) : (
+              <Text style={{ fontFamily: Fonts.sans, fontSize: 12, color: colors.mutedForeground }}>
+                Complete your profile to see your maintenance calories.
               </Text>
             )}
           </View>

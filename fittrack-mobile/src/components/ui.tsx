@@ -238,15 +238,24 @@ export function BarChart({ values, labels, width = 300, height = 76, color, mute
 
 // Bar chart with a dashed reference line for a daily target (steps goal,
 // calorie target, etc). Bars that meet/exceed the target are highlighted.
+// `target` can vary per day (e.g. BMR + that day's active calories) — pass
+// an array the same length as `values` and the reference line follows it.
 export function TargetBarChart({
   values, labels, target, width = 300, height = 90, color, mutedColor, targetColor,
 }: {
-  values: number[]; labels?: string[]; target: number; width?: number; height?: number;
+  values: number[]; labels?: string[]; target: number | number[]; width?: number; height?: number;
   color: string; mutedColor: string; targetColor: string;
 }) {
-  const max = Math.max(...values, target, 1);
+  const targets = Array.isArray(target) ? target : values.map(() => target);
+  const max = Math.max(...values, ...targets, 1);
   const gap = 9;
-  const targetY = height - (Math.min(target, max) / max) * height;
+  const barW = (width - gap * (values.length - 1)) / values.length;
+  const targetPoints = targets.map((t, i) => {
+    const x = i * (barW + gap) + barW / 2;
+    const y = height - (Math.min(t, max) / max) * height;
+    return [x, y];
+  });
+  const targetPath = targetPoints.map((p, i) => (i === 0 ? `M${p[0]} ${p[1]}` : `L${p[0]} ${p[1]}`)).join(' ');
   return (
     <View style={{ width }}>
       <View style={{ width, height }}>
@@ -255,13 +264,15 @@ export function TargetBarChart({
             const h = Math.max(3, (v / max) * height);
             return (
               <View key={i} style={{ flex: 1, height, justifyContent: 'flex-end' }}>
-                <View style={{ width: '100%', height: h, borderRadius: 4, backgroundColor: v >= target ? color : mutedColor }} />
+                <View style={{ width: '100%', height: h, borderRadius: 4, backgroundColor: v >= targets[i] ? color : mutedColor }} />
               </View>
             );
           })}
         </View>
         <Svg width={width} height={height} style={{ position: 'absolute', top: 0, left: 0 }}>
-          <Line x1={0} y1={targetY} x2={width} y2={targetY} stroke={targetColor} strokeWidth={1.5} strokeDasharray="4,4" />
+          {Array.isArray(target)
+            ? <Path d={targetPath} stroke={targetColor} strokeWidth={1.5} strokeDasharray="4,4" fill="none" />
+            : <Line x1={0} y1={targetPoints[0][1]} x2={width} y2={targetPoints[0][1]} stroke={targetColor} strokeWidth={1.5} strokeDasharray="4,4" />}
         </Svg>
       </View>
       {labels && (

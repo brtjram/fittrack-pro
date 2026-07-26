@@ -129,6 +129,7 @@ function getSteps(startDate: Date, endDate: Date): Promise<{ date: string; value
     hk.getDailyStepCountSamples(
       { startDate: startDate.toISOString(), endDate: endDate.toISOString(), period: 24 * 60 },
       (err: string | null, results: Array<{ startDate: string; value: number }>) => {
+        if (err) console.warn('HealthKit getDailyStepCountSamples error:', err);
         if (err || !results) { resolve([]); return; }
 
         // Aggregate by date in case HealthKit still returns more than one
@@ -156,6 +157,7 @@ function getActiveCalories(startDate: Date, endDate: Date): Promise<{ date: stri
         ascending: true,
       },
       (err: string | null, results: Array<{ startDate: string; value: number }>) => {
+        if (err) console.warn('HealthKit getActiveEnergyBurned error:', err);
         if (err || !results) { resolve([]); return; }
 
         // Aggregate by date
@@ -178,6 +180,7 @@ function getLatestWeight(): Promise<{ date: string; value: number } | null> {
     hk.getLatestWeight(
       { unit: 'pound' },
       (err: string | null, result: { value: number; startDate: string }) => {
+        if (err) console.warn('HealthKit getLatestWeight error:', err);
         if (err || !result) { resolve(null); return; }
         resolve({
           date: toDateString(new Date(result.startDate)),
@@ -200,6 +203,7 @@ function getRestingHeartRate(startDate: Date, endDate: Date): Promise<{ date: st
         ascending: true,
       },
       (err: string | null, results: Array<{ startDate: string; value: number }>) => {
+        if (err) console.warn('HealthKit getHeartRateSamples error:', err);
         if (err || !results || results.length === 0) { resolve([]); return; }
 
         // Get the lowest reading per day as a resting estimate
@@ -262,10 +266,16 @@ export async function syncHealthKitToServer(
   syncActivity: (data: { date: string; steps: number; activeCalories: number; restingHeartRate?: number; source: string }) => Promise<void>,
   syncWeight: (data: { date: string; weightLbs: number }) => Promise<void>,
   days = 7,
-): Promise<{ synced: number; errors: number }> {
+): Promise<{ synced: number; errors: number; hasData: boolean }> {
   const data = await fetchHealthKitData(days);
   let synced = 0;
   let errors = 0;
+  // Distinguishes "Health genuinely has nothing yet" from "Health returned
+  // nothing at all" — the latter usually means a data type's read permission
+  // was silently denied (iOS grants/denies per-type without surfacing which),
+  // so the UI can tell the user to go check Settings instead of pretending
+  // the sync was healthy.
+  const hasData = data.some((day) => day.steps > 0 || day.activeCalories > 0 || day.restingHeartRate != null || day.weight != null);
 
   for (const day of data) {
     try {
@@ -291,5 +301,5 @@ export async function syncHealthKitToServer(
   // Record last sync time
   await saveValue(HEALTHKIT_LAST_SYNC_KEY, new Date().toISOString());
 
-  return { synced, errors };
+  return { synced, errors, hasData };
 }

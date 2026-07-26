@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, Switch, Alert, ActivityIndicator, Platform, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, Heart, RefreshCw, CircleCheckBig, Footprints, Flame, Activity, Scale, Dumbbell, Utensils, Lock } from 'lucide-react-native';
+import { ChevronLeft, Heart, RefreshCw, CircleCheckBig, Footprints, Flame, Activity, Scale, Dumbbell, Utensils, Lock, TriangleAlert } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import { Fonts } from '../theme/fonts';
 import { SectionLabel, ListGroup, ListRow } from '../components/ui';
 import { getHealthKitStatus, setHealthKitEnabled, requestHealthKitPermissions, syncHealthKitToServer, type HealthKitStatus } from '../services/healthkit';
 import * as api from '../services/api';
+import type { DailyActivity } from '@fittrack/core';
 
 export function AppleHealthScreen({ navigation }: { navigation: any }) {
   const { colors } = useTheme();
@@ -18,6 +19,8 @@ export function AppleHealthScreen({ navigation }: { navigation: any }) {
     steps: null, activeCalories: null, restingHeartRate: null, weight: null,
   });
   const [daysSynced, setDaysSynced] = useState(0);
+  const [history, setHistory] = useState<DailyActivity[]>([]);
+  const [noDataWarning, setNoDataWarning] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -39,7 +42,8 @@ export function AppleHealthScreen({ navigation }: { navigation: any }) {
         restingHeartRate: sorted[0]?.restingHeartRate ?? null,
         weight: weightList[0]?.weightLbs ?? null,
       });
-      setDaysSynced(activityList.filter((a) => a.source === 'apple_health').length);
+      setHistory(sorted);
+      setDaysSynced(activityList.filter((a) => a.source === 'healthkit').length);
     } finally {
       setLoading(false);
     }
@@ -67,7 +71,8 @@ export function AppleHealthScreen({ navigation }: { navigation: any }) {
   const handleSync = async () => {
     setSyncing(true);
     try {
-      await syncHealthKitToServer(api.saveDailyActivity, api.addWeightEntry, 7);
+      const result = await syncHealthKitToServer(api.saveDailyActivity, api.addWeightEntry, 7);
+      setNoDataWarning(!result.hasData);
       await load();
     } catch {
       Alert.alert('Sync Failed', 'Could not sync HealthKit data. Please try again.');
@@ -143,6 +148,17 @@ export function AppleHealthScreen({ navigation }: { navigation: any }) {
           </View>
         )}
 
+        {noDataWarning && (
+          <View style={[styles.warningCard, { backgroundColor: 'rgba(228,87,76,0.1)' }]}>
+            <TriangleAlert size={15} color={colors.danger2} style={{ marginTop: 1 }} />
+            <Text style={{ flex: 1, fontFamily: Fonts.sans, fontSize: 11.5, lineHeight: 18, color: colors.ink }}>
+              Health returned no steps, calories, or heart rate for the last 7 days. iOS grants each data
+              type separately — check Settings → Privacy & Security → Health → FitTrack Pro and make sure Steps,
+              Active Energy, and Heart Rate are all turned on.
+            </Text>
+          </View>
+        )}
+
         {status.enabled && (
           <>
             <View style={styles.sectionHeaderRow}><SectionLabel colors={colors}>Reading from Health</SectionLabel></View>
@@ -160,6 +176,29 @@ export function AppleHealthScreen({ navigation }: { navigation: any }) {
                 icon={<Scale size={17} color={colors.progress} />} title="Body weight" subtitle="Smart-scale readings become your trend"
                 right={<Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12.5, color: colors.ink }}>{latest.weight ? `${latest.weight} lb` : '--'}</Text>} />
             </ListGroup>
+
+            {history.length > 0 && (
+              <>
+                <View style={styles.sectionHeaderRow}><SectionLabel colors={colors}>Recent sync history</SectionLabel></View>
+                <ListGroup colors={colors}>
+                  {history.slice(0, 7).map((a, i) => (
+                    <ListRow
+                      key={a.date}
+                      colors={colors}
+                      chevron={false}
+                      isLast={i === Math.min(history.length, 7) - 1}
+                      title={new Date(a.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                      subtitle={a.source === 'healthkit' ? 'From Health' : 'Manual entry'}
+                      right={
+                        <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12.5, color: colors.ink }}>
+                          {a.steps.toLocaleString()} steps · {a.activeCalories} cal
+                        </Text>
+                      }
+                    />
+                  ))}
+                </ListGroup>
+              </>
+            )}
 
             <View style={styles.sectionHeaderRow}><SectionLabel colors={colors}>Writing back to Health</SectionLabel></View>
             <ListGroup colors={colors}>
@@ -195,4 +234,5 @@ const styles = StyleSheet.create({
   syncBtn: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 11 },
   sectionHeaderRow: { marginTop: 8, marginBottom: 4 },
   privacyCard: { flexDirection: 'row', gap: 12, borderRadius: 16, padding: 16, marginTop: 8 },
+  warningCard: { flexDirection: 'row', gap: 12, borderRadius: 16, padding: 16 },
 });

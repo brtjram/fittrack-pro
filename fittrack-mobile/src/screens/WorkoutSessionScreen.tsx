@@ -295,11 +295,17 @@ export function WorkoutSessionScreen({ route, navigation }: { route: any; naviga
               <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12.5, color: colors.mutedStrong }}>{doneSets}/{totalSets} sets</Text>
             </View>
             <TouchableOpacity
-              style={[styles.finishPill, { backgroundColor: allComplete ? colors.signal : colors.surfaceInset }]}
+              style={[
+                styles.finishPill,
+                {
+                  backgroundColor: allComplete ? colors.signal : colors.surfaceInset,
+                  borderColor: allComplete ? colors.signal : colors.mutedStrong,
+                },
+              ]}
               onPress={allComplete ? finishWorkout : () => confirmFinishAnyway(totalSets - doneSets)}
               activeOpacity={0.85}
             >
-              <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 14, color: allComplete ? colors.signalForeground : colors.mutedStrong }}>
+              <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 14, color: allComplete ? colors.signalForeground : colors.ink }}>
                 {allComplete ? 'Finish workout' : 'Finish anyway'}
               </Text>
             </TouchableOpacity>
@@ -339,5 +345,5 @@ const styles = StyleSheet.create({
   progressChip: { flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 99, paddingHorizontal: 14, paddingVertical: 13 },
   progressChipTrack: { width: 34, height: 4, borderRadius: 2, overflow: 'hidden' },
   progressChipFill: { height: '100%', borderRadius: 2 },
-  finishPill: { alignItems: 'center', justifyContent: 'center', borderRadius: 99, paddingVertical: 15, paddingHorizontal: 22 },
+  finishPill: { alignItems: 'center', justifyContent: 'center', borderRadius: 99, paddingVertical: 15, paddingHorizontal: 22, borderWidth: 1.5 },
 });
