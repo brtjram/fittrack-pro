@@ -17,7 +17,10 @@ function getHealthKit() {
   if (Platform.OS !== 'ios') return null;
   if (!AppleHealthKit) {
     try {
-      AppleHealthKit = require('react-native-health').default;
+      // react-native-health's index.js does `module.exports = HealthKit` —
+      // a plain CommonJS export with no `.default` — so `.default` here was
+      // always undefined, making every call silently report unavailable.
+      AppleHealthKit = require('react-native-health');
     } catch {
       return null;
     }
