@@ -111,3 +111,31 @@ export async function analyzeFoodPhoto(
   const input = toolUse.input as PhotoAnalysisResult;
   return { items: input.items ?? [], notes: input.notes };
 }
+
+/**
+ * Same estimation path as analyzeFoodPhoto but from a plain-text description
+ * only (no image) — for logging food by typing/dictating what was eaten.
+ */
+export async function analyzeFoodDescription(description: string): Promise<PhotoAnalysisResult> {
+  const response = await client.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 1500,
+    system: 'You are a nutrition estimation assistant. The user will describe, in their own words, food or drink they ate — parse out each distinct item, infer realistic portions from any quantities/units they give (or a reasonable default serving if they give none), and account for stated cooking method/sauces/oil. Prefer realistic home/restaurant portions over exact lab measurements — these are estimates, not lab analysis. Always call log_food_items with your best estimate rather than refusing; use low confidence and the notes field for genuine ambiguity (e.g. no portion given, unclear ingredient).',
+    messages: [
+      { role: 'user', content: `Identify the food/drink items in this description and estimate their macros: "${description}"` },
+    ],
+    tools: [logFoodItemsTool],
+    tool_choice: { type: 'tool', name: 'log_food_items' },
+  });
+
+  const toolUse = response.content.find(
+    (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use' && block.name === 'log_food_items',
+  );
+
+  if (!toolUse) {
+    throw new Error('Could not identify any food items in that description.');
+  }
+
+  const input = toolUse.input as PhotoAnalysisResult;
+  return { items: input.items ?? [], notes: input.notes };
+}

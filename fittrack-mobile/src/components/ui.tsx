@@ -1,0 +1,250 @@
+// Shared "Warm Iron" building blocks used across the redesigned screens —
+// grouped list rows, rings, sparklines, pills. Keeps every screen's markup
+// close to the design doc instead of re-deriving these primitives per file.
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, TouchableOpacity, TextInput, StyleSheet, Animated } from 'react-native';
+import Svg, { Circle, Path, Line } from 'react-native-svg';
+import { ChevronRight, Check } from 'lucide-react-native';
+import { Fonts } from '../theme/fonts';
+import type { ThemeColors } from '../theme/colors';
+
+// Small numeric value shown in a rounded "bubble", tap to edit — the value
+// chips used throughout the auto-apply profile drill-in screens (no Save
+// button; committing the edit calls onCommit immediately).
+export function NumberBubble({
+  value, unit, colors, onCommit, keyboardType = 'numeric', width = 74,
+}: {
+  value: number; unit?: string; colors: ThemeColors; onCommit: (v: number) => void;
+  keyboardType?: 'numeric' | 'decimal-pad'; width?: number;
+}) {
+  const [text, setText] = useState(String(value));
+  useEffect(() => { setText(String(value)); }, [value]);
+  const commit = () => {
+    const parsed = parseFloat(text);
+    if (!Number.isNaN(parsed) && parsed !== value) onCommit(parsed);
+    else setText(String(value));
+  };
+  return (
+    <View style={[bubbleStyles.wrap, { backgroundColor: colors.surfaceInset, minWidth: width }]}>
+      <TextInput
+        value={text}
+        onChangeText={setText}
+        onBlur={commit}
+        onSubmitEditing={commit}
+        keyboardType={keyboardType}
+        style={{ fontFamily: Fonts.sansSemiBold, fontSize: 15, color: colors.ink, textAlign: 'right', minWidth: 24, padding: 0 }}
+      />
+      {unit && <Text style={{ fontFamily: Fonts.sans, fontSize: 11.5, color: colors.mutedForeground }}>{unit}</Text>}
+    </View>
+  );
+}
+
+const bubbleStyles = StyleSheet.create({
+  wrap: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 11, paddingHorizontal: 12, paddingVertical: 7, justifyContent: 'flex-end' },
+});
+
+// Segmented control (2+ options) sharing the profile drill-ins' "pill row"
+// look — the light chip on dark track used for Sex, Units, split-day toggles.
+export function SegmentedControl<T extends string | number>({
+  options, value, onChange, colors,
+}: {
+  options: { value: T; label: string }[]; value: T; onChange: (v: T) => void; colors: ThemeColors;
+}) {
+  return (
+    <View style={[segStyles.track, { backgroundColor: colors.surfaceInset }]}>
+      {options.map((opt) => (
+        <TouchableOpacity
+          key={opt.value}
+          onPress={() => onChange(opt.value)}
+          style={[segStyles.seg, value === opt.value && { backgroundColor: colors.ink }]}
+        >
+          <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 11.5, color: value === opt.value ? colors.canvas : colors.mutedStrong }}>
+            {opt.label}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+}
+
+const segStyles = StyleSheet.create({
+  track: { flexDirection: 'row', gap: 4, borderRadius: 11, padding: 3 },
+  seg: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 8, paddingVertical: 7, paddingHorizontal: 10 },
+});
+
+// Fades in briefly after an auto-applied change, then fades out — replaces
+// the old pattern's explicit Save button with quiet confirmation instead.
+export function AppliedBanner({ visible, colors, label = 'Applied' }: { visible: boolean; colors: ThemeColors; label?: string }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (visible) {
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1, duration: 150, useNativeDriver: true }),
+        Animated.delay(1400),
+        Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [visible, opacity]);
+  return (
+    <Animated.View style={{ opacity, flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'center' }}>
+      <Check size={13} color={colors.progress} strokeWidth={3} />
+      <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12, color: colors.progress }}>{label}</Text>
+    </Animated.View>
+  );
+}
+
+export function SectionLabel({ children, colors, style }: { children: React.ReactNode; colors: ThemeColors; style?: any }) {
+  return (
+    <Text style={[{ fontFamily: Fonts.sansMedium, fontSize: 11, letterSpacing: 1.2, color: colors.mutedForeground, textTransform: 'uppercase' }, style]}>
+      {children}
+    </Text>
+  );
+}
+
+export function Serif({ children, style }: { children: React.ReactNode; style?: any }) {
+  return <Text style={[{ fontFamily: Fonts.serif }, style]}>{children}</Text>;
+}
+
+export function Card({ children, colors, style }: { children: React.ReactNode; colors: ThemeColors; style?: any }) {
+  return <View style={[{ backgroundColor: colors.surface, borderRadius: 18, padding: 18 }, style]}>{children}</View>;
+}
+
+export function ListGroup({ children, colors, style }: { children: React.ReactNode; colors: ThemeColors; style?: any }) {
+  return <View style={[{ backgroundColor: colors.surface, borderRadius: 16, overflow: 'hidden' }, style]}>{children}</View>;
+}
+
+export function ListRow({
+  icon, iconColor, title, subtitle, detail, chevron = true, isLast = false, onPress, colors, right,
+}: {
+  icon?: React.ReactNode; iconColor?: string; title: string; subtitle?: string; detail?: string;
+  chevron?: boolean; isLast?: boolean; onPress?: () => void; colors: ThemeColors; right?: React.ReactNode;
+}) {
+  const Wrap = onPress ? TouchableOpacity : View;
+  return (
+    <Wrap
+      style={[rowStyles.row, !isLast && { borderBottomWidth: 1, borderBottomColor: colors.hairline }]}
+      onPress={onPress}
+      activeOpacity={0.6}
+    >
+      {icon && <View style={{ marginRight: 14 }}>{icon}</View>}
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 13.5, color: colors.ink }}>{title}</Text>
+        {subtitle ? <Text style={{ fontFamily: Fonts.sans, fontSize: 11, color: colors.mutedForeground, marginTop: 2 }}>{subtitle}</Text> : null}
+      </View>
+      {detail ? <Text style={{ fontFamily: Fonts.sans, fontSize: 12.5, color: colors.mutedForeground, marginRight: chevron ? 6 : 0 }}>{detail}</Text> : null}
+      {right}
+      {chevron && <ChevronRight size={16} color={colors.mutedForeground} />}
+    </Wrap>
+  );
+}
+
+const rowStyles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 18, paddingVertical: 15 },
+});
+
+export function PillButton({
+  label, onPress, colors, tone = 'signal', disabled, icon, style,
+}: {
+  label: string; onPress?: () => void; colors: ThemeColors; tone?: 'signal' | 'ghost' | 'ink';
+  disabled?: boolean; icon?: React.ReactNode; style?: any;
+}) {
+  const bg = tone === 'signal' ? colors.signal : tone === 'ink' ? colors.ink : colors.surfaceInset;
+  const fg = tone === 'signal' ? colors.signalForeground : tone === 'ink' ? colors.canvas : colors.ink;
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={disabled}
+      activeOpacity={0.8}
+      style={[pillStyles.btn, { backgroundColor: bg, opacity: disabled ? 0.5 : 1 }, style]}
+    >
+      {icon}
+      <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 15.5, color: fg }}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+const pillStyles = StyleSheet.create({
+  btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, paddingVertical: 16 },
+});
+
+export function Ring({ size = 58, stroke = 5, percent, trackColor, fillColor }: {
+  size?: number; stroke?: number; percent: number; trackColor: string; fillColor: string;
+}) {
+  const r = (size - stroke) / 2;
+  const c = size / 2;
+  const circumference = 2 * Math.PI * r;
+  const dashOffset = circumference * (1 - Math.min(Math.max(percent, 0), 1));
+  return (
+    <Svg width={size} height={size}>
+      <Circle cx={c} cy={c} r={r} stroke={trackColor} strokeWidth={stroke} fill="none" />
+      <Circle
+        cx={c} cy={c} r={r} stroke={fillColor} strokeWidth={stroke} fill="none"
+        strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={dashOffset}
+        transform={`rotate(-90 ${c} ${c})`}
+      />
+    </Svg>
+  );
+}
+
+// Simple line sparkline over evenly-spaced values, 0..1 normalized internally.
+export function Sparkline({ values, width = 300, height = 60, color, dotColor, showEndDot = true }: {
+  values: number[]; width?: number; height?: number; color: string; dotColor?: string; showEndDot?: boolean;
+}) {
+  if (values.length < 2) return <View style={{ width, height }} />;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const pad = height * 0.12;
+  const pts = values.map((v, i) => {
+    const x = (i / (values.length - 1)) * width;
+    const y = pad + (1 - (v - min) / range) * (height - pad * 2);
+    return [x, y];
+  });
+  const d = pts.map((p, i) => (i === 0 ? `M${p[0]} ${p[1]}` : `L${p[0]} ${p[1]}`)).join(' ');
+  return (
+    <Svg width={width} height={height}>
+      {pts.slice(0, -1).map(([x, y], i) => (
+        <Circle key={i} cx={x} cy={y} r={2.5} fill={dotColor ?? color} opacity={0.35} />
+      ))}
+      <Path d={d} stroke={color} strokeWidth={2.5} strokeLinecap="round" fill="none" />
+      {showEndDot && <Circle cx={pts[pts.length - 1][0]} cy={pts[pts.length - 1][1]} r={4.5} fill={color} />}
+    </Svg>
+  );
+}
+
+export function BarChart({ values, labels, width = 300, height = 76, color, mutedColor, highlightLast }: {
+  values: number[]; labels?: string[]; width?: number; height?: number; color: string; mutedColor: string; highlightLast?: boolean;
+}) {
+  const max = Math.max(...values, 1);
+  const gap = 9;
+  const barW = (width - gap * (values.length - 1)) / values.length;
+  return (
+    <View style={{ width, height, flexDirection: 'row', alignItems: 'flex-end', gap }}>
+      {values.map((v, i) => {
+        const h = Math.max(4, (v / max) * height);
+        const isLast = i === values.length - 1;
+        return (
+          <View key={i} style={{ flex: 1, alignItems: 'center', gap: 6 }}>
+            <View style={{ width: '100%', height, justifyContent: 'flex-end' }}>
+              <View style={{ width: '100%', height: h, borderRadius: 4, backgroundColor: isLast && highlightLast ? color : mutedColor }} />
+            </View>
+            {labels?.[i] ? <Text style={{ fontSize: 9.5, fontFamily: Fonts.sans, color: isLast && highlightLast ? color : mutedColor }}>{labels[i]}</Text> : null}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+export function Divider({ colors }: { colors: ThemeColors }) {
+  return <View style={{ height: 1, backgroundColor: colors.hairline }} />;
+}
+
+export function GridLines({ width, height, rows = 3, color }: { width: number; height: number; rows?: number; color: string }) {
+  const lines = Array.from({ length: rows }, (_, i) => (height / (rows - 1 || 1)) * i);
+  return (
+    <Svg width={width} height={height} style={{ position: 'absolute' }}>
+      {lines.map((y, i) => <Line key={i} x1={0} y1={y} x2={width} y2={y} stroke={color} strokeWidth={1} />)}
+    </Svg>
+  );
+}

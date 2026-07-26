@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { jwtVerify } from 'jose';
 import { looksLikeApiToken, resolveApiToken } from '@/lib/services/api-token-service';
+import { prisma } from '@/lib/prisma';
 
 const secret = new TextEncoder().encode(process.env.AUTH_SECRET);
 
@@ -27,7 +28,12 @@ export async function getAuthUserId(): Promise<string | NextResponse> {
       try {
         const { payload } = await jwtVerify(token, secret);
         if (payload.sub) {
-          return payload.sub;
+          // The token's signature can be valid while its subject no longer exists
+          // (e.g. a device holding a token issued against a different/reset
+          // database) — writes that upsert a row with a userId foreign key would
+          // otherwise crash with an uncaught constraint error instead of a clean 401.
+          const user = await prisma.user.findUnique({ where: { id: payload.sub }, select: { id: true } });
+          if (user) return payload.sub;
         }
       } catch {
         // Invalid token — fall through to cookie auth

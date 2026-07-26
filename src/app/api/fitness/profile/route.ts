@@ -16,7 +16,7 @@ export async function PUT(request: NextRequest) {
   if (userId instanceof NextResponse) return userId;
 
   const body = await request.json();
-  const { name, age, gender, heightCm, currentWeightLbs, targetWeightLbs, activityLevel, goal, experienceLevel, preferredSplit, healthSyncApiKey, trackCycle, cycleLength, lastPeriodDate, aiCoachGoal } = body;
+  const { name, age, gender, heightCm, currentWeightLbs, targetWeightLbs, activityLevel, goal, experienceLevel, preferredSplit, healthSyncApiKey, trackCycle, cycleLength, lastPeriodDate, aiCoachGoal, weightUnit, heightUnit, energyUnit, weekStartsOn, trainingDays, sessionLengthMin, nutritionTargetOverride } = body;
 
   // In AI Coach Mode / the Transformation Challenge, stepTarget is set by the
   // coach/current phase (via schedule_workout_plan / applyTransformationChallengePhaseAction)
@@ -29,7 +29,8 @@ export async function PUT(request: NextRequest) {
     update: {
       name, age, gender, heightCm, currentWeightLbs, targetWeightLbs,
       activityLevel, goal, experienceLevel, preferredSplit, healthSyncApiKey,
-      trackCycle, cycleLength, lastPeriodDate,
+      trackCycle, cycleLength, lastPeriodDate, nutritionTargetOverride,
+      weightUnit, heightUnit, energyUnit, weekStartsOn, trainingDays, sessionLengthMin,
       ...(goal === 'ai_coach' && { aiCoachGoal }),
       ...(!ownsStepTarget && { stepTarget }),
     },
@@ -37,7 +38,11 @@ export async function PUT(request: NextRequest) {
       userId, name, age, gender, heightCm, currentWeightLbs, targetWeightLbs,
       activityLevel, goal, experienceLevel, preferredSplit, healthSyncApiKey,
       trackCycle: trackCycle ?? false, cycleLength, lastPeriodDate, stepTarget,
+      nutritionTargetOverride,
       aiCoachGoal: goal === 'ai_coach' ? aiCoachGoal : undefined,
+      weightUnit: weightUnit ?? 'lb', heightUnit: heightUnit ?? 'cm',
+      energyUnit: energyUnit ?? 'kcal', weekStartsOn: weekStartsOn ?? 'mon',
+      trainingDays: trainingDays ?? '1,2,4,5,6', sessionLengthMin: sessionLengthMin ?? 60,
     },
   });
 

@@ -18,9 +18,20 @@ export interface UserProfile {
   stepTarget?: number;
   nutritionTargetOverride?: string | null;
   aiCoachGoal?: string | null;
+  weightUnit?: WeightUnit;
+  heightUnit?: HeightUnit;
+  energyUnit?: EnergyUnit;
+  weekStartsOn?: WeekStart;
+  trainingDays?: string;
+  sessionLengthMin?: number;
   createdAt: string;
   updatedAt: string;
 }
+
+export type WeightUnit = 'lb' | 'kg';
+export type HeightUnit = 'cm' | 'ftin';
+export type EnergyUnit = 'kcal' | 'kj';
+export type WeekStart = 'mon' | 'sun';
 
 export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
 export type Goal = 'fat_loss' | 'muscle_gain' | 'recomp' | 'maintain' | 'ai_coach' | 'challenge';

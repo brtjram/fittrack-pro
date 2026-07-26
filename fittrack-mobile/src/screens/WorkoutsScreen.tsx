@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, Alert, StyleSheet,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Dumbbell, Trash2, RotateCcw, CheckCircle, ChevronRight, Zap, Calendar } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import * as api from '../services/api';
@@ -15,6 +16,7 @@ function toDateString(d?: Date): string {
 
 export function WorkoutsScreen({ navigation }: { navigation: any }) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [workouts, setWorkouts] = useState<WorkoutSession[]>([]);
   const [deletedWorkouts, setDeletedWorkouts] = useState<WorkoutSession[]>([]);
   const [showDeleted, setShowDeleted] = useState(false);
@@ -172,7 +174,7 @@ export function WorkoutsScreen({ navigation }: { navigation: any }) {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.background, paddingTop: insets.top + 16 }]}>
         <Text style={[styles.screenTitle, { color: colors.foreground }]}>Train</Text>
         <View style={styles.generateRow}>
           <TouchableOpacity

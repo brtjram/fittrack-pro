@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><template id="__bundler_thumbnail" data-bg-color="#0E0D0B"><svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg"><rect width="1200" height="800" fill="#0E0D0B"/><g transform="translate(487.5 212.5) scale(7.03)"><rect width="32" height="32" rx="8" fill="#171613"/><rect x="7" y="7" width="3" height="18" rx="1.5" fill="#C9E84A"/><rect x="7" y="7" width="10" height="3" rx="1.5" fill="#C9E84A"/><rect x="7" y="14.5" width="8" height="3" rx="1.5" fill="#C9E84A"/><rect x="16" y="7" width="9" height="3" rx="1.5" fill="#F59148"/><rect x="19" y="7" width="3" height="18" rx="1.5" fill="#F59148"/></g></svg></template><link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet"><script src="./icon-offline.js"></script><style>body{margin:0;background:#EDEAE4;font-family:Archivo,system-ui,sans-serif}a{color:#B4551F}a:hover{color:#8a3f14}l-icon{flex:none}*{-webkit-tap-highlight-color:transparent}</style></helmet>
+
+<div style="min-height:100vh;display:flex;align-items:flex-start;justify-content:center;gap:40px;padding:44px 40px 60px;box-sizing:border-box">
+
+  <div style="display:flex;flex-direction:column;gap:14px;max-width:300px;padding-top:8px">
+    <div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#6E6A60;text-transform:uppercase">Clickable prototype</div>
+    <div style="font:400 27px/1.15 'Instrument Serif',Georgia,serif;color:#1a1a1a">FitTrack, rebuilt</div>
+    <div style="font:400 12.5px/1.65 Archivo;color:#3a3833;text-wrap:pretty">Home is <strong>1a</strong> with <strong>1b</strong>'s weight trend folded in. The log sheet merges <strong>1d</strong>'s camera with <strong>1e</strong>'s recents. Workout logging is <strong>1g</strong>, finishing into <strong>1h</strong>.</div>
+    <div style="height:1px;background:rgba(0,0,0,.1);margin:4px 0"></div>
+    <div style="font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#6E6A60;text-transform:uppercase">Things to try</div>
+    <div style="display:flex;flex-direction:column;gap:9px;font:400 12px/1.5 Archivo;color:#3a3833">
+      <div>Tap <strong>Pick up where you left off</strong> → complete sets → the session finishes into the PR screen.</div>
+      <div>Tap the <strong>＋</strong> button → <strong>Snap a photo</strong> → review → log. Watch the rings on Today move.</div>
+      <div>Tap <strong>How to</strong> on any exercise for the form video.</div>
+      <div>Tap <strong>Progress</strong> → <strong>12-week challenge</strong>.</div>
+      <div>Reset onboarding from the button below.</div>
+    </div>
+    <div onClick="{{ restart }}" style="display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid rgba(0,0,0,.15);border-radius:10px;padding:11px 14px;cursor:pointer;font:600 12px Archivo;color:#1a1a1a;margin-top:6px" style-hover="background:rgba(0,0,0,.05)"><l-icon name="rotate-ccw" size="13"></l-icon>Replay onboarding</div>
+  </div>
+
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" width="{{ 393 }}" height="{{ 852 }}" hint-size="393px,852px">
+    <div style="height:100%;background:#0E0D0B;position:relative;overflow:hidden;font-family:Archivo,system-ui,sans-serif;-webkit-font-smoothing:antialiased">
+
+      <sc-if value="{{ isOnboard }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0;background:#0E0D0B;display:flex;flex-direction:column;z-index:7">
+          <div style="flex:none;padding:60px 24px 0;display:flex;align-items:center;gap:8px">
+            <div style="flex:1;height:3px;border-radius:2px;background:{{ ob1 }}"></div>
+            <div style="flex:1;height:3px;border-radius:2px;background:{{ ob2 }}"></div>
+            <div style="flex:1;height:3px;border-radius:2px;background:{{ ob3 }}"></div>
+          </div>
+
+          <sc-if value="{{ obIs0 }}" hint-placeholder-val="{{ false }}">
+            <div style="flex:1;display:flex;flex-direction:column;padding:0 24px">
+              <div style="flex:none;padding-top:44px">
+                <svg width="44" height="44" viewBox="0 0 32 32" style="display:block;margin-bottom:26px"><rect width="32" height="32" rx="9" fill="#171613"></rect><rect x="7" y="7" width="3" height="18" rx="1.5" fill="#C9E84A"></rect><rect x="7" y="7" width="10" height="3" rx="1.5" fill="#C9E84A"></rect><rect x="7" y="14.5" width="8" height="3" rx="1.5" fill="#C9E84A"></rect><rect x="16" y="7" width="9" height="3" rx="1.5" fill="#F59148"></rect><rect x="19" y="7" width="3" height="18" rx="1.5" fill="#F59148"></rect></svg>
+                <div style="font:400 34px/1.12 'Instrument Serif',Georgia,serif;color:#F7F4EE">What are we<br>working on?</div>
+                <div style="font:400 13px/1.6 Archivo;color:#9A938A;margin-top:12px;max-width:290px">Everything after this — your calories, your sessions, how hard I push you — follows from this one answer. You can change it any time.</div>
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column;gap:10px;justify-content:center;padding:24px 0">
+                <sc-for list="{{ goals }}" as="g" hint-placeholder-count="4">
+                  <div onClick="{{ g.pick }}" style="display:flex;align-items:center;gap:14px;background:{{ g.bg }};border:1.5px solid {{ g.bd }};border-radius:16px;padding:16px 18px;cursor:pointer">
+                    <div style="flex:1"><div style="font:600 15px Archivo;color:#F7F4EE">{{ g.label }}</div><div style="font:400 11.5px/1.45 Archivo;color:#9A938A;margin-top:3px">{{ g.desc }}</div></div>
+                    <div style="width:22px;height:22px;border-radius:11px;background:{{ g.dotBg }};border:1.5px solid {{ g.dotBd }};display:flex;align-items:center;justify-content:center;color:#0E0D0B">{{ g.tick }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ obIs1 }}" hint-placeholder-val="{{ false }}">
+            <div style="flex:1;display:flex;flex-direction:column;padding:44px 24px 0">
+              <div style="font:400 34px/1.12 'Instrument Serif',Georgia,serif;color:#F7F4EE">A few numbers<br>and I'll do the maths.</div>
+              <div style="font:400 13px/1.6 Archivo;color:#9A938A;margin-top:12px">Nothing here is permanent. I recalculate every week from your actual weight trend, not this form.</div>
+              <div style="display:flex;flex-direction:column;gap:12px;margin-top:32px">
+                <div style="display:flex;gap:12px">
+                  <div style="flex:1;background:#171613;border-radius:14px;padding:14px 16px"><div style="font:500 9.5px Archivo;letter-spacing:.1em;color:#9A938A;text-transform:uppercase">Weight now</div><div style="display:flex;align-items:baseline;gap:4px;margin-top:6px"><span style="font:600 24px Archivo;color:#F7F4EE;letter-spacing:-.02em">183</span><span style="font:500 12px Archivo;color:#9A938A">lb</span></div></div>
+                  <div style="flex:1;background:#171613;border-radius:14px;padding:14px 16px"><div style="font:500 9.5px Archivo;letter-spacing:.1em;color:#9A938A;text-transform:uppercase">Goal</div><div style="display:flex;align-items:baseline;gap:4px;margin-top:6px"><span style="font:600 24px Archivo;color:#F7F4EE;letter-spacing:-.02em">170</span><span style="font:500 12px Archivo;color:#9A938A">lb</span></div></div>
+                </div>
+                <div style="background:#171613;border-radius:14px;padding:16px 18px">
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px"><div style="font:500 9.5px Archivo;letter-spacing:.1em;color:#9A938A;text-transform:uppercase">How fast</div><div style="font:600 12px Archivo;color:#C9E84A">0.8 lb / week</div></div>
+                  <div style="height:5px;border-radius:3px;background:#2C2A25;position:relative"><div style="position:absolute;left:0;top:0;height:5px;width:56%;border-radius:3px;background:linear-gradient(90deg,#C9E84A,#9FCE3A)"></div><div style="position:absolute;left:56%;top:-5px;width:15px;height:15px;border-radius:8px;background:#F7F4EE;margin-left:-7px"></div></div>
+                  <div style="display:flex;justify-content:space-between;margin-top:9px"><span style="font:400 10px Archivo;color:#9A938A">Gentle</span><span style="font:400 10px Archivo;color:#9A938A">Aggressive</span></div>
+                  <div style="font:400 11.5px/1.5 Archivo;color:#9A938A;margin-top:13px;border-top:1px solid #211F1B;padding-top:13px">At this rate you'll reach 170 lb around <span style="color:#F7F4EE">29 September</span> — about 16 weeks. Fast enough to see it, slow enough to keep your strength.</div>
+                </div>
+                <div style="background:#171613;border-radius:14px;padding:16px 18px">
+                  <div style="font:500 9.5px Archivo;letter-spacing:.1em;color:#9A938A;text-transform:uppercase;margin-bottom:12px">Training days a week</div>
+                  <div style="display:flex;gap:8px">
+                    <div style="flex:1;text-align:center;padding:11px 0;border-radius:11px;background:#211F1B;font:600 14px Archivo;color:#9A938A">3</div>
+                    <div style="flex:1;text-align:center;padding:11px 0;border-radius:11px;background:#211F1B;font:600 14px Archivo;color:#9A938A">4</div>
+                    <div style="flex:1;text-align:center;padding:11px 0;border-radius:11px;background:#F59148;font:600 14px Archivo;color:#0E0D0B">5</div>
+                    <div style="flex:1;text-align:center;padding:11px 0;border-radius:11px;background:#211F1B;font:600 14px Archivo;color:#9A938A">6</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ obIs2 }}" hint-placeholder-val="{{ false }}">
+            <div style="flex:1;display:flex;flex-direction:column;padding:44px 24px 0;overflow:auto">
+              <div style="font:400 34px/1.12 'Instrument Serif',Georgia,serif;color:#F7F4EE">Here's your<br>first week.</div>
+              <div style="font:400 13px/1.6 Archivo;color:#9A938A;margin-top:12px">Push / pull / legs across five days, {{ obKcal }} kcal and {{ obProtein }}g protein a day. Nothing to set up — just start Monday.</div>
+              <div style="display:flex;flex-direction:column;gap:8px;margin-top:26px">
+                <sc-for list="{{ plan }}" as="p" hint-placeholder-count="5">
+                  <div style="display:flex;align-items:center;gap:14px;background:#171613;border-radius:14px;padding:14px 16px">
+                    <div style="width:34px;height:34px;border-radius:10px;background:#211F1B;display:flex;align-items:center;justify-content:center;font:600 11px Archivo;color:#9A938A">{{ p.day }}</div>
+                    <div style="flex:1"><div style="font:600 13.5px Archivo;color:#F7F4EE">{{ p.name }}</div><div style="font:400 11px Archivo;color:#9A938A;margin-top:2px">{{ p.meta }}</div></div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="background:#171613;border-radius:14px;padding:16px 18px;margin-top:14px">
+                <div style="font:400 16px/1.45 'Instrument Serif',Georgia,serif;color:#F7F4EE">One habit beats ten rules: log what you eat, even badly.</div>
+                <div style="font:400 11.5px/1.55 Archivo;color:#9A938A;margin-top:9px">Photograph your plate and I'll do the rest. Six logged days a week is all I need to keep your targets honest.</div>
+              </div>
+            </div>
+          </sc-if>
+
+          <div style="flex:none;padding:16px 24px 34px;display:flex;align-items:center;gap:12px">
+            <div onClick="{{ skipOb }}" style="font:600 13px Archivo;color:#9A938A;padding:14px 4px;cursor:pointer">Skip</div>
+            <div onClick="{{ nextOb }}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;background:#F59148;border-radius:14px;padding:16px 0;cursor:pointer;color:#0E0D0B"><span style="font:600 15px Archivo">{{ obCta }}</span><l-icon name="arrow-right" size="17" stroke="2.5"></l-icon></div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isToday }}" hint-placeholder-val="{{ true }}">
+        <div style="position:absolute;inset:0 0 98px;display:flex;flex-direction:column">
+          <div style="flex:1;overflow:auto">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:62px 24px 0">
+              <div>
+                <div style="font:500 11px Archivo;letter-spacing:.12em;color:#9A938A;text-transform:uppercase">Friday 25 July</div>
+                <div style="font:400 30px/1.12 'Instrument Serif',Georgia,serif;color:#F7F4EE;margin-top:8px">Good evening,<br>Marcus</div>
+              </div>
+              <div style="width:38px;height:38px;border-radius:19px;background:#211F1B;display:flex;align-items:center;justify-content:center;font:600 13px Archivo;color:#9A938A;margin-top:22px">MC</div>
+            </div>
+
+            <div style="margin:26px 16px 0;border-radius:20px;overflow:hidden;background:#171613">
+              <div style="height:172px;background:repeating-linear-gradient(115deg,#211F1B 0 10px,#1A1815 10px 20px);position:relative;display:flex;align-items:flex-end">
+                <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(14,13,11,.94) 0%,rgba(14,13,11,.25) 55%,transparent 100%)"></div>
+                <div style="position:absolute;top:14px;left:14px;font:400 9.5px ui-monospace;color:#9A938A;letter-spacing:.06em">bench press · form still</div>
+                <div style="position:relative;padding:0 20px 16px">
+                  <div style="display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border-radius:99px;background:rgba(201,232,74,.16);margin-bottom:10px"><span style="width:5px;height:5px;border-radius:3px;background:#C9E84A"></span><span style="font:600 9.5px Archivo;letter-spacing:.1em;color:#C9E84A;text-transform:uppercase">{{ heroBadge }}</span></div>
+                  <div style="font:600 25px/1.1 Archivo;letter-spacing:-.02em;color:#F7F4EE">Push Day A</div>
+                  <div style="font:400 13px Archivo;color:#9A938A;margin-top:4px">5 exercises · ~52 min · chest, shoulders, triceps</div>
+                </div>
+              </div>
+              <div style="padding:16px 20px 20px">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+                  <sc-for list="{{ exBars }}" as="b" hint-placeholder-count="5">
+                    <div style="flex:1;height:4px;border-radius:2px;background:{{ b.bg }}"></div>
+                  </sc-for>
+                  <div style="font:500 11px Archivo;color:#9A938A;margin-left:4px;font-variant-numeric:tabular-nums">{{ exDoneLabel }}</div>
+                </div>
+                <div onClick="{{ startWorkout }}" style="display:flex;align-items:center;justify-content:center;gap:8px;background:#F59148;border-radius:14px;padding:16px 0;color:#0E0D0B;cursor:pointer">
+                  <span style="font:600 15.5px Archivo;letter-spacing:-.01em">{{ heroCta }}</span>
+                  <l-icon name="arrow-right" size="18" stroke="2.5"></l-icon>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:baseline;justify-content:space-between;padding:30px 24px 14px">
+              <div style="font:500 11px Archivo;letter-spacing:.12em;color:#9A938A;text-transform:uppercase">Today's targets</div>
+              <div onClick="{{ openLog }}" style="font:500 11.5px Archivo;color:#F59148;cursor:pointer">Log food</div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0 16px">
+              <div style="box-sizing:border-box;background:#171613;border-radius:16px;padding:16px 12px;display:flex;flex-direction:column;align-items:center">
+                <svg width="58" height="58" viewBox="0 0 58 58"><circle cx="29" cy="29" r="24" fill="none" stroke="#2C2A25" stroke-width="5"></circle><circle cx="29" cy="29" r="24" fill="none" stroke="#C9E84A" stroke-width="5" stroke-linecap="round" stroke-dasharray="150.8" stroke-dashoffset="{{ kcalOffset }}" transform="rotate(-90 29 29)"></circle></svg>
+                <div style="font:600 17px Archivo;color:#F7F4EE;margin-top:10px;font-variant-numeric:tabular-nums;letter-spacing:-.02em">{{ kcalLeft }}</div>
+                <div style="font:400 10.5px Archivo;color:#9A938A;margin-top:1px;white-space:nowrap">kcal left</div>
+              </div>
+              <div style="box-sizing:border-box;background:#171613;border-radius:16px;padding:16px 12px;display:flex;flex-direction:column;align-items:center">
+                <svg width="58" height="58" viewBox="0 0 58 58"><circle cx="29" cy="29" r="24" fill="none" stroke="#2C2A25" stroke-width="5"></circle><circle cx="29" cy="29" r="24" fill="none" stroke="#C9E84A" stroke-width="5" stroke-linecap="round" stroke-dasharray="150.8" stroke-dashoffset="{{ proOffset }}" transform="rotate(-90 29 29)"></circle></svg>
+                <div style="font:600 17px Archivo;color:#F7F4EE;margin-top:10px;font-variant-numeric:tabular-nums;letter-spacing:-.02em">{{ protein }}<span style="color:#9A938A">/190</span></div>
+                <div style="font:400 10.5px Archivo;color:#9A938A;margin-top:1px;white-space:nowrap">protein</div>
+              </div>
+              <div style="box-sizing:border-box;background:#171613;border-radius:16px;padding:16px 12px;display:flex;flex-direction:column;align-items:center">
+                <svg width="58" height="58" viewBox="0 0 58 58"><circle cx="29" cy="29" r="24" fill="none" stroke="#2C2A25" stroke-width="5"></circle><circle cx="29" cy="29" r="24" fill="none" stroke="#6C9FD4" stroke-width="5" stroke-linecap="round" stroke-dasharray="150.8" stroke-dashoffset="66.3" transform="rotate(-90 29 29)"></circle></svg>
+                <div style="font:600 17px Archivo;color:#F7F4EE;margin-top:10px;font-variant-numeric:tabular-nums;letter-spacing:-.02em">6.4k</div>
+                <div style="font:400 10.5px Archivo;color:#9A938A;margin-top:1px;white-space:nowrap">steps</div>
+              </div>
+            </div>
+
+            <sc-if value="{{ showTrend }}" hint-placeholder-val="{{ true }}">
+              <div onClick="{{ goProgress }}" style="margin:24px 16px 0;background:#171613;border-radius:18px;padding:18px 18px 14px;cursor:pointer">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px">
+                  <div>
+                    <div style="font:500 10.5px Archivo;letter-spacing:.1em;color:#9A938A;text-transform:uppercase">Weight trend</div>
+                    <div style="display:flex;align-items:baseline;gap:7px;margin-top:6px"><span style="font:600 28px Archivo;color:#F7F4EE;letter-spacing:-.03em;font-variant-numeric:tabular-nums">183.0</span><span style="font:500 12px Archivo;color:#9A938A">lb</span></div>
+                  </div>
+                  <div style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:99px;background:rgba(201,232,74,.14);color:#C9E84A;margin-top:4px"><l-icon name="trending-down" size="13" stroke="2.4"></l-icon><span style="font:600 12px Archivo;font-variant-numeric:tabular-nums">0.8 lb/wk</span></div>
+                </div>
+                <svg width="100%" height="72" viewBox="0 0 320 72" preserveAspectRatio="none" style="display:block;margin-top:6px">
+                  <circle cx="8" cy="14" r="2.5" fill="#4A453D"></circle><circle cx="34" cy="8" r="2.5" fill="#4A453D"></circle><circle cx="60" cy="20" r="2.5" fill="#4A453D"></circle><circle cx="86" cy="12" r="2.5" fill="#4A453D"></circle><circle cx="112" cy="26" r="2.5" fill="#4A453D"></circle><circle cx="138" cy="18" r="2.5" fill="#4A453D"></circle><circle cx="164" cy="32" r="2.5" fill="#4A453D"></circle><circle cx="190" cy="24" r="2.5" fill="#4A453D"></circle><circle cx="216" cy="42" r="2.5" fill="#4A453D"></circle><circle cx="242" cy="34" r="2.5" fill="#4A453D"></circle><circle cx="268" cy="50" r="2.5" fill="#4A453D"></circle><circle cx="294" cy="44" r="2.5" fill="#4A453D"></circle>
+                  <path d="M8 13 C60 16, 100 20, 164 28 C220 36, 272 46, 312 54" fill="none" stroke="#C9E84A" stroke-width="2.5" stroke-linecap="round"></path>
+                  <circle cx="312" cy="54" r="4" fill="#C9E84A"></circle>
+                </svg>
+                <div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid #211F1B;margin-top:10px;padding-top:12px">
+                  <span style="font:400 11.5px Archivo;color:#9A938A">Nine pounds down since 14 June</span>
+                  <span style="color:#9A938A;display:flex"><l-icon name="chevron-right" size="15"></l-icon></span>
+                </div>
+              </div>
+            </sc-if>
+
+            <div style="margin:24px 16px 0;background:#171613;border-radius:18px;padding:20px">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+                <div style="width:22px;height:22px;border-radius:11px;background:#F59148;display:flex;align-items:center;justify-content:center;color:#0E0D0B"><l-icon name="sparkles" size="12" stroke="2.5"></l-icon></div>
+                <div style="font:500 11px Archivo;letter-spacing:.12em;color:#9A938A;text-transform:uppercase">One thing tonight</div>
+              </div>
+              <div style="font:400 19px/1.35 'Instrument Serif',Georgia,serif;color:#F7F4EE">{{ nudge }}</div>
+              <div style="font:400 12.5px/1.5 Archivo;color:#9A938A;margin-top:10px">Your weight trend flattened for 10 days, so I've trimmed 150 kcal from tomorrow.</div>
+            </div>
+            <div style="height:20px"></div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isTrain }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0 0 98px;display:flex;flex-direction:column">
+          <div style="flex:1;overflow:auto">
+            <div style="padding:62px 24px 0;display:flex;align-items:baseline;justify-content:space-between">
+              <div style="font:400 28px/1 'Instrument Serif',Georgia,serif;color:#F7F4EE">Train</div>
+              <div style="display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:99px;background:#171613;color:#F59148"><l-icon name="wand-sparkles" size="13" stroke="2.3"></l-icon><span style="font:600 11.5px Archivo">Plan my week</span></div>
+            </div>
+            <div style="font:400 12.5px/1.55 Archivo;color:#9A938A;padding:12px 24px 0">Week 6 of your cut · 3 of 5 sessions done. One more and you've matched your best week since May.</div>
+
+            <div style="font:500 11px Archivo;letter-spacing:.12em;color:#9A938A;text-transform:uppercase;padding:26px 24px 12px">Today</div>
+            <div onClick="{{ startWorkout }}" style="margin:0 16px;border-radius:18px;overflow:hidden;background:#171613;cursor:pointer">
+              <div style="height:108px;background:repeating-linear-gradient(115deg,#211F1B 0 10px,#1A1815 10px 20px);position:relative">
+                <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(14,13,11,.92),transparent)"></div>
+                <div style="position:absolute;top:12px;left:16px;font:400 9px ui-monospace;color:#9A938A">workout hero</div>
+                <div style="position:absolute;left:16px;bottom:12px;font:600 19px Archivo;color:#F7F4EE;letter-spacing:-.02em">Push Day A</div>
+              </div>
+              <div style="padding:14px 18px 16px;display:flex;align-items:center;gap:14px">
+                <div style="flex:1"><div style="font:400 12px Archivo;color:#9A938A">{{ exDoneLabel }} exercises · bench, incline, fly, press, pushdown</div></div>
+                <div style="width:38px;height:38px;border-radius:19px;background:#F59148;display:flex;align-items:center;justify-content:center;color:#0E0D0B"><l-icon name="play" size="15" stroke="2.6"></l-icon></div>
+              </div>
+            </div>
+
+            <div style="font:500 11px Archivo;letter-spacing:.12em;color:#9A938A;text-transform:uppercase;padding:28px 24px 12px">Coming up</div>
+            <div style="padding:0 16px;display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;align-items:center;gap:14px;background:#171613;border-radius:14px;padding:15px 16px">
+                <div style="width:38px;height:38px;border-radius:11px;background:#211F1B;display:flex;flex-direction:column;align-items:center;justify-content:center"><span style="font:600 9px Archivo;color:#9A938A;letter-spacing:.06em">SAT</span><span style="font:600 12px Archivo;color:#F7F4EE">26</span></div>
+                <div style="flex:1"><div style="font:600 14px Archivo;color:#F7F4EE">Pull Day A</div><div style="font:400 11.5px Archivo;color:#9A938A;margin-top:2px">6 exercises · back, biceps · ~58 min</div></div>
+                <span style="color:#9A938A;display:flex"><l-icon name="chevron-right" size="16"></l-icon></span>
+              </div>
+              <div style="display:flex;align-items:center;gap:14px;background:#171613;border-radius:14px;padding:15px 16px">
+                <div style="width:38px;height:38px;border-radius:11px;background:#211F1B;display:flex;flex-direction:column;align-items:center;justify-content:center"><span style="font:600 9px Archivo;color:#9A938A;letter-spacing:.06em">SUN</span><span style="font:600 12px Archivo;color:#F7F4EE">27</span></div>
+                <div style="flex:1"><div style="font:600 14px Archivo;color:#F7F4EE">Leg Day A</div><div style="font:400 11.5px Archivo;color:#9A938A;margin-top:2px">5 exercises · quads, hamstrings · ~55 min</div></div>
+                <span style="color:#9A938A;display:flex"><l-icon name="chevron-right" size="16"></l-icon></span>
+              </div>
+              <div style="display:flex;align-items:center;gap:14px;background:#171613;border-radius:14px;padding:15px 16px;opacity:.72">
+                <div style="width:38px;height:38px;border-radius:11px;background:#211F1B;display:flex;align-items:center;justify-content:center;color:#6C9FD4"><l-icon name="moon" size="16"></l-icon></div>
+                <div style="flex:1"><div style="font:600 14px Archivo;color:#F7F4EE">Rest day</div><div style="font:400 11.5px Archivo;color:#9A938A;margin-top:2px">Walk 8k steps. Your last three sessions were hard.</div></div>
+              </div>
+            </div>
+
+            <div style="font:500 11px Archivo;letter-spacing:.12em;color:#9A938A;text-transform:uppercase;padding:28px 24px 12px">Recently</div>
+            <div style="padding:0 16px 20px;display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;align-items:center;gap:14px;background:#171613;border-radius:14px;padding:15px 16px">
+                <div style="width:38px;height:38px;border-radius:11px;background:rgba(201,232,74,.13);display:flex;align-items:center;justify-content:center;color:#C9E84A"><l-icon name="check" size="17" stroke="2.8"></l-icon></div>
+                <div style="flex:1"><div style="font:600 14px Archivo;color:#F7F4EE">Upper Body B</div><div style="font:400 11.5px Archivo;color:#9A938A;margin-top:2px">Wed 23 Jul · 13,540 lb moved · 1 PR</div></div>
+                <span style="color:#9A938A;display:flex"><l-icon name="chevron-right" size="16"></l-icon></span>
+              </div>
+              <div style="display:flex;align-items:center;gap:14px;background:#171613;border-radius:14px;padding:15px 16px">
+                <div style="width:38px;height:38px;border-radius:11px;background:rgba(201,232,74,.13);display:flex;align-items:center;justify-content:center;color:#C9E84A"><l-icon name="check" size="17" stroke="2.8"></l-icon></div>
+                <div style="flex:1"><div style="font:600 14px Archivo;color:#F7F4EE">Leg Day B</div><div style="font:400 11.5px Archivo;color:#9A938A;margin-top:2px">Mon 21 Jul · 22,100 lb moved</div></div>
+                <span style="color:#9A938A;display:flex"><l-icon name="chevron-right" size="16"></l-icon></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isProgress }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0 0 98px;display:flex;flex-direction:column">
+          <div style="flex:1;overflow:auto">
+            <div style="padding:62px 24px 0;display:flex;align-items:baseline;justify-content:space-between">
+              <div style="font:400 28px/1 'Instrument Serif',Georgia,serif;color:#F7F4EE">Progress</div>
+              <div style="display:flex;gap:3px;background:#171613;border-radius:9px;padding:3px">
+                <span style="font:600 10.5px Archivo;padding:5px 10px;border-radius:7px;background:#2C2A25;color:#F7F4EE">Body</span>
+                <span style="font:600 10.5px Archivo;padding:5px 10px;border-radius:7px;color:#9A938A">Strength</span>
+                <span style="font:600 10.5px Archivo;padding:5px 10px;border-radius:7px;color:#9A938A">Habits</span>
+              </div>
+            </div>
+
+            <div style="margin:22px 16px 0;background:#171613;border-radius:18px;padding:20px 18px 16px">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
+                <div>
+                  <div style="font:500 10.5px Archivo;letter-spacing:.1em;color:#9A938A;text-transform:uppercase">Weight trend</div>
+                  <div style="display:flex;align-items:baseline;gap:8px;margin-top:6px"><span style="font:600 34px Archivo;color:#F7F4EE;letter-spacing:-.03em;font-variant-numeric:tabular-nums">183.0</span><span style="font:500 13px Archivo;color:#9A938A">lb</span></div>
+                </div>
+                <div style="text-align:right">
+                  <div style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:99px;background:rgba(201,232,74,.14);color:#C9E84A"><l-icon name="trending-down" size="13" stroke="2.4"></l-icon><span style="font:600 12px Archivo;font-variant-numeric:tabular-nums">0.8 lb/wk</span></div>
+                  <div style="font:400 10.5px Archivo;color:#9A938A;margin-top:6px">goal 0.7–1.0</div>
+                </div>
+              </div>
+              <svg width="100%" height="112" viewBox="0 0 320 112" preserveAspectRatio="none" style="display:block;margin-top:10px">
+                <rect x="0" y="30" width="320" height="42" fill="rgba(201,232,74,.05)"></rect>
+                <line x1="0" y1="30" x2="320" y2="30" stroke="rgba(201,232,74,.18)" stroke-width="1" stroke-dasharray="3 4"></line>
+                <line x1="0" y1="72" x2="320" y2="72" stroke="rgba(201,232,74,.18)" stroke-width="1" stroke-dasharray="3 4"></line>
+                <circle cx="8" cy="26" r="2.5" fill="#4A453D"></circle><circle cx="34" cy="16" r="2.5" fill="#4A453D"></circle><circle cx="60" cy="34" r="2.5" fill="#4A453D"></circle><circle cx="86" cy="22" r="2.5" fill="#4A453D"></circle><circle cx="112" cy="42" r="2.5" fill="#4A453D"></circle><circle cx="138" cy="30" r="2.5" fill="#4A453D"></circle><circle cx="164" cy="50" r="2.5" fill="#4A453D"></circle><circle cx="190" cy="38" r="2.5" fill="#4A453D"></circle><circle cx="216" cy="62" r="2.5" fill="#4A453D"></circle><circle cx="242" cy="52" r="2.5" fill="#4A453D"></circle><circle cx="268" cy="72" r="2.5" fill="#4A453D"></circle><circle cx="294" cy="64" r="2.5" fill="#4A453D"></circle>
+                <path d="M8 24 C60 26, 100 30, 164 42 C220 52, 272 66, 312 76" fill="none" stroke="#C9E84A" stroke-width="2.5" stroke-linecap="round"></path>
+                <circle cx="312" cy="76" r="4" fill="#C9E84A"></circle>
+              </svg>
+              <div style="display:flex;align-items:center;gap:16px;border-top:1px solid #211F1B;margin-top:12px;padding-top:13px">
+                <div style="display:flex;align-items:center;gap:6px"><span style="width:14px;height:2.5px;border-radius:2px;background:#C9E84A"></span><span style="font:400 10.5px Archivo;color:#9A938A">trend</span></div>
+                <div style="display:flex;align-items:center;gap:6px"><span style="width:5px;height:5px;border-radius:3px;background:#4A453D"></span><span style="font:400 10.5px Archivo;color:#9A938A">daily weigh-ins</span></div>
+                <div style="flex:1"></div>
+                <div style="font:500 10.5px Archivo;color:#F59148">6 weeks</div>
+              </div>
+            </div>
+
+            <div style="margin:20px 16px 0;background:#171613;border-radius:18px;padding:19px 18px">
+              <div style="font:400 17px/1.4 'Instrument Serif',Georgia,serif;color:#F7F4EE">On this rate you'll hit 170 lb in the week of 29 September.</div>
+              <div style="font:400 12px/1.55 Archivo;color:#9A938A;margin-top:9px">Nine pounds down since 14 June. Energy target trimmed twice, both times because the trend flattened — not because of one bad weigh-in.</div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 16px 0">
+              <div style="box-sizing:border-box;background:#171613;border-radius:16px;padding:16px 18px">
+                <div style="font:400 10.5px Archivo;letter-spacing:.06em;color:#9A938A;text-transform:uppercase">Sessions</div>
+                <div style="display:flex;align-items:baseline;gap:4px;margin-top:7px"><span style="font:600 24px Archivo;color:#F7F4EE;letter-spacing:-.02em;font-variant-numeric:tabular-nums">18</span><span style="font:500 12px Archivo;color:#9A938A">/ 20</span></div>
+                <div style="display:flex;gap:3px;margin-top:11px"><span style="flex:1;height:16px;border-radius:3px;background:#C9E84A"></span><span style="flex:1;height:16px;border-radius:3px;background:#C9E84A"></span><span style="flex:1;height:16px;border-radius:3px;background:#C9E84A"></span><span style="flex:1;height:16px;border-radius:3px;background:#C9E84A"></span><span style="flex:1;height:16px;border-radius:3px;background:#2C2A25"></span><span style="flex:1;height:16px;border-radius:3px;background:#C9E84A"></span></div>
+                <div style="font:400 10.5px Archivo;color:#9A938A;margin-top:9px">6 weeks, one missed</div>
+              </div>
+              <div style="box-sizing:border-box;background:#171613;border-radius:16px;padding:16px 18px">
+                <div style="font:400 10.5px Archivo;letter-spacing:.06em;color:#9A938A;text-transform:uppercase">Days logged</div>
+                <div style="display:flex;align-items:baseline;gap:4px;margin-top:7px"><span style="font:600 24px Archivo;color:#F7F4EE;letter-spacing:-.02em;font-variant-numeric:tabular-nums">39</span><span style="font:500 12px Archivo;color:#9A938A">/ 42</span></div>
+                <div style="display:flex;gap:3px;margin-top:11px"><span style="flex:1;height:16px;border-radius:3px;background:#6C9FD4"></span><span style="flex:1;height:16px;border-radius:3px;background:#6C9FD4"></span><span style="flex:1;height:16px;border-radius:3px;background:#6C9FD4"></span><span style="flex:1;height:16px;border-radius:3px;background:#6C9FD4"></span><span style="flex:1;height:16px;border-radius:3px;background:#6C9FD4"></span><span style="flex:1;height:16px;border-radius:3px;background:#6C9FD4"></span></div>
+                <div style="font:400 10.5px Archivo;color:#9A938A;margin-top:9px">93% — top of your range</div>
+              </div>
+            </div>
+
+            <div onClick="{{ openChallenge }}" style="margin:20px 16px;background:#171613;border-radius:18px;padding:18px 20px;display:flex;align-items:center;gap:14px;cursor:pointer">
+              <div style="width:38px;height:38px;border-radius:12px;background:rgba(245,145,72,.14);display:flex;align-items:center;justify-content:center;color:#F59148"><l-icon name="flame" size="19" stroke="2.2"></l-icon></div>
+              <div style="flex:1"><div style="font:600 14.5px Archivo;color:#F7F4EE">12-week challenge</div><div style="font:400 11.5px Archivo;color:#9A938A;margin-top:2px">Week 6 · Accelerate · 9 lb down</div></div>
+              <span style="color:#9A938A;display:flex"><l-icon name="chevron-right" size="17"></l-icon></span>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isCoach }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0 0 98px;display:flex;flex-direction:column">
+          <div style="flex:none;padding:62px 24px 18px">
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="width:40px;height:40px;border-radius:20px;background:linear-gradient(140deg,#F59148,#C9E84A);display:flex;align-items:center;justify-content:center;color:#0E0D0B"><l-icon name="sparkles" size="18" stroke="2.4"></l-icon></div>
+              <div style="flex:1"><div style="font:600 15px Archivo;color:#F7F4EE">Your coach</div><div style="font:400 11.5px Archivo;color:#9A938A;margin-top:1px">Knows your last 6 weeks · not medical advice</div></div>
+            </div>
+          </div>
+          <div style="flex:1;overflow:auto;padding:0 20px">
+            <sc-if value="{{ noMsgs }}" hint-placeholder-val="{{ true }}">
+              <div>
+                <div style="background:#171613;border-radius:18px;padding:20px;margin-bottom:22px">
+                  <div style="font:400 20px/1.35 'Instrument Serif',Georgia,serif;color:#F7F4EE">You've trained three times this week and logged six days straight.</div>
+                  <div style="font:400 12.5px/1.55 Archivo;color:#9A938A;margin-top:10px">That's the pattern that gets people to goal. Ask me anything — I can see your sessions, your macros and your trend.</div>
+                </div>
+                <div style="font:500 11px Archivo;letter-spacing:.12em;color:#9A938A;text-transform:uppercase;margin-bottom:12px">Try asking</div>
+                <div style="display:flex;flex-direction:column;gap:8px">
+                  <sc-for list="{{ prompts }}" as="p" hint-placeholder-count="4">
+                    <div onClick="{{ p.ask }}" style="display:flex;align-items:center;gap:12px;background:#171613;border-radius:14px;padding:15px 16px;cursor:pointer">
+                      <span style="flex:1;font:500 13.5px Archivo;color:#F7F4EE">{{ p.q }}</span>
+                      <span style="color:#F59148;display:flex"><l-icon name="arrow-up-right" size="15" stroke="2.4"></l-icon></span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+            <sc-for list="{{ msgs }}" as="m" hint-placeholder-count="0">
+              <div style="display:flex;justify-content:{{ m.align }};margin-bottom:12px">
+                <div style="max-width:82%;background:{{ m.bg }};border-radius:{{ m.radius }};padding:13px 16px">
+                  <div style="font:400 13.5px/1.55 Archivo;color:{{ m.fg }}">{{ m.text }}</div>
+                </div>
+              </div>
+            </sc-for>
+            <div style="height:12px"></div>
+          </div>
+          <div style="flex:none;padding:12px 20px 12px;display:flex;align-items:center;gap:10px">
+            <div style="flex:1;display:flex;align-items:center;gap:10px;background:#171613;border-radius:13px;padding:14px 16px"><span style="font:400 13.5px Archivo;color:#9A938A">Ask your coach…</span></div>
+            <div style="width:46px;height:46px;border-radius:23px;background:#F59148;display:flex;align-items:center;justify-content:center;color:#0E0D0B"><l-icon name="arrow-up" size="20" stroke="2.6"></l-icon></div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isChallenge }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0;background:#0E0D0B;display:flex;flex-direction:column;z-index:5">
+          <div style="flex:1;overflow:auto">
+            <div style="height:210px;position:relative;background:repeating-linear-gradient(115deg,#241D17 0 12px,#1C1712 12px 24px)">
+              <div style="position:absolute;inset:0;background:linear-gradient(to top,#0E0D0B 0%,rgba(14,13,11,.35) 60%,rgba(14,13,11,.7) 100%)"></div>
+              <div onClick="{{ closeChallenge }}" style="position:absolute;top:56px;left:20px;width:34px;height:34px;border-radius:17px;background:rgba(33,31,27,.82);display:flex;align-items:center;justify-content:center;color:#F7F4EE;cursor:pointer"><l-icon name="chevron-left" size="19"></l-icon></div>
+              <div style="position:absolute;bottom:14px;right:20px;font:400 9px ui-monospace;color:#9A938A">progress photo</div>
+              <div style="position:absolute;left:24px;bottom:18px">
+                <div style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:99px;background:rgba(245,145,72,.18);color:#F59148;margin-bottom:10px"><l-icon name="flame" size="12" stroke="2.4"></l-icon><span style="font:600 9.5px Archivo;letter-spacing:.1em">PHASE 2 · ACCELERATE</span></div>
+                <div style="font:400 30px/1.1 'Instrument Serif',Georgia,serif;color:#F7F4EE">Week 6 of 12</div>
+              </div>
+            </div>
+
+            <div style="padding:4px 24px 0">
+              <div style="display:flex;gap:4px">
+                <sc-for list="{{ weeks }}" as="w" hint-placeholder-count="12">
+                  <div style="flex:1;height:6px;border-radius:3px;background:{{ w.bg }}"></div>
+                </sc-for>
+              </div>
+              <div style="font:400 11.5px Archivo;color:#9A938A;margin-top:10px">5 weeks banked · 7 to go</div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:22px 16px 0">
+              <div style="box-sizing:border-box;background:#171613;border-radius:16px;padding:18px">
+                <div style="font:400 10.5px Archivo;letter-spacing:.06em;color:#9A938A;text-transform:uppercase">Lost so far</div>
+                <div style="font:600 30px Archivo;color:#C9E84A;letter-spacing:-.03em;margin-top:6px;font-variant-numeric:tabular-nums">9.0<span style="font:500 13px Archivo;color:#9A938A;margin-left:3px">lb</span></div>
+                <div style="font:400 11px Archivo;color:#9A938A;margin-top:6px">192 → 183</div>
+              </div>
+              <div style="box-sizing:border-box;background:#171613;border-radius:16px;padding:18px">
+                <div style="font:400 10.5px Archivo;letter-spacing:.06em;color:#9A938A;text-transform:uppercase">Still to go</div>
+                <div style="font:600 30px Archivo;color:#F7F4EE;letter-spacing:-.03em;margin-top:6px;font-variant-numeric:tabular-nums">13.0<span style="font:500 13px Archivo;color:#9A938A;margin-left:3px">lb</span></div>
+                <div style="font:400 11px Archivo;color:#9A938A;margin-top:6px">target 170 lb</div>
+              </div>
+            </div>
+
+            <div style="margin:20px 16px 0;background:#171613;border-radius:18px;padding:19px 18px">
+              <div style="font:400 17px/1.4 'Instrument Serif',Georgia,serif;color:#F7F4EE">This is the hard stretch. Steps go up, calories come down.</div>
+              <div style="font:400 12px/1.55 Archivo;color:#9A938A;margin-top:9px">Lean on protein and sleep. Phase 3 eases the deficit and lets your strength come back.</div>
+            </div>
+
+            <div style="margin:20px 16px 0">
+              <div style="font:500 11px Archivo;letter-spacing:.12em;color:#9A938A;text-transform:uppercase;padding:0 4px 12px">Week 6 targets</div>
+              <div style="background:#171613;border-radius:16px;overflow:hidden">
+                <div style="display:flex;align-items:center;gap:14px;padding:15px 18px">
+                  <span style="color:#6C9FD4;display:flex"><l-icon name="footprints" size="17"></l-icon></span>
+                  <div style="flex:1"><div style="font:600 13.5px Archivo;color:#F7F4EE">Daily steps</div><div style="height:4px;border-radius:2px;background:#2C2A25;margin-top:8px;overflow:hidden"><div style="width:53%;height:4px;border-radius:2px;background:#6C9FD4"></div></div></div>
+                  <div style="text-align:right"><div style="font:600 13px Archivo;color:#F7F4EE;font-variant-numeric:tabular-nums">6.4k</div><div style="font:400 10px Archivo;color:#9A938A">of 12k</div></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:14px;padding:15px 18px;border-top:1px solid #211F1B">
+                  <span style="color:#C9E84A;display:flex"><l-icon name="dumbbell" size="17"></l-icon></span>
+                  <div style="flex:1"><div style="font:600 13.5px Archivo;color:#F7F4EE">Sessions</div><div style="height:4px;border-radius:2px;background:#2C2A25;margin-top:8px;overflow:hidden"><div style="width:60%;height:4px;border-radius:2px;background:#C9E84A"></div></div></div>
+                  <div style="text-align:right"><div style="font:600 13px Archivo;color:#F7F4EE;font-variant-numeric:tabular-nums">3</div><div style="font:400 10px Archivo;color:#9A938A">of 5</div></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:14px;padding:15px 18px;border-top:1px solid #211F1B">
+                  <span style="color:#C9E84A;display:flex"><l-icon name="utensils" size="17"></l-icon></span>
+                  <div style="flex:1"><div style="font:600 13.5px Archivo;color:#F7F4EE">On-plan days</div><div style="height:4px;border-radius:2px;background:#2C2A25;margin-top:8px;overflow:hidden"><div style="width:83%;height:4px;border-radius:2px;background:#C9E84A"></div></div></div>
+                  <div style="text-align:right"><div style="font:600 13px Archivo;color:#F7F4EE;font-variant-numeric:tabular-nums">5</div><div style="font:400 10px Archivo;color:#9A938A">of 6</div></div>
+                </div>
+              </div>
+            </div>
+            <div style="height:16px"></div>
+          </div>
+          <div style="flex:none;padding:14px 20px 34px;border-top:1px solid #221F1A;background:#141210">
+            <div style="display:flex;align-items:center;justify-content:center;gap:8px;background:#F59148;border-radius:14px;padding:16px 0;color:#0E0D0B"><l-icon name="camera" size="17" stroke="2.4"></l-icon><span style="font:600 15px Archivo">Week 6 check-in</span></div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isWorkout }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0;background:#0E0D0B;display:flex;flex-direction:column;z-index:5">
+          <div style="flex:none;padding:56px 20px 0;display:flex;align-items:center;justify-content:space-between">
+            <div onClick="{{ exitWorkout }}" style="width:34px;height:34px;border-radius:17px;background:#171613;display:flex;align-items:center;justify-content:center;color:#F7F4EE;cursor:pointer"><l-icon name="chevron-left" size="19"></l-icon></div>
+            <div style="text-align:center"><div style="font:600 13px Archivo;color:#F7F4EE">Push Day A</div><div style="font:400 10.5px Archivo;color:#9A938A;margin-top:1px;font-variant-numeric:tabular-nums">{{ exCounter }} · 21:04</div></div>
+            <div style="width:34px;height:34px;border-radius:17px;background:#171613;display:flex;align-items:center;justify-content:center;color:#9A938A"><l-icon name="ellipsis" size="18"></l-icon></div>
+          </div>
+
+          <div style="flex:none;display:flex;gap:5px;padding:16px 20px 0">
+            <sc-for list="{{ exBars }}" as="b" hint-placeholder-count="5">
+              <div style="flex:1;height:3px;border-radius:2px;background:{{ b.bg }}"></div>
+            </sc-for>
+          </div>
+
+          <div style="flex:1;overflow:auto;padding:26px 20px 0">
+            <div style="font:400 28px/1.15 'Instrument Serif',Georgia,serif;color:#F7F4EE">{{ exName }}</div>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:14px">
+              <div onClick="{{ openVideo }}" style="display:flex;align-items:center;gap:7px;padding:8px 13px;border-radius:99px;background:#211F1B;color:#F7F4EE;cursor:pointer">
+                <div style="width:18px;height:18px;border-radius:9px;background:#F59148;display:flex;align-items:center;justify-content:center;color:#0E0D0B"><l-icon name="play" size="9" stroke="3"></l-icon></div>
+                <span style="font:600 12px Archivo">How to</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;padding:8px 13px;border-radius:99px;background:#211F1B;color:#9A938A"><l-icon name="repeat" size="13"></l-icon><span style="font:600 12px Archivo">Swap</span></div>
+              <div style="display:flex;align-items:center;gap:6px;padding:8px 13px;border-radius:99px;background:#211F1B;color:#9A938A"><l-icon name="chart-line" size="13"></l-icon><span style="font:600 12px Archivo">History</span></div>
+            </div>
+
+            <div style="margin-top:24px;background:#171613;border-radius:18px;overflow:hidden">
+              <div style="display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid #211F1B">
+                <span style="width:34px;font:500 10.5px Archivo;letter-spacing:.08em;color:#9A938A;text-transform:uppercase">Set</span>
+                <span style="flex:1;font:500 10.5px Archivo;letter-spacing:.08em;color:#9A938A;text-transform:uppercase">Weight</span>
+                <span style="flex:1;font:500 10.5px Archivo;letter-spacing:.08em;color:#9A938A;text-transform:uppercase">Reps</span>
+                <span style="width:44px"></span>
+              </div>
+              <sc-for list="{{ curSets }}" as="s" hint-placeholder-count="3">
+                <div onClick="{{ s.toggle }}" style="display:flex;align-items:center;padding:{{ s.pad }};gap:10px;background:{{ s.bg }};cursor:pointer">
+                  <span style="width:34px;font:600 14px Archivo;color:{{ s.numFg }};font-variant-numeric:tabular-nums">{{ s.n }}</span>
+                  <div style="flex:1"><div style="font:{{ s.valFont }};color:{{ s.valFg }};letter-spacing:-.02em;font-variant-numeric:tabular-nums">{{ s.w }}</div><div style="font:400 10px Archivo;color:#9A938A;margin-top:1px">{{ s.lastW }}</div></div>
+                  <div style="flex:1"><div style="font:{{ s.valFont }};color:{{ s.valFg }};letter-spacing:-.02em;font-variant-numeric:tabular-nums">{{ s.r }}</div><div style="font:400 10px Archivo;color:#9A938A;margin-top:1px">{{ s.lastR }}</div></div>
+                  <div style="width:44px;height:44px;border-radius:22px;background:{{ s.btnBg }};display:flex;align-items:center;justify-content:center;color:{{ s.btnFg }}"><l-icon name="{{ s.icon }}" size="22" stroke="2.6"></l-icon></div>
+                </div>
+              </sc-for>
+              <div style="display:flex;align-items:center;justify-content:center;gap:7px;padding:13px 0;border-top:1px solid #211F1B;color:#9A938A"><l-icon name="plus" size="14"></l-icon><span style="font:600 12px Archivo">Add set</span></div>
+            </div>
+
+            <sc-if value="{{ resting }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:16px;display:flex;align-items:center;gap:14px;background:#171613;border-radius:16px;padding:15px 18px">
+                <svg width="36" height="36" viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" fill="none" stroke="#2C2A25" stroke-width="3.5"></circle><circle cx="18" cy="18" r="15" fill="none" stroke="#6C9FD4" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="94.2" stroke-dashoffset="34" transform="rotate(-90 18 18)"></circle></svg>
+                <div style="flex:1"><div style="font:600 13.5px Archivo;color:#F7F4EE">Rest 1:28</div><div style="font:400 11px Archivo;color:#9A938A;margin-top:2px">Tap when you're back on the bench</div></div>
+                <div onClick="{{ skipRest }}" style="font:600 12px Archivo;color:#6C9FD4;cursor:pointer;padding:8px">Skip</div>
+              </div>
+            </sc-if>
+            <div style="height:16px"></div>
+          </div>
+
+          <div style="flex:none;background:#141210;border-top:1px solid #221F1A;padding:14px 20px 34px;display:flex;gap:10px">
+            <div onClick="{{ prevEx }}" style="width:56px;display:flex;align-items:center;justify-content:center;background:#211F1B;border-radius:14px;color:#9A938A;cursor:pointer"><l-icon name="chevron-left" size="22"></l-icon></div>
+            <div onClick="{{ nextEx }}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;background:{{ nextBg }};border-radius:14px;padding:16px 0;color:#0E0D0B;cursor:pointer"><span style="font:600 15px Archivo">{{ nextLabel }}</span><l-icon name="arrow-right" size="18" stroke="2.5"></l-icon></div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isResult }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0;background:#0E0D0B;display:flex;flex-direction:column;z-index:6">
+          <div style="flex:1;overflow:auto">
+            <div style="padding:70px 24px 0">
+              <div style="display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:99px;background:rgba(201,232,74,.14);color:#C9E84A;margin-bottom:20px"><l-icon name="trophy" size="13" stroke="2.4"></l-icon><span style="font:600 10px Archivo;letter-spacing:.1em">NEW PR</span></div>
+              <div style="font:400 36px/1.1 'Instrument Serif',Georgia,serif;color:#F7F4EE">You've never pressed<br>this heavy.</div>
+              <div style="font:400 13px/1.6 Archivo;color:#9A938A;margin-top:12px;max-width:290px">Bench press 185 × 8 — up 5 lb and a rep on three weeks ago. Push Day A, done in 52 minutes.</div>
+            </div>
+
+            <div style="margin:28px 16px 0;background:#171613;border-radius:18px;padding:20px">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px">
+                <div style="font:500 11px Archivo;letter-spacing:.12em;color:#9A938A;text-transform:uppercase">Volume vs last time</div>
+                <div style="font:600 12px Archivo;color:#C9E84A">+8.4%</div>
+              </div>
+              <div style="display:flex;align-items:flex-end;gap:9px;height:76px">
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:100%;height:44px;border-radius:5px;background:#2C2A25"></div><span style="font:400 9.5px Archivo;color:#9A938A">3 wk</span></div>
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:100%;height:52px;border-radius:5px;background:#2C2A25"></div><span style="font:400 9.5px Archivo;color:#9A938A">2 wk</span></div>
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:100%;height:49px;border-radius:5px;background:#2C2A25"></div><span style="font:400 9.5px Archivo;color:#9A938A">1 wk</span></div>
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:100%;height:64px;border-radius:5px;background:#C9E84A"></div><span style="font:600 9.5px Archivo;color:#C9E84A">Today</span></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;border-top:1px solid #211F1B;margin-top:18px;padding-top:16px">
+                <div><div style="font:600 20px Archivo;color:#F7F4EE;letter-spacing:-.02em;font-variant-numeric:tabular-nums">14,280</div><div style="font:400 10.5px Archivo;color:#9A938A;margin-top:2px">lb moved</div></div>
+                <div><div style="font:600 20px Archivo;color:#F7F4EE;letter-spacing:-.02em;font-variant-numeric:tabular-nums">15</div><div style="font:400 10.5px Archivo;color:#9A938A;margin-top:2px">sets</div></div>
+                <div><div style="font:600 20px Archivo;color:#F7F4EE;letter-spacing:-.02em;font-variant-numeric:tabular-nums">52</div><div style="font:400 10.5px Archivo;color:#9A938A;margin-top:2px">minutes</div></div>
+                <div><div style="font:600 20px Archivo;color:#C9E84A;letter-spacing:-.02em;font-variant-numeric:tabular-nums">1</div><div style="font:400 10.5px Archivo;color:#9A938A;margin-top:2px">PR</div></div>
+              </div>
+            </div>
+
+            <div style="padding:28px 24px 0">
+              <div style="font:500 11px Archivo;letter-spacing:.12em;color:#9A938A;text-transform:uppercase;margin-bottom:6px">How hard was that?</div>
+              <div style="font:400 12px/1.5 Archivo;color:#9A938A;margin-bottom:14px">Sets your next session's intensity.</div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <sc-for list="{{ efforts }}" as="e" hint-placeholder-count="3">
+                  <div onClick="{{ e.pick }}" style="display:flex;align-items:center;gap:12px;background:{{ e.bg }};border:1.5px solid {{ e.bd }};border-radius:13px;padding:14px 16px;cursor:pointer">
+                    <span style="width:7px;height:7px;border-radius:4px;background:{{ e.dot }}"></span>
+                    <span style="flex:1;font:{{ e.font }};color:{{ e.fg }}">{{ e.label }}</span>
+                    <span style="color:#F59148;display:flex">{{ e.tick }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="height:16px"></div>
+          </div>
+          <div style="flex:none;background:#141210;border-top:1px solid #221F1A;padding:14px 20px 34px">
+            <div onClick="{{ saveSession }}" style="display:flex;align-items:center;justify-content:center;background:#F59148;border-radius:14px;padding:16px 0;color:#0E0D0B;cursor:pointer"><span style="font:600 15.5px Archivo">Save session</span></div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ showVideo }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ closeVideo }}" style="position:absolute;inset:0;background:rgba(8,7,6,.82);z-index:9;display:flex;flex-direction:column;justify-content:flex-end">
+          <div style="background:#141210;border-radius:24px 24px 0 0;padding:20px 20px 34px">
+            <div style="width:38px;height:4px;border-radius:2px;background:#2C2A25;margin:0 auto 20px"></div>
+            <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px">
+              <div style="font:600 16px Archivo;color:#F7F4EE">{{ exName }}</div>
+              <div style="font:500 11.5px Archivo;color:#F59148">Open in YouTube</div>
+            </div>
+            <div style="height:196px;border-radius:14px;background:repeating-linear-gradient(115deg,#211F1B 0 12px,#1A1815 12px 24px);display:flex;align-items:center;justify-content:center;position:relative">
+              <div style="width:58px;height:58px;border-radius:29px;background:rgba(247,244,238,.94);display:flex;align-items:center;justify-content:center;color:#0E0D0B"><l-icon name="play" size="24" stroke="2.4"></l-icon></div>
+              <div style="position:absolute;bottom:10px;left:12px;font:400 9px ui-monospace;color:#9A938A">form video · 45s</div>
+            </div>
+            <div style="font:400 12.5px/1.6 Archivo;color:#9A938A;margin-top:14px">{{ exCue }}</div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isLogSheet }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0;z-index:8;display:flex;flex-direction:column;justify-content:flex-end">
+          <div onClick="{{ closeSheet }}" style="position:absolute;inset:0;background:rgba(8,7,6,.72)"></div>
+          <div style="position:relative;background:#141210;border-radius:26px 26px 0 0;max-height:88%;display:flex;flex-direction:column">
+            <div style="flex:none;padding:18px 0 0">
+              <div style="width:38px;height:4px;border-radius:2px;background:#2C2A25;margin:0 auto 20px"></div>
+              <div style="padding:0 22px;display:flex;align-items:baseline;justify-content:space-between">
+                <div style="font:400 25px/1 'Instrument Serif',Georgia,serif;color:#F7F4EE">Add to dinner</div>
+                <div style="font:500 12px Archivo;color:#9A938A;font-variant-numeric:tabular-nums">{{ kcalLeft }} kcal left</div>
+              </div>
+              <div style="display:flex;gap:10px;padding:18px 22px 0">
+                <div onClick="{{ openCamera }}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;background:#F59148;border-radius:14px;padding:15px 0;color:#0E0D0B;cursor:pointer"><l-icon name="camera" size="19" stroke="2.3"></l-icon><span style="font:600 14.5px Archivo">Snap a photo</span></div>
+                <div style="width:52px;height:52px;border-radius:14px;background:#211F1B;display:flex;align-items:center;justify-content:center;color:#9A938A"><l-icon name="scan-barcode" size="20"></l-icon></div>
+                <div style="width:52px;height:52px;border-radius:14px;background:#211F1B;display:flex;align-items:center;justify-content:center;color:#9A938A"><l-icon name="search" size="20"></l-icon></div>
+              </div>
+            </div>
+            <div style="flex:1;overflow:auto;padding:24px 0 0">
+              <div style="font:500 11px Archivo;letter-spacing:.12em;color:#9A938A;text-transform:uppercase;padding:0 22px 12px">Your usual dinner</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px">
+                <sc-for list="{{ usual }}" as="u" hint-placeholder-count="2">
+                  <div style="box-sizing:border-box;background:#1A1815;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px">
+                    <div style="height:56px;border-radius:10px;background:repeating-linear-gradient(115deg,#211F1B 0 8px,#1A1815 8px 16px);display:flex;align-items:center;justify-content:center;font:400 8.5px ui-monospace;color:#9A938A">food thumb</div>
+                    <div><div style="font:600 13px Archivo;color:#F7F4EE">{{ u.name }}</div><div style="font:400 11px Archivo;color:#9A938A;margin-top:3px;font-variant-numeric:tabular-nums">{{ u.meta }}</div></div>
+                    <div onClick="{{ u.log }}" style="display:flex;align-items:center;justify-content:center;gap:5px;background:#211F1B;border-radius:9px;padding:9px 0;color:#C9E84A;cursor:pointer"><l-icon name="plus" size="14" stroke="2.6"></l-icon><span style="font:600 11.5px Archivo">Log again</span></div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="font:500 11px Archivo;letter-spacing:.12em;color:#9A938A;text-transform:uppercase;padding:24px 22px 12px">Foods you log most</div>
+              <div style="padding:0 16px 58px;display:flex;flex-direction:column;gap:8px">
+                <sc-for list="{{ singles }}" as="f" hint-placeholder-count="4">
+                  <div onClick="{{ f.log }}" style="display:flex;align-items:center;gap:13px;background:#1A1815;border-radius:14px;padding:13px 15px;cursor:pointer">
+                    <div style="width:36px;height:36px;border-radius:10px;background:#211F1B;display:flex;align-items:center;justify-content:center;font:400 8px ui-monospace;color:#9A938A">img</div>
+                    <div style="flex:1"><div style="font:600 13.5px Archivo;color:#F7F4EE">{{ f.name }}</div><div style="font:400 11px Archivo;color:#9A938A;margin-top:2px;font-variant-numeric:tabular-nums">{{ f.meta }}</div></div>
+                    <div style="width:32px;height:32px;border-radius:16px;background:#211F1B;display:flex;align-items:center;justify-content:center;color:#C9E84A"><l-icon name="plus" size="16" stroke="2.6"></l-icon></div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isCamera }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0;background:#0E0D0B;z-index:8;display:flex;flex-direction:column">
+          <div style="flex:1;position:relative;overflow:hidden">
+            <div style="position:absolute;inset:0;background:repeating-linear-gradient(115deg,#211F1B 0 12px,#1A1815 12px 24px)"></div>
+            <div style="position:absolute;inset:0;background:linear-gradient(to bottom,rgba(14,13,11,.72) 0%,transparent 26%,transparent 52%,rgba(14,13,11,.94) 100%)"></div>
+            <div style="position:absolute;top:52%;left:50%;transform:translate(-50%,-50%);font:400 10px ui-monospace;color:#9A938A;letter-spacing:.08em">live camera feed</div>
+            <div style="position:absolute;top:58px;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:0 20px">
+              <div onClick="{{ closeCamera }}" style="width:34px;height:34px;border-radius:17px;background:rgba(33,31,27,.8);display:flex;align-items:center;justify-content:center;color:#F7F4EE;cursor:pointer"><l-icon name="x" size="18"></l-icon></div>
+              <div style="display:flex;gap:3px;background:rgba(33,31,27,.86);border-radius:10px;padding:3px">
+                <span style="font:600 11px Archivo;padding:6px 12px;border-radius:8px;background:#F7F4EE;color:#0E0D0B">Dinner</span>
+                <span style="font:600 11px Archivo;padding:6px 12px;border-radius:8px;color:#9A938A">Snack</span>
+              </div>
+              <div style="width:34px;height:34px;border-radius:17px;background:rgba(33,31,27,.8);display:flex;align-items:center;justify-content:center;color:#F7F4EE"><l-icon name="zap-off" size="16"></l-icon></div>
+            </div>
+            <div style="position:absolute;top:120px;left:44px;right:44px;height:250px;border-radius:24px;border:1.5px solid rgba(247,244,238,.18)"></div>
+            <div style="position:absolute;bottom:0;left:0;right:0;padding:0 24px 34px">
+              <div style="font:400 24px/1.25 'Instrument Serif',Georgia,serif;color:#F7F4EE;text-align:center;margin-bottom:6px">Point at your plate</div>
+              <div style="font:400 12.5px/1.5 Archivo;color:#9A938A;text-align:center;margin-bottom:26px">I'll name the food and estimate the macros. You correct me if I'm wrong.</div>
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:76px">
+                  <div style="width:48px;height:48px;border-radius:14px;background:#211F1B;display:flex;align-items:center;justify-content:center;color:#9A938A"><l-icon name="image" size="21"></l-icon></div>
+                  <span style="font:500 10.5px Archivo;color:#9A938A">Library</span>
+                </div>
+                <div onClick="{{ shoot }}" style="width:74px;height:74px;border-radius:37px;background:#F59148;display:flex;align-items:center;justify-content:center;color:#0E0D0B;cursor:pointer;box-shadow:0 10px 28px rgba(245,145,72,.36)"><l-icon name="camera" size="30" stroke="2.2"></l-icon></div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:76px">
+                  <div style="width:48px;height:48px;border-radius:14px;background:#211F1B;display:flex;align-items:center;justify-content:center;color:#9A938A"><l-icon name="scan-barcode" size="21"></l-icon></div>
+                  <span style="font:500 10.5px Archivo;color:#9A938A">Barcode</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isReview }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0;background:#0E0D0B;z-index:9;display:flex;flex-direction:column">
+          <div style="flex:1;overflow:auto">
+            <div style="height:186px;position:relative;background:repeating-linear-gradient(115deg,#211F1B 0 12px,#1A1815 12px 24px)">
+              <div style="position:absolute;inset:0;background:linear-gradient(to bottom,rgba(14,13,11,.6),transparent 40%,rgba(14,13,11,.96))"></div>
+              <div onClick="{{ closeSheet }}" style="position:absolute;top:56px;left:20px;width:34px;height:34px;border-radius:17px;background:rgba(33,31,27,.8);display:flex;align-items:center;justify-content:center;color:#F7F4EE;cursor:pointer"><l-icon name="x" size="18"></l-icon></div>
+              <div onClick="{{ openCamera }}" style="position:absolute;top:56px;right:20px;display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:99px;background:rgba(33,31,27,.8);color:#F7F4EE;cursor:pointer"><l-icon name="rotate-ccw" size="13"></l-icon><span style="font:600 11.5px Archivo">Retake</span></div>
+              <div style="position:absolute;bottom:14px;left:20px;font:400 9px ui-monospace;color:#9A938A">your meal photo</div>
+            </div>
+
+            <div style="padding:4px 24px 0">
+              <div style="font:400 24px/1.2 'Instrument Serif',Georgia,serif;color:#F7F4EE">I see three things</div>
+              <div style="font:400 12.5px/1.55 Archivo;color:#9A938A;margin-top:7px">Estimates, not measurements — fix anything that looks off. Portion sizes came from the plate diameter.</div>
+            </div>
+
+            <div style="padding:20px 16px 0;display:flex;flex-direction:column;gap:8px">
+              <sc-for list="{{ review }}" as="r" hint-placeholder-count="3">
+                <div style="background:#171613;border-radius:16px;padding:15px 16px;opacity:{{ r.op }}">
+                  <div style="display:flex;align-items:flex-start;gap:12px">
+                    <div onClick="{{ r.toggle }}" style="width:22px;height:22px;border-radius:7px;background:{{ r.boxBg }};border:1.5px solid {{ r.boxBd }};display:flex;align-items:center;justify-content:center;color:#0E0D0B;margin-top:1px;cursor:pointer">{{ r.tick }}</div>
+                    <div style="flex:1">
+                      <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><div style="font:600 14.5px Archivo;color:{{ r.nameFg }};text-decoration:{{ r.deco }}">{{ r.name }}</div><span style="font:600 8.5px Archivo;letter-spacing:.08em;padding:3px 6px;border-radius:5px;background:{{ r.tagBg }};color:{{ r.tagFg }}">{{ r.tag }}</span></div>
+                      <div style="display:flex;align-items:center;gap:7px;margin-top:9px">
+                        <div onClick="{{ r.dec }}" style="width:28px;height:28px;border-radius:9px;background:#211F1B;display:flex;align-items:center;justify-content:center;color:#9A938A;cursor:pointer"><l-icon name="minus" size="14" stroke="2.6"></l-icon></div>
+                        <div style="font:600 13px Archivo;color:#F7F4EE;min-width:86px;text-align:center;font-variant-numeric:tabular-nums">{{ r.portion }}</div>
+                        <div onClick="{{ r.inc }}" style="width:28px;height:28px;border-radius:9px;background:#211F1B;display:flex;align-items:center;justify-content:center;color:#9A938A;cursor:pointer"><l-icon name="plus" size="14" stroke="2.6"></l-icon></div>
+                      </div>
+                    </div>
+                    <div style="text-align:right"><div style="font:600 17px Archivo;color:#F7F4EE;letter-spacing:-.02em;font-variant-numeric:tabular-nums">{{ r.kcal }}</div><div style="font:400 10px Archivo;color:#9A938A">{{ r.macros }}</div></div>
+                  </div>
+                </div>
+              </sc-for>
+              <div style="display:flex;align-items:center;justify-content:center;gap:8px;border:1.5px dashed #2C2A25;border-radius:16px;padding:15px 0;color:#F59148;cursor:pointer">
+                <l-icon name="plus" size="16" stroke="2.5"></l-icon><span style="font:600 13.5px Archivo">Add something I missed</span>
+              </div>
+            </div>
+            <div style="height:16px"></div>
+          </div>
+          <div style="flex:none;background:#141210;border-top:1px solid #221F1A;padding:16px 20px 34px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px">
+              <span style="font:400 12px Archivo;color:#9A938A">Dinner total</span>
+              <span style="font:600 14px Archivo;color:#F7F4EE;font-variant-numeric:tabular-nums">{{ reviewTotal }}</span>
+            </div>
+            <div onClick="{{ commitReview }}" style="display:flex;align-items:center;justify-content:center;gap:8px;background:#F59148;border-radius:14px;padding:16px 0;color:#0E0D0B;cursor:pointer"><span style="font:600 15.5px Archivo">{{ reviewCta }}</span></div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ showTabs }}" hint-placeholder-val="{{ true }}">
+        <div style="position:absolute;bottom:0;left:0;right:0;box-sizing:border-box;height:98px;background:#141210;border-top:1px solid #221F1A;display:flex;align-items:flex-start;justify-content:space-around;padding:12px 0 34px;z-index:4">
+          <div onClick="{{ goToday }}" style="display:flex;flex-direction:column;align-items:center;gap:4px;color:{{ cToday }};cursor:pointer;width:64px"><l-icon name="house" size="21" stroke="2.1"></l-icon><span style="font:600 9.5px Archivo;letter-spacing:.03em">Today</span></div>
+          <div onClick="{{ goTrain }}" style="display:flex;flex-direction:column;align-items:center;gap:4px;color:{{ cTrain }};cursor:pointer;width:64px"><l-icon name="dumbbell" size="21" stroke="2.1"></l-icon><span style="font:600 9.5px Archivo;letter-spacing:.03em">Train</span></div>
+          <div onClick="{{ openLog }}" style="width:52px;height:52px;border-radius:26px;background:#F59148;display:flex;align-items:center;justify-content:center;margin-top:-16px;color:#0E0D0B;cursor:pointer;box-shadow:0 8px 20px rgba(245,145,72,.32)"><l-icon name="plus" size="26" stroke="2.4"></l-icon></div>
+          <div onClick="{{ goProgress }}" style="display:flex;flex-direction:column;align-items:center;gap:4px;color:{{ cProgress }};cursor:pointer;width:64px"><l-icon name="trending-up" size="21" stroke="2.1"></l-icon><span style="font:600 9.5px Archivo;letter-spacing:.03em">Progress</span></div>
+          <div onClick="{{ goCoach }}" style="display:flex;flex-direction:column;align-items:center;gap:4px;color:{{ cCoach }};cursor:pointer;width:64px"><l-icon name="message-circle" size="21" stroke="2.1"></l-icon><span style="font:600 9.5px Archivo;letter-spacing:.03em">Coach</span></div>
+        </div>
+      </sc-if>
+
+    </div>
+  </x-import>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:840,&quot;height&quot;:980},&quot;showTrend&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Today screen&quot;}}">
+class Component extends DCLogic {
+  state = {
+    ob: 0, goal: 'fat_loss',
+    tab: 'today', sheet: null, view: null,
+    exIdx: 1, resting: false, effort: null, video: false,
+    kcal: 1840, protein: 142,
+    msgs: [],
+    review: [
+      { name: 'Grilled chicken thigh', tag: 'SURE', on: true, step: 0, base: { kcal: 248, p: 26, c: 0, f: 15 }, unit: 'thigh', g: 120 },
+      { name: 'Jasmine rice', tag: 'CHECK PORTION', on: true, step: 0, base: { kcal: 241, p: 4, c: 53, f: 1 }, unit: 'cup', g: 185 },
+      { name: 'Side salad', tag: 'SURE', on: false, step: 0, base: { kcal: 42, p: 2, c: 6, f: 1 }, unit: 'bowl', g: 90 }
+    ],
+    ex: [
+      { n: 'Barbell bench press', cue: 'Shoulder blades pinned back, bar to the lower chest, elbows about 45° from your ribs. Leave one rep in the tank on the first two sets.', s: [{ w: 185, r: 8, d: true, lw: 180, lr: 8 }, { w: 185, r: 8, d: true, lw: 180, lr: 8 }, { w: 185, r: 8, d: true, lw: 180, lr: 7 }] },
+      { n: 'Incline dumbbell press', cue: 'Bench at 30°, elbows tucked to about 45°, control the way down. Stop a rep short of failure on the first two sets.', s: [{ w: 65, r: 10, d: true, lw: 62.5, lr: 10 }, { w: 65, r: 10, d: false, lw: 62.5, lr: 9 }, { w: 65, r: 10, d: false, lw: 62.5, lr: 9 }] },
+      { n: 'Cable fly', cue: 'Soft bend in the elbows and keep it there — this is a hug, not a press. Squeeze for a beat at the front, let the stretch go all the way back.', s: [{ w: 32.5, r: 12, d: false, lw: 30, lr: 12 }, { w: 32.5, r: 12, d: false, lw: 30, lr: 12 }, { w: 32.5, r: 12, d: false, lw: 30, lr: 11 }] },
+      { n: 'Seated overhead press', cue: 'Ribs down, no leaning back. Press slightly behind your ears and stop just short of locking out to keep the load on the shoulders.', s: [{ w: 100, r: 8, d: false, lw: 95, lr: 8 }, { w: 100, r: 8, d: false, lw: 95, lr: 8 }, { w: 100, r: 8, d: false, lw: 95, lr: 7 }] },
+      { n: 'Rope pushdown', cue: 'Elbows glued to your sides, spread the rope at the bottom, and let it come up slowly. Light enough that nothing else moves.', s: [{ w: 52.5, r: 14, d: false, lw: 50, lr: 14 }, { w: 52.5, r: 14, d: false, lw: 50, lr: 13 }, { w: 52.5, r: 14, d: false, lw: 50, lr: 12 }] }
+    ]
+  };
+
+  set(patch) { this.setState(patch); }
+
+  exFullyDone(e) { return e.s.every(s => s.d); }
+
+  renderVals() {
+    const st = this.state;
+    const KCAL_T = 2450, PRO_T = 190;
+    const ex = st.ex;
+    const cur = ex[st.exIdx] || ex[0];
+    const doneCount = ex.filter(e => this.exFullyDone(e)).length;
+    const inSession = st.view === 'workout';
+    const kcalLeft = Math.max(0, Math.round(KCAL_T - st.kcal));
+    const circ = 150.8;
+    const off = pct => (circ * (1 - Math.min(1, Math.max(0, pct)))).toFixed(1);
+
+    const goalDefs = [
+      { v: 'fat_loss', label: 'Lose fat, keep muscle', desc: 'A steady deficit with protein held high.' },
+      { v: 'muscle_gain', label: 'Build muscle', desc: 'A lean surplus and rising training volume.' },
+      { v: 'recomp', label: 'Recomposition', desc: 'Slowly leaner and stronger at the same time.' },
+      { v: 'maintain', label: 'Hold steady', desc: 'Keep the weight, keep the performance.' }
+    ];
+
+    const usualDefs = [
+      { name: 'Chicken & rice bowl', meta: '590 kcal · 62g P', kcal: 590, p: 62 },
+      { name: 'Salmon & potatoes', meta: '640 kcal · 48g P', kcal: 640, p: 48 }
+    ];
+    const singleDefs = [
+      { name: 'Chicken breast, grilled', meta: '170g · 281 kcal · 53g protein', kcal: 281, p: 53 },
+      { name: 'Whey isolate', meta: '1 scoop · 113 kcal · 25g protein', kcal: 113, p: 25 },
+      { name: 'Jasmine rice, cooked', meta: '1 cup · 241 kcal · 4g protein', kcal: 241, p: 4 },
+      { name: 'Avocado', meta: '½ medium · 120 kcal · 1.5g protein', kcal: 120, p: 2 }
+    ];
+
+    const addFood = (kcal, p) => this.setState(s => ({ kcal: s.kcal + kcal, protein: s.protein + p, sheet: null }));
+
+    const revScale = r => 1 + r.step * 0.25;
+    const revOn = st.review.filter(r => r.on);
+    const revKcal = Math.round(revOn.reduce((a, r) => a + r.base.kcal * revScale(r), 0));
+    const revPro = Math.round(revOn.reduce((a, r) => a + r.base.p * revScale(r), 0));
+
+    const effortDefs = [
+      { v: 'easy', label: 'Easy — I had plenty left', dot: '#6C9FD4' },
+      { v: 'hard', label: 'Hard but I finished strong', dot: '#F59148' },
+      { v: 'max', label: 'All I had — form was going', dot: '#E4574C' }
+    ];
+
+    const promptDefs = [
+      'Why did my calories drop this week?',
+      'My bench feels stuck — what now?',
+      'Is it worth training if I slept badly?',
+      'What should I eat before an early session?'
+    ];
+    const answers = {
+      'Why did my calories drop this week?': "Your trend weight sat between 183.4 and 183.0 for ten days while you were eating about 2,600. That is maintenance, not a deficit, so I took 150 off. Nothing you did wrong — bodies adapt.",
+      'My bench feels stuck — what now?': "Your last three top sets were all 185 × 8 at 'hard'. That is not stuck, that is ready. Next session I will put you on 190 × 6 and add a back-off set. If it stalls twice more we will drop to 80% for a week and rebuild.",
+      'Is it worth training if I slept badly?': "Under six hours, train — just cap it. Keep the main lift, drop the last set of everything else, and do not chase a PR. Volume on a bad night costs more than it buys.",
+      'What should I eat before an early session?': "Forty grams of carbs and twenty of protein, ninety minutes out if you can. Rice cakes and whey does the job. If you are training within thirty minutes, just the whey."
+    };
+
+    return {
+      isOnboard: st.ob < 3,
+      obIs0: st.ob === 0, obIs1: st.ob === 1, obIs2: st.ob === 2,
+      ob1: st.ob >= 0 ? '#F59148' : '#2C2A25',
+      ob2: st.ob >= 1 ? '#F59148' : '#2C2A25',
+      ob3: st.ob >= 2 ? '#F59148' : '#2C2A25',
+      obCta: st.ob === 2 ? 'Start training' : 'Continue',
+      obKcal: '2,450', obProtein: '190',
+      goals: goalDefs.map(g => {
+        const on = st.goal === g.v;
+        return {
+          label: g.label, desc: g.desc,
+          bg: on ? '#211F1B' : '#171613',
+          bd: on ? '#F59148' : 'transparent',
+          dotBg: on ? '#F59148' : 'transparent',
+          dotBd: on ? '#F59148' : '#4A453D',
+          tick: on ? React.createElement('l-icon', { name: 'check', size: '13', stroke: '3' }) : null,
+          pick: () => this.set({ goal: g.v })
+        };
+      }),
+      plan: [
+        { day: 'MON', name: 'Push Day A', meta: 'Chest, shoulders, triceps · ~52 min' },
+        { day: 'TUE', name: 'Pull Day A', meta: 'Back, biceps · ~58 min' },
+        { day: 'WED', name: 'Rest + 10k steps', meta: 'Walk, stretch, sleep' },
+        { day: 'THU', name: 'Leg Day A', meta: 'Quads, hamstrings, calves · ~55 min' },
+        { day: 'FRI', name: 'Upper Body B', meta: 'Everything you pressed and pulled · ~50 min' }
+      ],
+      nextOb: () => this.setState(s => ({ ob: s.ob + 1 })),
+      skipOb: () => this.set({ ob: 3 }),
+      restart: () => this.set({ ob: 0, tab: 'today', view: null, sheet: null }),
+
+      isToday: st.ob >= 3 && st.tab === 'today' && !st.view,
+      isTrain: st.ob >= 3 && st.tab === 'train' && !st.view,
+      isProgress: st.ob >= 3 && st.tab === 'progress' && !st.view,
+      isCoach: st.ob >= 3 && st.tab === 'coach' && !st.view,
+      isChallenge: st.view === 'challenge',
+      isWorkout: inSession,
+      isResult: st.view === 'result',
+      showTabs: st.ob >= 3 && !st.view,
+      showVideo: st.video,
+      isLogSheet: st.sheet === 'log',
+      isCamera: st.sheet === 'camera',
+      isReview: st.sheet === 'review',
+
+      cToday: st.tab === 'today' ? '#F59148' : '#9A938A',
+      cTrain: st.tab === 'train' ? '#F59148' : '#9A938A',
+      cProgress: st.tab === 'progress' ? '#F59148' : '#9A938A',
+      cCoach: st.tab === 'coach' ? '#F59148' : '#9A938A',
+      goToday: () => this.set({ tab: 'today' }),
+      goTrain: () => this.set({ tab: 'train' }),
+      goProgress: () => this.set({ tab: 'progress', view: null }),
+      goCoach: () => this.set({ tab: 'coach' }),
+      openChallenge: () => this.set({ view: 'challenge' }),
+      closeChallenge: () => this.set({ view: null }),
+
+      kcalLeft: kcalLeft.toLocaleString(),
+      protein: Math.round(st.protein),
+      kcalOffset: off(st.kcal / KCAL_T),
+      proOffset: off(st.protein / PRO_T),
+      showTrend: this.props.showTrend !== false,
+      nudge: st.protein >= PRO_T
+        ? "That's protein hit six days straight. This is the part most people never get to."
+        : 'Get ' + Math.round(PRO_T - st.protein) + " more grams of protein in and you'll have hit target six days straight.",
+
+      heroBadge: doneCount === 0 ? 'READY' : doneCount === 5 ? 'DONE' : 'IN PROGRESS',
+      heroCta: doneCount === 0 ? 'Start Push Day A' : 'Pick up where you left off',
+      exDoneLabel: doneCount + '/5',
+      exBars: ex.map((e, i) => ({ bg: this.exFullyDone(e) ? '#C9E84A' : (i === st.exIdx && inSession ? '#F59148' : '#2C2A25') })),
+      startWorkout: () => this.set({ view: 'workout' }),
+      exitWorkout: () => this.set({ view: null }),
+
+      exName: cur.n,
+      exCue: cur.cue,
+      exCounter: 'Exercise ' + (st.exIdx + 1) + ' of 5',
+      curSets: cur.s.map((s, j) => {
+        const active = !s.d && cur.s.findIndex(x => !x.d) === j;
+        return {
+          n: j + 1, w: s.w, r: s.r,
+          lastW: 'last: ' + s.lw, lastR: 'last: ' + s.lr,
+          pad: active ? '14px 18px' : '11px 18px',
+          bg: active ? '#211F1B' : 'transparent',
+          numFg: active ? '#F59148' : '#9A938A',
+          valFont: active ? '600 24px Archivo' : '500 16px Archivo',
+          valFg: s.d ? '#9A938A' : (active ? '#F7F4EE' : '#8B847A'),
+          btnBg: s.d ? 'transparent' : (active ? '#F59148' : 'transparent'),
+          btnFg: s.d ? '#C9E84A' : (active ? '#0E0D0B' : '#2C2A25'),
+          icon: s.d ? 'circle-check-big' : (active ? 'check' : 'circle'),
+          toggle: () => this.setState(prev => {
+            const nx = prev.ex.map((e, ei) => ei !== prev.exIdx ? e : { ...e, s: e.s.map((ss, si) => si !== j ? ss : { ...ss, d: !ss.d }) });
+            return { ex: nx, resting: !s.d };
+          })
+        };
+      }),
+      resting: st.resting,
+      skipRest: () => this.set({ resting: false }),
+      openVideo: () => this.set({ video: true }),
+      closeVideo: () => this.set({ video: false }),
+      nextLabel: st.exIdx >= 4 ? 'Finish session' : 'Next: ' + (ex[st.exIdx + 1] ? ex[st.exIdx + 1].n : ''),
+      nextBg: st.exIdx >= 4 ? '#C9E84A' : '#F7F4EE',
+      nextEx: () => st.exIdx >= 4
+        ? this.set({ view: 'result', resting: false })
+        : this.setState(s => ({ exIdx: Math.min(4, s.exIdx + 1), resting: false })),
+      prevEx: () => this.setState(s => ({ exIdx: Math.max(0, s.exIdx - 1), resting: false })),
+
+      efforts: effortDefs.map(e => {
+        const on = st.effort === e.v;
+        return {
+          label: e.label, dot: e.dot,
+          bg: on ? '#211F1B' : '#171613',
+          bd: on ? '#F59148' : 'transparent',
+          font: on ? '600 13.5px Archivo' : '500 13.5px Archivo',
+          fg: on ? '#F7F4EE' : '#B8B1A7',
+          tick: on ? React.createElement('l-icon', { name: 'check', size: '17', stroke: '3' }) : null,
+          pick: () => this.set({ effort: e.v })
+        };
+      }),
+      saveSession: () => this.set({ view: null, tab: 'today' }),
+
+      openLog: () => this.set({ sheet: 'log' }),
+      closeSheet: () => this.set({ sheet: null }),
+      openCamera: () => this.set({ sheet: 'camera' }),
+      closeCamera: () => this.set({ sheet: 'log' }),
+      shoot: () => this.set({ sheet: 'review' }),
+      usual: usualDefs.map(u => ({ name: u.name, meta: u.meta, log: () => addFood(u.kcal, u.p) })),
+      singles: singleDefs.map(f => ({ name: f.name, meta: f.meta, log: () => addFood(f.kcal, f.p) })),
+
+      review: st.review.map((r, i) => {
+        const sc = revScale(r);
+        return {
+          name: r.name,
+          tag: r.tag,
+          op: r.on ? '1' : '0.55',
+          boxBg: r.on ? '#C9E84A' : 'transparent',
+          boxBd: r.on ? '#C9E84A' : '#4A453D',
+          tick: r.on ? React.createElement('l-icon', { name: 'check', size: '13', stroke: '3' }) : null,
+          nameFg: r.on ? '#F7F4EE' : '#9A938A',
+          deco: r.on ? 'none' : 'line-through',
+          tagBg: r.tag === 'SURE' ? 'rgba(201,232,74,.14)' : 'rgba(245,145,72,.15)',
+          tagFg: r.tag === 'SURE' ? '#C9E84A' : '#F59148',
+          portion: (sc === 1 ? '1' : sc.toFixed(2).replace(/0$/, '')) + ' ' + r.unit + ' · ' + Math.round(r.g * sc) + 'g',
+          kcal: Math.round(r.base.kcal * sc),
+          macros: Math.round(r.base.p * sc) + 'P ' + Math.round(r.base.c * sc) + 'C ' + Math.round(r.base.f * sc) + 'F',
+          toggle: () => this.setState(s => ({ review: s.review.map((x, xi) => xi !== i ? x : { ...x, on: !x.on }) })),
+          inc: () => this.setState(s => ({ review: s.review.map((x, xi) => xi !== i ? x : { ...x, step: Math.min(4, x.step + 1) }) })),
+          dec: () => this.setState(s => ({ review: s.review.map((x, xi) => xi !== i ? x : { ...x, step: Math.max(-2, x.step - 1) }) }))
+        };
+      }),
+      reviewTotal: revKcal + ' kcal · ' + revPro + 'g protein',
+      reviewCta: 'Log ' + revOn.length + (revOn.length === 1 ? ' item' : ' items') + ' to dinner',
+      commitReview: () => this.setState(s => ({ kcal: s.kcal + revKcal, protein: s.protein + revPro, sheet: null, tab: 'today' })),
+
+      noMsgs: st.msgs.length === 0,
+      msgs: st.msgs.map(m => ({
+        text: m.text,
+        align: m.role === 'user' ? 'flex-end' : 'flex-start',
+        bg: m.role === 'user' ? '#F59148' : '#171613',
+        fg: m.role === 'user' ? '#0E0D0B' : '#F7F4EE',
+        radius: m.role === 'user' ? '16px 16px 5px 16px' : '16px 16px 16px 5px'
+      })),
+      prompts: promptDefs.map(q => ({
+        q,
+        ask: () => this.setState(s => ({ msgs: [{ role: 'user', text: q }, { role: 'ai', text: answers[q] }] }))
+      })),
+
+      weeks: Array.from({ length: 12 }, (_, i) => ({ bg: i < 5 ? '#C9E84A' : i === 5 ? '#F59148' : '#2C2A25' }))
+    };
+  }
+}
+
+</script>
+</body>
+</html>

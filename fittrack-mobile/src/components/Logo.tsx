@@ -5,22 +5,24 @@ import Svg, { Path, Rect, Circle } from 'react-native-svg';
 interface LogoMarkProps {
   size?: number;
   color?: string;
+  secondaryColor?: string;
   bg?: string;
 }
 
-export function LogoMark({ size = 32, color = '#C8FF00', bg = '#0B0B0B' }: LogoMarkProps) {
+export function LogoMark({ size = 32, color = '#C9E84A', secondaryColor = '#F59148', bg = '#171613' }: LogoMarkProps) {
+  const tColor = secondaryColor ?? color;
   return (
     <Svg width={size} height={size} viewBox="0 0 32 32">
       {/* Rounded square background */}
-      <Rect width="32" height="32" rx="8" fill={bg} />
+      <Rect width="32" height="32" rx="9" fill={bg} />
       {/* Bold F and T lettermark — geometric, strong */}
       {/* F stroke */}
       <Rect x="7" y="7" width="3" height="18" rx="1.5" fill={color} />
       <Rect x="7" y="7" width="10" height="3" rx="1.5" fill={color} />
       <Rect x="7" y="14.5" width="8" height="3" rx="1.5" fill={color} />
       {/* T stroke */}
-      <Rect x="16" y="7" width="9" height="3" rx="1.5" fill={color} />
-      <Rect x="19" y="7" width="3" height="18" rx="1.5" fill={color} />
+      <Rect x="16" y="7" width="9" height="3" rx="1.5" fill={tColor} />
+      <Rect x="19" y="7" width="3" height="18" rx="1.5" fill={tColor} />
     </Svg>
   );
 }
@@ -34,8 +36,8 @@ interface LogoWordmarkProps {
 
 export function LogoWordmark({
   size = 'md',
-  accentColor = '#C8FF00',
-  textColor = '#FFFFFF',
+  accentColor = '#F59148',
+  textColor = '#F7F4EE',
 }: LogoWordmarkProps) {
   const fontSize = size === 'sm' ? 16 : size === 'md' ? 22 : 30;
   const markSize = size === 'sm' ? 24 : size === 'md' ? 32 : 44;

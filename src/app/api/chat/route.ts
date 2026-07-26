@@ -330,6 +330,27 @@ You have long-term memory of this user from past sessions (below, if any exists)
         messages: messagesWithTool,
       });
 
+      // If a plan-shaping tool fired this turn, the client renders a structured
+      // "Proposed plan" card instead of just the prose — append a trailing
+      // sentinel with the resulting targets so it doesn't need to re-fetch.
+      const planToolNames = ['schedule_workout_plan', 'set_nutrition_targets', 'set_ai_coach_goal'];
+      const planRelevant = toolUseBlocks.some((b) => planToolNames.includes(b.name));
+      let planSummary: { calories?: number; protein?: number; split?: string; stepTarget?: number } | null = null;
+      if (planRelevant && currentProfile) {
+        planSummary = { split: currentProfile.preferredSplit, stepTarget: currentProfile.stepTarget };
+        if (currentProfile.nutritionTargetOverride) {
+          try {
+            const override = JSON.parse(currentProfile.nutritionTargetOverride) as { calories?: number; protein?: number };
+            if (typeof override.calories === 'number') {
+              planSummary.calories = override.calories;
+              planSummary.protein = override.protein;
+            }
+          } catch {
+            // ignore parse errors — plan card just omits calories/protein
+          }
+        }
+      }
+
       const encoder = new TextEncoder();
       const readable = new ReadableStream({
         async start(controller) {
@@ -337,6 +358,9 @@ You have long-term memory of this user from past sessions (below, if any exists)
             if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
               controller.enqueue(encoder.encode(chunk.delta.text));
             }
+          }
+          if (planSummary) {
+            controller.enqueue(encoder.encode(`\n<<<PLAN>>>${JSON.stringify(planSummary)}`));
           }
           controller.close();
         },

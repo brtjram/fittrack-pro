@@ -1,46 +1,84 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  View, Text, ScrollView, TouchableOpacity,
-  TextInput, RefreshControl, ActivityIndicator, StyleSheet,
-} from 'react-native';
-import { Scale, Dumbbell, TrendingUp, TrendingDown, Minus, Footprints } from 'lucide-react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Footprints } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
+import { Fonts } from '../theme/fonts';
+import { SectionLabel, Sparkline } from '../components/ui';
 import * as api from '../services/api';
-import { analyzeActivity } from '@fittrack/core/src/algorithms/activity-analyzer';
-import { HealthKitSync } from '../components/HealthKitSync';
-import type { WeightEntry, DailyActivity, WorkoutSession } from '@fittrack/core';
+import type { WeightEntry, DailyActivity, WorkoutSession, UserProfile } from '@fittrack/core';
 
-function toDateString(d?: Date): string {
-  const dt = d ?? new Date();
-  return dt.toISOString().split('T')[0];
+type TabId = 'body' | 'strength' | 'habits';
+
+const SPLIT_DAYS_PER_WEEK: Record<string, number> = { ppl: 6, upper_lower: 4, full_body: 3, bro_split: 5 };
+
+function estimatedOneRM(weight: number, reps: number): number {
+  return weight * (1 + reps / 30);
 }
 
-type TabId = 'overview' | 'strength' | 'activity';
+interface LiftTrend {
+  exerciseId: string;
+  exerciseName: string;
+  points: number[];
+  current: number;
+  deltaVsEarliest: number;
+  sessionCount: number;
+}
 
-export function AnalyticsScreen() {
+function buildLiftTrends(workouts: WorkoutSession[]): LiftTrend[] {
+  const byExercise = new Map<string, { name: string; points: { date: string; oneRM: number }[] }>();
+  const sorted = [...workouts].filter((w) => w.completed).sort((a, b) => a.date.localeCompare(b.date));
+  for (const w of sorted) {
+    for (const ex of w.exercises) {
+      const best = ex.sets.reduce((max, s) => {
+        const rm = estimatedOneRM(s.actualWeight ?? s.targetWeight, s.actualReps ?? s.targetReps);
+        return rm > max ? rm : max;
+      }, 0);
+      if (best <= 0) continue;
+      const entry = byExercise.get(ex.exerciseId) ?? { name: ex.exerciseName, points: [] };
+      entry.points.push({ date: w.date, oneRM: best });
+      byExercise.set(ex.exerciseId, entry);
+    }
+  }
+  const trends: LiftTrend[] = [];
+  for (const [exerciseId, { name, points }] of byExercise) {
+    if (points.length < 1) continue;
+    const values = points.map((p) => p.oneRM);
+    trends.push({
+      exerciseId,
+      exerciseName: name,
+      points: values,
+      current: Math.round(values[values.length - 1]),
+      deltaVsEarliest: Math.round(values[values.length - 1] - values[0]),
+      sessionCount: values.length,
+    });
+  }
+  return trends.sort((a, b) => b.sessionCount - a.sessionCount);
+}
+
+export function AnalyticsScreen({ navigation }: { navigation: any }) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [tab, setTab] = useState<TabId>('body');
   const [weights, setWeights] = useState<WeightEntry[]>([]);
   const [workouts, setWorkouts] = useState<WorkoutSession[]>([]);
-  const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [activities, setActivities] = useState<DailyActivity[]>([]);
-  const [showWeightInput, setShowWeightInput] = useState(false);
-  const [newWeight, setNewWeight] = useState('');
-  const [avgSteps, setAvgSteps] = useState(0);
+  const [profile, setProfile] = useState<UserProfile | undefined>();
 
   const loadData = useCallback(async () => {
     try {
-      const [w, a, s] = await Promise.all([
+      const [w, a, s, p] = await Promise.all([
         api.getWeightEntries(90),
-        api.getDailyActivities(30),
-        api.getRecentWorkouts(50),
+        api.getDailyActivities(60),
+        api.getRecentWorkouts(60),
+        api.getUserProfile(),
       ]);
       setWeights(w);
       setWorkouts(s);
       setActivities(a);
-      const insight = analyzeActivity(a);
-      setAvgSteps(insight.averageSteps);
+      setProfile(p);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -48,253 +86,221 @@ export function AnalyticsScreen() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    loadData();
-  }, [loadData]);
-
-  const handleAddWeight = async () => {
-    const value = parseFloat(newWeight);
-    if (isNaN(value) || value <= 0) return;
-    await api.addWeightEntry({ date: toDateString(), weightLbs: value });
-    setNewWeight('');
-    setShowWeightInput(false);
-    loadData();
-  };
-
-  const completedWorkouts = workouts.filter((w) => w.completed);
-  const thisWeekWorkouts = completedWorkouts.filter((w) => {
-    const d = new Date(w.date);
-    return d >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  });
-
-  const sortedWeights = [...weights].sort((a, b) => b.date.localeCompare(a.date));
-  const latestWeight = sortedWeights.length > 0 ? sortedWeights[0].weightLbs : null;
-
-  // Weight trend (last 7 entries)
-  const weightTrend = sortedWeights.length >= 2
-    ? sortedWeights[0].weightLbs - sortedWeights[Math.min(6, sortedWeights.length - 1)].weightLbs
-    : 0;
+  const onRefresh = useCallback(() => { setRefreshing(true); loadData(); }, [loadData]);
 
   if (loading) {
     return (
-      <View style={[styles.centered, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={[styles.centered, { backgroundColor: colors.canvas }]}>
+        <ActivityIndicator size="large" color={colors.signal} />
       </View>
     );
   }
 
-  const tabs: { id: TabId; label: string }[] = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'strength', label: 'Strength' },
-    { id: 'activity', label: 'Activity' },
-  ];
+  const sortedWeights = [...weights].sort((a, b) => a.date.localeCompare(b.date));
+  const latestWeight = sortedWeights.length ? sortedWeights[sortedWeights.length - 1].weightLbs : null;
+  const weeklyRate = sortedWeights.length >= 2
+    ? sortedWeights[sortedWeights.length - 1].weightLbs - sortedWeights[Math.max(0, sortedWeights.length - 8)].weightLbs
+    : 0;
+
+  const sixWeeksAgo = new Date(Date.now() - 42 * 24 * 60 * 60 * 1000);
+  const recentCompleted = workouts.filter((w) => w.completed && new Date(w.date) >= sixWeeksAgo);
+  const daysPerWeek = profile ? (SPLIT_DAYS_PER_WEEK[profile.preferredSplit] ?? 4) : 4;
+  const sessionsPlanned = daysPerWeek * 6;
+  const daysLoggedSet = new Set([
+    ...activities.filter((a) => new Date(a.date) >= sixWeeksAgo).map((a) => a.date),
+    ...weights.filter((w) => new Date(w.date) >= sixWeeksAgo).map((w) => w.date),
+  ]);
+
+  let projectionText: string | null = null;
+  if (profile && latestWeight !== null && weeklyRate !== 0) {
+    const remaining = latestWeight - profile.targetWeightLbs;
+    const movingTowardGoal = (remaining > 0 && weeklyRate < 0) || (remaining < 0 && weeklyRate > 0);
+    if (movingTowardGoal) {
+      const weeksToGoal = Math.abs(remaining / weeklyRate);
+      const projected = new Date(Date.now() + weeksToGoal * 7 * 24 * 60 * 60 * 1000);
+      projectionText = `On this rate you'll hit ${profile.targetWeightLbs} lb in the week of ${projected.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}.`;
+    }
+  }
+
+  const liftTrends = buildLiftTrends(workouts);
+  const mainLifts = liftTrends.slice(0, 3);
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+      style={{ flex: 1, backgroundColor: colors.canvas }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.signal} />}
     >
-      <View style={styles.content}>
-        {/* Log Weight Button */}
-        <TouchableOpacity
-          style={[styles.logWeightBtn, { backgroundColor: colors.muted }]}
-          onPress={() => setShowWeightInput(!showWeightInput)}
-          activeOpacity={0.7}
-        >
-          <Scale size={16} color={colors.primary} />
-          <Text style={{ fontSize: 13, fontWeight: '600', color: colors.primary, marginLeft: 6 }}>Log Weight</Text>
-        </TouchableOpacity>
-
-        {/* Weight Input */}
-        {showWeightInput && (
-          <View style={[styles.weightInputRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <TextInput
-              style={[styles.weightInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-              value={newWeight}
-              onChangeText={setNewWeight}
-              placeholder="Weight in lbs"
-              placeholderTextColor={colors.mutedForeground}
-              keyboardType="numeric"
-              autoFocus
-            />
-            <TouchableOpacity
-              style={[styles.saveBtn, { backgroundColor: colors.primary }]}
-              onPress={handleAddWeight}
-              activeOpacity={0.8}
-            >
-              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.primaryForeground }}>Save</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Quick Stats */}
-        <View style={styles.statsRow}>
-          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Scale size={18} color={colors.primary} />
-            <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 6 }}>Weight</Text>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground, marginTop: 2 }}>
-              {latestWeight ? `${latestWeight} lbs` : '--'}
-            </Text>
-          </View>
-          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Dumbbell size={18} color={colors.primary} />
-            <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 6 }}>This Week</Text>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground, marginTop: 2 }}>
-              {thisWeekWorkouts.length}
-            </Text>
-          </View>
-          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            {weightTrend < 0 ? <TrendingDown size={18} color={colors.success} /> :
-             weightTrend > 0 ? <TrendingUp size={18} color={colors.warning} /> :
-             <Minus size={18} color={colors.mutedForeground} />}
-            <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 6 }}>Trend</Text>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground, marginTop: 2 }}>
-              {weightTrend !== 0 ? `${weightTrend > 0 ? '+' : ''}${weightTrend.toFixed(1)}` : '--'}
-            </Text>
-          </View>
-        </View>
-
-        {/* Tab Navigation */}
-        <View style={[styles.tabRow, { backgroundColor: colors.muted }]}>
-          {tabs.map((t) => (
-            <TouchableOpacity
-              key={t.id}
-              style={[styles.tabBtn, activeTab === t.id && { backgroundColor: colors.card }]}
-              onPress={() => setActiveTab(t.id)}
-            >
-              <Text style={{ fontSize: 13, fontWeight: '600', color: activeTab === t.id ? colors.foreground : colors.mutedForeground }}>
-                {t.label}
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+        <Text style={{ fontFamily: Fonts.serif, fontSize: 28, color: colors.ink }}>Progress</Text>
+        <View style={[styles.tabRow, { backgroundColor: colors.surface }]}>
+          {(['body', 'strength', 'habits'] as TabId[]).map((t) => (
+            <TouchableOpacity key={t} onPress={() => setTab(t)} style={[styles.tabBtn, tab === t && { backgroundColor: colors.surfaceInset }]}>
+              <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 10.5, color: tab === t ? colors.ink : colors.mutedForeground }}>
+                {t.charAt(0).toUpperCase() + t.slice(1)}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
+      </View>
 
-        {/* Tab Content */}
-        {activeTab === 'overview' && (
-          <View>
-            {/* Weight History */}
-            <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Weight History</Text>
-            {sortedWeights.length > 0 ? (
-              <View style={[styles.historyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                {sortedWeights.slice(0, 10).map((w, i) => (
-                  <View key={i} style={[styles.historyRow, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}>
-                    <Text style={{ fontSize: 13, color: colors.mutedForeground }}>
-                      {new Date(w.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </Text>
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground }}>{w.weightLbs} lbs</Text>
+      {tab === 'body' && (
+        <View style={{ paddingBottom: 24 }}>
+          {latestWeight !== null ? (
+            <View style={[styles.card, { backgroundColor: colors.surface, marginHorizontal: 16, marginTop: 22 }]}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <View>
+                  <SectionLabel colors={colors}>Weight trend</SectionLabel>
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 6 }}>
+                    <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 34, letterSpacing: -0.4, color: colors.ink }}>{latestWeight}</Text>
+                    <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 13, color: colors.mutedForeground, marginLeft: 8 }}>lb</Text>
                   </View>
-                ))}
-              </View>
-            ) : (
-              <View style={styles.emptyState}>
-                <Scale size={36} color={colors.mutedForeground} />
-                <Text style={{ color: colors.mutedForeground, marginTop: 8, fontSize: 13 }}>No weight entries yet</Text>
-              </View>
-            )}
-          </View>
-        )}
-
-        {activeTab === 'strength' && (
-          <View>
-            <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Recent Workouts</Text>
-            {completedWorkouts.length > 0 ? (
-              <View style={[styles.historyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                {completedWorkouts.slice(0, 10).map((w, i) => (
-                  <View key={i} style={[styles.historyRow, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}>
-                    <View>
-                      <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground }}>{w.name}</Text>
-                      <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 1 }}>
-                        {new Date(w.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        {' · '}{w.exercises.length} exercises
-                      </Text>
-                    </View>
-                    <Text style={{ fontSize: 13, fontWeight: '600', color: colors.primary }}>
-                      {w.exercises.reduce((a, e) => a + e.sets.reduce((b, s) => b + (s.actualWeight ?? s.targetWeight) * (s.actualReps ?? s.targetReps), 0), 0).toLocaleString()} lbs
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <View style={[styles.trendBadge, { backgroundColor: weeklyRate <= 0 ? 'rgba(201,232,74,0.14)' : 'rgba(245,145,72,0.14)' }]}>
+                    <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12, color: weeklyRate <= 0 ? colors.progress : colors.signal }}>
+                      {weeklyRate === 0 ? 'steady' : `${weeklyRate.toFixed(1)} lb/wk`}
                     </Text>
                   </View>
-                ))}
-              </View>
-            ) : (
-              <View style={styles.emptyState}>
-                <Dumbbell size={36} color={colors.mutedForeground} />
-                <Text style={{ color: colors.mutedForeground, marginTop: 8, fontSize: 13 }}>Complete workouts to see strength data</Text>
-              </View>
-            )}
-          </View>
-        )}
-
-        {activeTab === 'activity' && (
-          <View style={{ gap: 16 }}>
-            {/* HealthKit Sync */}
-            <HealthKitSync onSyncComplete={loadData} />
-
-            {/* Average Steps Card */}
-            <View style={[styles.activityCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <Footprints size={18} color={colors.primary} />
-                <Text style={{ fontSize: 13, fontWeight: '600', color: colors.foreground }}>Average Daily Steps</Text>
-              </View>
-              <Text style={{ fontSize: 28, fontWeight: '700', color: colors.foreground }}>
-                {avgSteps > 0 ? `${(avgSteps / 1000).toFixed(1)}k` : '--'}
-              </Text>
-              <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 4 }}>
-                {avgSteps > 0
-                  ? avgSteps >= 10000 ? 'Great job! You\'re hitting your step goal.' : 'Try to reach 10,000 steps daily.'
-                  : 'Enable Apple Health above to auto-track steps.'}
-              </Text>
-            </View>
-
-            {/* Recent Activity Log */}
-            {activities.length > 0 && (
-              <View>
-                <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Recent Activity</Text>
-                <View style={[styles.historyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  {[...activities].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 7).map((a, i) => (
-                    <View key={i} style={[styles.historyRow, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}>
-                      <View>
-                        <Text style={{ fontSize: 13, color: colors.mutedForeground }}>
-                          {new Date(a.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                        </Text>
-                        {a.source !== 'manual' && (
-                          <Text style={{ fontSize: 10, color: colors.primary, marginTop: 1 }}>{a.source}</Text>
-                        )}
-                      </View>
-                      <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground }}>
-                          {a.steps.toLocaleString()} steps
-                        </Text>
-                        <Text style={{ fontSize: 11, color: colors.mutedForeground }}>
-                          {a.activeCalories} cal{a.restingHeartRate ? ` · ${a.restingHeartRate} bpm` : ''}
-                        </Text>
-                      </View>
-                    </View>
-                  ))}
                 </View>
               </View>
-            )}
+              {sortedWeights.length >= 2 && (
+                <View style={{ marginTop: 12 }}>
+                  <Sparkline values={sortedWeights.map((w) => w.weightLbs)} width={296} height={104} color={colors.progress} dotColor={colors.faint} />
+                </View>
+              )}
+            </View>
+          ) : (
+            <EmptyState colors={colors} text="Log a weigh-in to start your trend." />
+          )}
+
+          {projectionText && (
+            <View style={[styles.card, { backgroundColor: colors.surface, marginHorizontal: 16, marginTop: 16 }]}>
+              <Text style={{ fontFamily: Fonts.serif, fontSize: 17, lineHeight: 23, color: colors.ink }}>{projectionText}</Text>
+            </View>
+          )}
+
+          <View style={styles.tileRow}>
+            <Tile colors={colors} label="Sessions" value={recentCompleted.length} suffix={`/ ${sessionsPlanned} planned`} sub="6 weeks" />
+            <Tile colors={colors} label="Days logged" value={daysLoggedSet.size} suffix="/ 42" sub={`${Math.round((daysLoggedSet.size / 42) * 100)}%`} />
           </View>
-        )}
-      </View>
+
+          {mainLifts.length > 0 && (
+            <View style={{ marginTop: 8 }}>
+              <View style={styles.sectionHeaderRow}>
+                <SectionLabel colors={colors}>Main lifts</SectionLabel>
+                <TouchableOpacity onPress={() => setTab('strength')}>
+                  <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 11, color: colors.signal }}>See all</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={[styles.card, { backgroundColor: colors.surface, marginHorizontal: 16, padding: 0 }]}>
+                {mainLifts.map((lift, i) => (
+                  <LiftRow key={lift.exerciseId} lift={lift} colors={colors} isLast={i === mainLifts.length - 1} navigation={navigation} />
+                ))}
+              </View>
+            </View>
+          )}
+        </View>
+      )}
+
+      {tab === 'strength' && (
+        <View style={{ paddingBottom: 24, paddingTop: 22 }}>
+          {liftTrends.length === 0 ? (
+            <EmptyState colors={colors} text="Complete workouts to see strength trends." />
+          ) : (
+            <View style={[styles.card, { backgroundColor: colors.surface, marginHorizontal: 16, padding: 0 }]}>
+              {liftTrends.map((lift, i) => (
+                <LiftRow key={lift.exerciseId} lift={lift} colors={colors} isLast={i === liftTrends.length - 1} navigation={navigation} />
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+
+      {tab === 'habits' && (
+        <View style={{ paddingBottom: 24, paddingTop: 22, paddingHorizontal: 16, gap: 16 }}>
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <Footprints size={18} color={colors.info} />
+              <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 13, color: colors.ink }}>Average daily steps</Text>
+            </View>
+            <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 28, color: colors.ink }}>
+              {activities.length > 0 ? `${(activities.reduce((a, d) => a + d.steps, 0) / activities.length / 1000).toFixed(1)}k` : '--'}
+            </Text>
+            <Text style={{ fontFamily: Fonts.sans, fontSize: 12, color: colors.mutedForeground, marginTop: 4 }}>
+              Connect Apple Health from Profile to auto-track steps.
+            </Text>
+          </View>
+          {activities.length > 0 && (
+            <View style={[styles.card, { backgroundColor: colors.surface, padding: 0 }]}>
+              {[...activities].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 7).map((a, i, arr) => (
+                <View key={i} style={[styles.habitRow, i < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.hairline }]}>
+                  <Text style={{ fontFamily: Fonts.sans, fontSize: 12.5, color: colors.mutedForeground }}>
+                    {new Date(a.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                  </Text>
+                  <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 13.5, color: colors.ink }}>{a.steps.toLocaleString()} steps</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
     </ScrollView>
+  );
+}
+
+function LiftRow({ lift, colors, isLast, navigation }: { lift: LiftTrend; colors: any; isLast: boolean; navigation: any }) {
+  return (
+    <TouchableOpacity
+      style={[styles.liftRow, !isLast && { borderBottomWidth: 1, borderBottomColor: colors.hairline }]}
+      onPress={() => navigation.navigate('StrengthDetail', { exerciseId: lift.exerciseId, exerciseName: lift.exerciseName })}
+      activeOpacity={0.6}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 13.5, color: colors.ink }}>{lift.exerciseName}</Text>
+        <Text style={{ fontFamily: Fonts.sans, fontSize: 10.5, color: colors.mutedForeground, marginTop: 2 }}>est. 1RM</Text>
+      </View>
+      {lift.points.length >= 2 && <Sparkline values={lift.points} width={60} height={22} color={colors.progress} showEndDot={false} />}
+      <View style={{ alignItems: 'flex-end', minWidth: 62 }}>
+        <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 14, color: colors.ink }}>{lift.current} lb</Text>
+        <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 10.5, color: lift.deltaVsEarliest > 0 ? colors.progress : colors.mutedForeground, marginTop: 2 }}>
+          {lift.deltaVsEarliest > 0 ? `+${lift.deltaVsEarliest}` : lift.deltaVsEarliest === 0 ? 'flat' : lift.deltaVsEarliest}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+function Tile({ colors, label, value, suffix, sub }: { colors: any; label: string; value: number; suffix: string; sub: string }) {
+  return (
+    <View style={[styles.tile, { backgroundColor: colors.surface }]}>
+      <SectionLabel colors={colors} style={{ fontSize: 10 }}>{label}</SectionLabel>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 7 }}>
+        <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 22, color: colors.ink, letterSpacing: -0.3 }}>{value}</Text>
+        <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 11, color: colors.mutedForeground, marginLeft: 4 }}>{suffix}</Text>
+      </View>
+      <Text style={{ fontFamily: Fonts.sans, fontSize: 10.5, color: colors.mutedForeground, marginTop: 9 }}>{sub}</Text>
+    </View>
+  );
+}
+
+function EmptyState({ colors, text }: { colors: any; text: string }) {
+  return (
+    <View style={{ alignItems: 'center', paddingVertical: 40, paddingHorizontal: 32 }}>
+      <Text style={{ fontFamily: Fonts.sans, fontSize: 13, color: colors.mutedForeground, textAlign: 'center' }}>{text}</Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: { padding: 16, gap: 16 },
-  logWeightBtn: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-end', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
-  weightInputRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 12, padding: 12, gap: 10 },
-  weightInput: { flex: 1, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14 },
-  saveBtn: { borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10 },
-  statsRow: { flexDirection: 'row', gap: 10 },
-  statCard: { flex: 1, borderWidth: 1, borderRadius: 12, padding: 14, alignItems: 'center' },
-  tabRow: { flexDirection: 'row', borderRadius: 8, padding: 2 },
-  tabBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 6 },
-  sectionTitle: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
-  historyCard: { borderWidth: 1, borderRadius: 12, overflow: 'hidden' },
-  historyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14 },
-  emptyState: { alignItems: 'center', paddingVertical: 40 },
-  activityCard: { borderWidth: 1, borderRadius: 12, padding: 20 },
+  header: { paddingTop: 60, paddingHorizontal: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  tabRow: { flexDirection: 'row', borderRadius: 9, padding: 3, gap: 3 },
+  tabBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 7 },
+  card: { borderRadius: 18, padding: 20 },
+  trendBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 99 },
+  tileRow: { flexDirection: 'row', gap: 10, marginHorizontal: 16, marginTop: 12, marginBottom: 24 },
+  tile: { flex: 1, borderRadius: 16, padding: 16 },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 12 },
+  liftRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 18, paddingVertical: 14 },
+  habitRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingVertical: 13 },
 });

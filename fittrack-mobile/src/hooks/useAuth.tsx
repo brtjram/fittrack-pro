@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { loginWithCredentials } from '../services/api';
+import { loginWithCredentials, setUnauthorizedHandler } from '../services/api';
 import { saveToken, getToken, removeToken, saveUser, getUser, removeUser } from '../services/auth-storage';
 
 interface AuthUser {
@@ -61,6 +61,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await removeUser();
     setUser(null);
   }, []);
+
+  useEffect(() => {
+    setUnauthorizedHandler(() => { logout(); });
+    return () => setUnauthorizedHandler(null);
+  }, [logout]);
 
   return (
     <AuthContext.Provider value={{ user, loading, login, loginWithToken, logout }}>

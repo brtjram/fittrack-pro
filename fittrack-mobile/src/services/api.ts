@@ -9,6 +9,15 @@ const API_BASE = __DEV__
   ? 'http://localhost:3000'
   : (process.env.EXPO_PUBLIC_API_URL ?? 'https://myfittrack.pro');
 
+// A 401 means the stored token doesn't correspond to a valid session anymore
+// (expired, or its user no longer exists) — retrying or surfacing it as a
+// generic error just leaves the user stuck, so let whoever holds the auth
+// state (useAuth) know to log them out and send them back to the login screen.
+let unauthorizedHandler: (() => void) | null = null;
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  unauthorizedHandler = handler;
+}
+
 async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
   const token = await getToken();
   const headers = {
@@ -22,6 +31,7 @@ async function apiFetch(path: string, options: RequestInit = {}): Promise<Respon
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+      if (res.status === 401 && token) unauthorizedHandler?.();
       // Don't retry on client errors (4xx), only on server errors or network failures
       if (res.ok || (res.status >= 400 && res.status < 500)) return res;
       lastError = new Error(`Server error: ${res.status}`);
@@ -31,6 +41,12 @@ async function apiFetch(path: string, options: RequestInit = {}): Promise<Respon
     if (attempt < 2) await new Promise((r) => setTimeout(r, (attempt + 1) * 1000));
   }
   throw lastError ?? new Error('Request failed after retries');
+}
+
+async function throwIfNotOk(res: Response, fallback: string): Promise<void> {
+  if (res.ok) return;
+  const data = await res.json().catch(() => ({}));
+  throw new Error(data.error || `${fallback} (${res.status})`);
 }
 
 // ==================== Auth ====================
@@ -70,10 +86,14 @@ export async function getUserProfile(): Promise<UserProfile | undefined> {
 }
 
 export async function saveUserProfile(profile: Partial<UserProfile>): Promise<void> {
-  await apiFetch('/api/fitness/profile', {
+  const res = await apiFetch('/api/fitness/profile', {
     method: 'PUT',
     body: JSON.stringify(profile),
   });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Could not save profile (${res.status})`);
+  }
 }
 
 // ==================== Workouts ====================
@@ -100,14 +120,16 @@ export async function getWorkoutById(sessionId: string): Promise<WorkoutSession 
 }
 
 export async function saveWorkout(session: WorkoutSession): Promise<void> {
-  await apiFetch('/api/fitness/workouts', {
+  const res = await apiFetch('/api/fitness/workouts', {
     method: 'POST',
     body: JSON.stringify(session),
   });
+  await throwIfNotOk(res, 'Could not save workout');
 }
 
 export async function deleteWorkout(sessionId: string): Promise<void> {
-  await apiFetch(`/api/fitness/workouts?sessionId=${sessionId}`, { method: 'DELETE' });
+  const res = await apiFetch(`/api/fitness/workouts?sessionId=${sessionId}`, { method: 'DELETE' });
+  await throwIfNotOk(res, 'Could not delete workout');
 }
 
 export async function generateWorkout(): Promise<WorkoutSession | undefined> {
@@ -133,10 +155,11 @@ export async function getPersonalRecords(exerciseId?: string): Promise<PersonalR
 }
 
 export async function savePersonalRecord(record: Omit<PersonalRecord, 'id'>): Promise<void> {
-  await apiFetch('/api/fitness/personal-records', {
+  const res = await apiFetch('/api/fitness/personal-records', {
     method: 'POST',
     body: JSON.stringify(record),
   });
+  await throwIfNotOk(res, 'Could not save personal record');
 }
 
 // ==================== Nutrition ====================
@@ -148,14 +171,24 @@ export async function getFoodLogByDate(date: string): Promise<FoodLogEntry[]> {
 }
 
 export async function addFoodLogEntry(entry: Omit<FoodLogEntry, 'id'>): Promise<void> {
-  await apiFetch('/api/fitness/food-log', {
+  const res = await apiFetch('/api/fitness/food-log', {
     method: 'POST',
     body: JSON.stringify(entry),
   });
+  await throwIfNotOk(res, 'Could not log food');
 }
 
 export async function deleteFoodLogEntry(id: string): Promise<void> {
-  await apiFetch(`/api/fitness/food-log?id=${id}`, { method: 'DELETE' });
+  const res = await apiFetch(`/api/fitness/food-log?id=${id}`, { method: 'DELETE' });
+  await throwIfNotOk(res, 'Could not delete food entry');
+}
+
+export async function updateFoodLogEntry(id: string, patch: Partial<Omit<FoodLogEntry, 'id'>>): Promise<void> {
+  const res = await apiFetch('/api/fitness/food-log', {
+    method: 'PUT',
+    body: JSON.stringify({ id, ...patch }),
+  });
+  await throwIfNotOk(res, 'Could not update food entry');
 }
 
 export interface AnalyzedFoodItem {
@@ -185,6 +218,18 @@ export async function analyzeFoodPhoto(
   return res.json();
 }
 
+export async function analyzeFoodText(description: string): Promise<{ items: AnalyzedFoodItem[]; notes?: string }> {
+  const res = await apiFetch('/api/fitness/food-log/analyze-text', {
+    method: 'POST',
+    body: JSON.stringify({ description }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Could not analyze that description.');
+  }
+  return res.json();
+}
+
 export async function getRecentFoods(meal?: string, limit = 10): Promise<FoodItem[]> {
   const params = new URLSearchParams({ limit: String(limit), ...(meal ? { meal } : {}) });
   const res = await apiFetch(`/api/fitness/food-log/recent?${params.toString()}`);
@@ -201,10 +246,11 @@ export async function getWeightEntries(limit = 90): Promise<WeightEntry[]> {
 }
 
 export async function addWeightEntry(entry: Omit<WeightEntry, 'id'>): Promise<void> {
-  await apiFetch('/api/fitness/weight', {
+  const res = await apiFetch('/api/fitness/weight', {
     method: 'POST',
     body: JSON.stringify(entry),
   });
+  await throwIfNotOk(res, 'Could not save weigh-in');
 }
 
 // ==================== Activities ====================
@@ -222,10 +268,11 @@ export async function saveDailyActivity(data: {
   restingHeartRate?: number;
   source?: string;
 }): Promise<void> {
-  await apiFetch('/api/fitness/activities', {
+  const res = await apiFetch('/api/fitness/activities', {
     method: 'POST',
     body: JSON.stringify(data),
   });
+  await throwIfNotOk(res, 'Could not save activity');
 }
 
 // ==================== Nutrition Adjustments ====================
@@ -239,16 +286,18 @@ export async function getNutritionAdjustments(): Promise<NutritionAdjustment[]> 
 // ==================== Push Tokens ====================
 
 export async function registerPushToken(token: string, platform = 'ios'): Promise<void> {
-  await apiFetch('/api/fitness/push-tokens', {
+  const res = await apiFetch('/api/fitness/push-tokens', {
     method: 'POST',
     body: JSON.stringify({ token, platform }),
   });
+  await throwIfNotOk(res, 'Could not register push token');
 }
 
 export async function removePushToken(token: string): Promise<void> {
-  await apiFetch(`/api/fitness/push-tokens?token=${encodeURIComponent(token)}`, {
+  const res = await apiFetch(`/api/fitness/push-tokens?token=${encodeURIComponent(token)}`, {
     method: 'DELETE',
   });
+  await throwIfNotOk(res, 'Could not remove push token');
 }
 
 // ==================== Notification Preferences ====================
@@ -293,10 +342,11 @@ export async function getNotificationPreferences(): Promise<NotificationPrefs> {
 }
 
 export async function saveNotificationPreferences(prefs: Partial<NotificationPrefs>): Promise<void> {
-  await apiFetch('/api/fitness/notification-preferences', {
+  const res = await apiFetch('/api/fitness/notification-preferences', {
     method: 'PUT',
     body: JSON.stringify(prefs),
   });
+  await throwIfNotOk(res, 'Could not save notification preferences');
 }
 
 // ==================== Transformation Challenge ====================
@@ -356,7 +406,31 @@ export async function updateTransformationChallenge(data: {
 }
 
 export async function endTransformationChallenge(): Promise<void> {
-  await apiFetch('/api/fitness/transformation-challenge', { method: 'DELETE' });
+  const res = await apiFetch('/api/fitness/transformation-challenge', { method: 'DELETE' });
+  await throwIfNotOk(res, 'Could not end challenge');
+}
+
+// ==================== Data Export ====================
+
+export type ExportSection = 'meals' | 'workouts' | 'weighins';
+
+export async function exportData(opts: {
+  format: 'csv' | 'json';
+  range: '90' | 'all';
+  sections: ExportSection[];
+}): Promise<{ content: string; filename: string; mimeType: string }> {
+  const params = new URLSearchParams({ format: opts.format, range: opts.range, sections: opts.sections.join(',') });
+  const res = await apiFetch(`/api/fitness/export?${params.toString()}`);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Export failed.');
+  }
+  const content = await res.text();
+  const disposition = res.headers.get('content-disposition') ?? '';
+  const match = /filename="([^"]+)"/.exec(disposition);
+  const filename = match?.[1] ?? `fittrack-export.${opts.format}`;
+  const mimeType = res.headers.get('content-type') ?? (opts.format === 'json' ? 'application/json' : 'text/csv');
+  return { content, filename, mimeType };
 }
 
 // ==================== USDA Food Search ====================

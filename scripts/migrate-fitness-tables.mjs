@@ -129,6 +129,16 @@ const statements = [
   // ALTER TABLE ADD COLUMN fails (caught below, non-fatal) if the column already exists.
   `ALTER TABLE "FitnessProfile" ADD COLUMN "aiCoachGoal" TEXT`,
 
+  // Added for the Units preferences screen (profile redesign turn 4d).
+  `ALTER TABLE "FitnessProfile" ADD COLUMN "weightUnit" TEXT NOT NULL DEFAULT 'lb'`,
+  `ALTER TABLE "FitnessProfile" ADD COLUMN "heightUnit" TEXT NOT NULL DEFAULT 'cm'`,
+  `ALTER TABLE "FitnessProfile" ADD COLUMN "energyUnit" TEXT NOT NULL DEFAULT 'kcal'`,
+  `ALTER TABLE "FitnessProfile" ADD COLUMN "weekStartsOn" TEXT NOT NULL DEFAULT 'mon'`,
+
+  // Added for the Split & schedule screen (profile redesign turn 4c).
+  `ALTER TABLE "FitnessProfile" ADD COLUMN "trainingDays" TEXT NOT NULL DEFAULT '1,2,4,5,6'`,
+  `ALTER TABLE "FitnessProfile" ADD COLUMN "sessionLengthMin" INTEGER NOT NULL DEFAULT 60`,
+
   `CREATE TABLE IF NOT EXISTS "CoachMemory" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "userId" TEXT NOT NULL,

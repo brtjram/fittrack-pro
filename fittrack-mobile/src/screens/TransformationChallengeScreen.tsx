@@ -3,8 +3,14 @@ import {
   View, Text, ScrollView, TouchableOpacity,
   ActivityIndicator, Alert, StyleSheet, TextInput,
 } from 'react-native';
-import { Flame, Trophy, Target, TrendingDown, Check, ChevronRight, Footprints, Dumbbell, Utensils, X } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  Flame, Trophy, ChevronLeft, Footprints, Dumbbell, Utensils,
+  CircleCheckBig, Anchor, LogOut, Check,
+} from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
+import { Fonts } from '../theme/fonts';
+import { AppliedBanner } from '../components/ui';
 import * as api from '../services/api';
 import {
   CHALLENGE_PHASES as CORE_PHASES,
@@ -34,13 +40,10 @@ interface Challenge {
   weeklyData: WeeklyCheckIn[];
 }
 
-// Phase numbers/copy live once in @fittrack/core (shared with web) so they can't
-// drift between platforms — this just maps the shared color name to a hex value
-// for React Native's style props.
 const COLOR_HEX: Record<ChallengePhaseColor, string> = {
-  blue: '#3b82f6',
-  amber: '#f59e0b',
-  red: '#ef4444',
+  blue: '#6C9FD4',
+  amber: '#F59148',
+  red: '#E4574C',
 };
 
 type MobileChallengePhase = Omit<CoreChallengePhase, 'color'> & { color: string };
@@ -49,16 +52,18 @@ function withColor(phase: CoreChallengePhase): MobileChallengePhase {
   return { ...phase, color: COLOR_HEX[phase.color] };
 }
 
-const PHASE_INFO: MobileChallengePhase[] = CORE_PHASES.map(withColor);
-
 function getPhase(week: number): MobileChallengePhase {
   return withColor(coreGetPhase(week));
 }
 
-export function TransformationChallengeScreen() {
+const PHASE_ICONS = [CircleCheckBig, Flame, Anchor];
+
+export function TransformationChallengeScreen({ navigation }: { navigation: any }) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [challenge, setChallenge] = useState<Challenge | null>(null);
+  const [weighInsThisWeek, setWeighInsThisWeek] = useState(0);
   const [showCheckIn, setShowCheckIn] = useState(false);
   const [checkIn, setCheckIn] = useState<WeeklyCheckIn>({ week: 1 });
   const [saving, setSaving] = useState(false);
@@ -68,7 +73,18 @@ export function TransformationChallengeScreen() {
     try {
       const data = await api.getTransformationChallenge();
       setChallenge(data);
-      if (data) setCheckIn({ week: data.currentWeek });
+      if (data) {
+        setCheckIn({ week: data.currentWeek });
+        const weekStart = new Date(data.startDate);
+        weekStart.setDate(weekStart.getDate() + (data.currentWeek - 1) * 7);
+        const weights = await api.getWeightEntries(14);
+        const count = weights.filter((w) => {
+          const d = new Date(w.date);
+          const diffDays = Math.floor((d.getTime() - weekStart.getTime()) / (1000 * 60 * 60 * 24));
+          return diffDays >= 0 && diffDays < 7;
+        }).length;
+        setWeighInsThisWeek(count);
+      }
     } finally {
       setLoading(false);
     }
@@ -98,12 +114,16 @@ export function TransformationChallengeScreen() {
   };
 
   const endChallenge = () => {
-    Alert.alert('End Challenge', 'Are you sure you want to end the transformation challenge?', [
+    Alert.alert('Leave the challenge', 'Are you sure you want to end the transformation challenge?', [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'End', style: 'destructive', onPress: async () => {
-          await api.endTransformationChallenge();
-          setChallenge(null);
+        text: 'Leave', style: 'destructive', onPress: async () => {
+          try {
+            await api.endTransformationChallenge();
+            setChallenge(null);
+          } catch (e) {
+            Alert.alert('Error', e instanceof Error ? e.message : 'Could not end challenge. Please try again.');
+          }
         },
       },
     ]);
@@ -126,275 +146,215 @@ export function TransformationChallengeScreen() {
     }
   };
 
-  const s = styles(colors);
-
   if (loading) {
     return (
-      <View style={s.centered}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={[styles.centered, { backgroundColor: colors.canvas }]}>
+        <ActivityIndicator size="large" color={colors.signal} />
       </View>
     );
   }
 
   if (!challenge || !challenge.isActive) {
     return (
-      <ScrollView style={s.container} contentContainerStyle={s.content}>
-        <View style={s.heroCard}>
-          <Flame size={48} color="#ef4444" />
-          <Text style={s.heroTitle}>12-Week Transformation</Text>
-          <Text style={s.heroSubtitle}>
-            A structured body transformation program to maximize fat loss while preserving muscle. Close tracking of steps, food, and training with adjustments every 4 weeks.
-          </Text>
+      <View style={{ flex: 1, backgroundColor: colors.canvas }}>
+        <View style={[styles.topBar, { paddingTop: insets.top + 12 }]}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.circleBtn, { backgroundColor: colors.surface }]}>
+            <ChevronLeft size={19} color={colors.ink} />
+          </TouchableOpacity>
+          <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 14, color: colors.ink, flex: 1, marginLeft: 12 }}>12-week challenge</Text>
         </View>
-
-        <View style={s.phases}>
-          {PHASE_INFO.map((p) => (
-            <View key={p.phase} style={[s.phaseCard, { borderLeftColor: p.color }]}>
-              <Text style={[s.phaseLabel, { color: p.color }]}>Phase {p.phase} — Weeks {p.weeks}</Text>
-              <Text style={[s.phaseName, { color: colors.foreground }]}>{p.label}</Text>
-              <Text style={[s.phaseDesc, { color: colors.mutedForeground }]}>{p.desc}</Text>
-              <View style={s.phaseTargets}>
-                <PhaseTarget icon={<Footprints size={12} color={p.color} />} label={`${p.targets.steps.toLocaleString()} steps/day`} color={p.color} />
-                <PhaseTarget icon={<Dumbbell size={12} color={p.color} />} label={`${p.targets.workoutsPerWeek} workouts/week`} color={p.color} />
-                <PhaseTarget icon={<Utensils size={12} color={p.color} />} label={`${p.targets.complianceDays}/7 days on-plan`} color={p.color} />
+        <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 40 }}>
+          <View style={[styles.card, { backgroundColor: colors.surface, padding: 24, alignItems: 'center', gap: 12 }]}>
+            <Flame size={40} color={colors.signal} />
+            <Text style={{ fontFamily: Fonts.serif, fontSize: 20, color: colors.ink, textAlign: 'center' }}>12-Week Transformation</Text>
+            <Text style={{ fontFamily: Fonts.sans, fontSize: 12.5, lineHeight: 19, color: colors.mutedForeground, textAlign: 'center' }}>
+              A structured program to maximize fat loss while preserving muscle — close tracking of steps, food, and training, with the plan sharpening every phase.
+            </Text>
+          </View>
+          {CORE_PHASES.map((p, i) => {
+            const Icon = PHASE_ICONS[i];
+            const color = COLOR_HEX[p.color];
+            return (
+              <View key={p.phase} style={[styles.card, { backgroundColor: colors.surface, padding: 16, borderLeftWidth: 3, borderLeftColor: color }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <Icon size={16} color={color} />
+                  <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12.5, color }}>Weeks {p.weeks} · {p.label}</Text>
+                </View>
+                <Text style={{ fontFamily: Fonts.sans, fontSize: 11.5, lineHeight: 17, color: colors.mutedForeground, marginTop: 8 }}>{p.desc}</Text>
               </View>
-            </View>
-          ))}
-        </View>
-
-        <TouchableOpacity style={s.startBtn} onPress={startChallenge} disabled={saving} activeOpacity={0.8}>
-          {saving ? <ActivityIndicator size="small" color="white" /> : <Flame size={18} color="white" />}
-          <Text style={s.startBtnText}>{saving ? 'Starting...' : 'Start Transformation'}</Text>
-        </TouchableOpacity>
-      </ScrollView>
+            );
+          })}
+          <TouchableOpacity onPress={startChallenge} disabled={saving} style={[styles.startBtn, { backgroundColor: colors.signal }]}>
+            {saving ? <ActivityIndicator color={colors.signalForeground} /> : <Flame size={18} color={colors.signalForeground} />}
+            <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 15, color: colors.signalForeground }}>{saving ? 'Starting…' : 'Start Transformation'}</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
     );
   }
 
   const phase = getPhase(challenge.currentWeek);
   const targets = getWeekTargets(challenge.currentWeek, challenge.startWeightLbs, challenge.targetWeightLbs);
-  const totalLoss = challenge.startWeightLbs - challenge.targetWeightLbs;
-  const progressPct = Math.min(((challenge.currentWeek - 1) / 12) * 100, 100);
   const lastCheckIn = challenge.weeklyData[challenge.weeklyData.length - 1] as WeeklyCheckIn | undefined;
-  const actualLoss = lastCheckIn?.endWeight
-    ? challenge.startWeightLbs - lastCheckIn.endWeight
-    : 0;
+  const compliantWeeks = challenge.weeklyData.filter((w) => (w.foodComplianceDays ?? 0) >= 5).length;
+  const missedWeeks = challenge.weeklyData.length - compliantWeeks;
 
   return (
-    <ScrollView style={s.container} contentContainerStyle={s.content}>
-      {/* Header */}
-      <View style={[s.headerCard, { borderColor: phase.color + '40', backgroundColor: phase.color + '10' }]}>
-        <View style={s.headerRow}>
-          <Flame size={24} color={phase.color} />
-          <View style={{ flex: 1, marginLeft: 10 }}>
-            <Text style={[s.headerTitle, { color: colors.foreground }]}>Week {challenge.currentWeek} of 12</Text>
-            <Text style={[s.headerPhase, { color: phase.color }]}>Phase {phase.phase}: {phase.label}</Text>
-          </View>
-          <TouchableOpacity onPress={endChallenge}>
-            <X size={18} color={colors.mutedForeground} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Progress bar */}
-        <View style={s.progressBar}>
-          <View style={[s.progressFill, { width: `${progressPct}%` as any, backgroundColor: phase.color }]} />
-        </View>
-        <Text style={[s.progressLabel, { color: colors.mutedForeground }]}>
-          {challenge.currentWeek - 1} of 12 weeks complete
-        </Text>
-      </View>
-
-      {/* Stats */}
-      <View style={s.statsRow}>
-        <StatBox label="Start" value={`${challenge.startWeightLbs}lbs`} colors={colors} />
-        <StatBox label="Lost" value={actualLoss > 0 ? `-${actualLoss.toFixed(1)}lbs` : '—'} highlight colors={colors} />
-        <StatBox label="Target" value={`${challenge.targetWeightLbs}lbs`} colors={colors} />
-        <StatBox label="To Go" value={`${Math.max(0, totalLoss - actualLoss).toFixed(1)}lbs`} colors={colors} />
-      </View>
-
-      {/* Phase guidance */}
-      <View style={[s.section, { borderColor: colors.border }]}>
-        <Text style={[s.sectionTitle, { color: colors.foreground }]}>This Phase</Text>
-        <Text style={[s.phaseDesc, { color: colors.mutedForeground }]}>{phase.desc}</Text>
-      </View>
-
-      {/* Weekly targets */}
-      <View style={[s.section, { borderColor: colors.border }]}>
-        <Text style={[s.sectionTitle, { color: colors.foreground }]}>Week {challenge.currentWeek} Targets</Text>
-        <TargetRow icon={<Footprints size={16} color={phase.color} />} label="Daily Steps" value={`${targets.steps.toLocaleString()}+`} colors={colors} />
-        <TargetRow icon={<Dumbbell size={16} color={phase.color} />} label="Workouts" value={`${targets.workoutsPerWeek}/week`} colors={colors} />
-        <TargetRow icon={<Utensils size={16} color={phase.color} />} label="On-Plan Days" value={`${targets.complianceDays}/7`} colors={colors} />
-        <TargetRow icon={<Target size={16} color={phase.color} />} label="Target Weight" value={`~${targets.expectedWeight}lbs`} colors={colors} />
-      </View>
-
-      {/* Weekly history */}
-      {challenge.weeklyData.length > 0 && (
-        <View style={[s.section, { borderColor: colors.border }]}>
-          <Text style={[s.sectionTitle, { color: colors.foreground }]}>Progress Log</Text>
-          {challenge.weeklyData.map((w) => (
-            <View key={w.week} style={[s.logRow, { borderBottomColor: colors.border }]}>
-              <Text style={[s.logWeek, { color: colors.mutedForeground }]}>Wk {w.week}</Text>
-              <Text style={[s.logWeight, { color: colors.foreground }]}>{w.endWeight ? `${w.endWeight}lbs` : '—'}</Text>
-              <Text style={[s.logSteps, { color: colors.mutedForeground }]}>{w.avgDailySteps ? `${(w.avgDailySteps / 1000).toFixed(1)}k steps` : ''}</Text>
-              <Text style={[s.logWorkouts, { color: colors.mutedForeground }]}>{w.workoutsCompleted !== undefined ? `${w.workoutsCompleted}/${w.workoutsTargeted ?? '?'} workouts` : ''}</Text>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {/* Check-in modal inline */}
-      {showCheckIn ? (
-        <View style={[s.section, { borderColor: phase.color, borderWidth: 2 }]}>
-          <Text style={[s.sectionTitle, { color: colors.foreground }]}>Week {challenge.currentWeek} Check-In</Text>
-
-          <Text style={[s.inputLabel, { color: colors.mutedForeground }]}>Weight this morning (lbs)</Text>
-          <TextInput
-            style={[s.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background }]}
-            keyboardType="decimal-pad"
-            placeholder="e.g. 183.5"
-            placeholderTextColor={colors.mutedForeground}
-            value={checkIn.endWeight?.toString() ?? ''}
-            onChangeText={(v) => setCheckIn((c) => ({ ...c, endWeight: parseFloat(v) || undefined }))}
-          />
-
-          <Text style={[s.inputLabel, { color: colors.mutedForeground }]}>Avg daily steps</Text>
-          <TextInput
-            style={[s.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background }]}
-            keyboardType="numeric"
-            placeholder="e.g. 9500"
-            placeholderTextColor={colors.mutedForeground}
-            value={checkIn.avgDailySteps?.toString() ?? ''}
-            onChangeText={(v) => setCheckIn((c) => ({ ...c, avgDailySteps: parseInt(v) || undefined }))}
-          />
-
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <View style={{ flex: 1 }}>
-              <Text style={[s.inputLabel, { color: colors.mutedForeground }]}>Workouts done</Text>
-              <TextInput
-                style={[s.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background }]}
-                keyboardType="numeric"
-                placeholder="e.g. 4"
-                placeholderTextColor={colors.mutedForeground}
-                value={checkIn.workoutsCompleted?.toString() ?? ''}
-                onChangeText={(v) => setCheckIn((c) => ({ ...c, workoutsCompleted: parseInt(v) || undefined }))}
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[s.inputLabel, { color: colors.mutedForeground }]}>On-plan food days</Text>
-              <TextInput
-                style={[s.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background }]}
-                keyboardType="numeric"
-                placeholder="e.g. 5"
-                placeholderTextColor={colors.mutedForeground}
-                value={checkIn.foodComplianceDays?.toString() ?? ''}
-                onChangeText={(v) => setCheckIn((c) => ({ ...c, foodComplianceDays: parseInt(v) || undefined }))}
-              />
-            </View>
-          </View>
-
-          <Text style={[s.inputLabel, { color: colors.mutedForeground }]}>Notes (optional)</Text>
-          <TextInput
-            style={[s.input, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background, height: 60 }]}
-            multiline
-            placeholder="How did this week feel?"
-            placeholderTextColor={colors.mutedForeground}
-            value={checkIn.notes ?? ''}
-            onChangeText={(v) => setCheckIn((c) => ({ ...c, notes: v }))}
-          />
-
-          <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-            <TouchableOpacity
-              style={[s.cancelBtn, { borderColor: colors.border }]}
-              onPress={() => setShowCheckIn(false)}
-            >
-              <Text style={{ color: colors.mutedForeground, fontWeight: '600' }}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.submitBtn} onPress={submitCheckIn} disabled={saving} activeOpacity={0.8}>
-              {saving ? <ActivityIndicator size="small" color="white" /> : <Check size={16} color="white" />}
-              <Text style={{ color: 'white', fontWeight: '600', marginLeft: 6 }}>Save & Advance</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      ) : (
-        <TouchableOpacity
-          style={[s.checkInBtn, { backgroundColor: phase.color }]}
-          onPress={() => setShowCheckIn(true)}
-          activeOpacity={0.8}
-        >
-          <Trophy size={18} color="white" />
-          <Text style={s.checkInBtnText}>Week {challenge.currentWeek} Check-In</Text>
-          <ChevronRight size={16} color="white" />
+    <View style={{ flex: 1, backgroundColor: colors.canvas }}>
+      <View style={[styles.topBar, { paddingTop: insets.top + 12 }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.circleBtn, { backgroundColor: colors.surface }]}>
+          <ChevronLeft size={19} color={colors.ink} />
         </TouchableOpacity>
-      )}
+        <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 14, color: colors.ink, flex: 1, marginLeft: 12 }}>12-week challenge</Text>
+      </View>
 
-      <View style={{ height: 32 }} />
-    </ScrollView>
-  );
-}
+      <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 40 }}>
+        <View>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 9 }}>
+            <Text style={{ fontFamily: Fonts.serif, fontSize: 30, color: colors.ink }}>Week {challenge.currentWeek}</Text>
+            <Text style={{ fontFamily: Fonts.sans, fontSize: 13, color: colors.mutedForeground }}>of 12 · {phase.label}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 3, marginTop: 14 }}>
+            {Array.from({ length: 12 }, (_, i) => {
+              const weekNum = i + 1;
+              const done = weekNum < challenge.currentWeek;
+              const current = weekNum === challenge.currentWeek;
+              return (
+                <View key={i} style={{
+                  flex: 1, height: 7, borderRadius: 4,
+                  backgroundColor: done ? colors.progress : current ? phase.color : colors.hairline,
+                }} />
+              );
+            })}
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 7 }}>
+            <Text style={{ fontFamily: Fonts.sans, fontSize: 10.5, color: colors.faint }}>Started {new Date(challenge.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text>
+            <TouchableOpacity onPress={endChallenge}>
+              <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 10.5, color: colors.mutedForeground }}>Leave challenge</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
-function StatBox({ label, value, highlight, colors }: { label: string; value: string; highlight?: boolean; colors: any }) {
-  return (
-    <View style={{ flex: 1, alignItems: 'center', padding: 10, backgroundColor: highlight ? colors.primary + '15' : colors.card, borderRadius: 10, marginHorizontal: 3 }}>
-      <Text style={{ fontSize: 11, color: colors.mutedForeground, marginBottom: 2 }}>{label}</Text>
-      <Text style={{ fontSize: 14, fontWeight: '700', color: highlight ? colors.primary : colors.foreground }}>{value}</Text>
+        <View style={[styles.card, { backgroundColor: colors.surface, padding: 19 }]}>
+          <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 10.5, letterSpacing: 1, color: colors.mutedForeground, textTransform: 'uppercase' }}>This week asks for</Text>
+          <View style={styles.statGrid}>
+            <StatTile colors={colors} label="Sessions" value={`${lastCheckIn?.workoutsCompleted ?? 0}`} suffix={`/ ${targets.workoutsPerWeek} done`} />
+            <StatTile colors={colors} label="On-plan days" value={`${lastCheckIn?.foodComplianceDays ?? 0}`} suffix={`/ ${targets.complianceDays} hit`} />
+            <StatTile colors={colors} label="Weigh-ins" value={`${weighInsThisWeek}`} suffix="/ 7" highlight={weighInsThisWeek >= 6} color={colors} />
+            <StatTile colors={colors} label="Steps avg" value={lastCheckIn?.avgDailySteps ? `${(lastCheckIn.avgDailySteps / 1000).toFixed(1)}k` : '—'} suffix={`/ ${(targets.steps / 1000).toFixed(0)}k`} />
+          </View>
+        </View>
+
+        <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 11, letterSpacing: 1, color: colors.mutedForeground, textTransform: 'uppercase', marginTop: 4 }}>The block</Text>
+        <View style={[styles.card, { backgroundColor: colors.surface }]}>
+          {CORE_PHASES.map((p, i) => {
+            const Icon = PHASE_ICONS[i];
+            const color = COLOR_HEX[p.color];
+            const isCurrent = phase.phase === p.phase;
+            const isPast = phase.phase > p.phase;
+            return (
+              <View key={p.phase} style={[
+                styles.phaseRow,
+                i > 0 && { borderTopWidth: 1, borderTopColor: colors.hairline },
+                isCurrent && { backgroundColor: `${color}12` },
+              ]}>
+                <Icon size={17} color={isPast ? colors.progress : isCurrent ? color : colors.faint} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 13, color: isCurrent ? colors.ink : isPast ? colors.mutedStrong : colors.mutedForeground }}>
+                    Weeks {p.weeks} · {p.label}
+                  </Text>
+                  <Text style={{ fontFamily: Fonts.sans, fontSize: 11, color: isCurrent ? colors.mutedForeground : colors.faint, marginTop: 2 }} numberOfLines={1}>{p.desc}</Text>
+                </View>
+                {isCurrent && <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 11.5, color }}>now</Text>}
+              </View>
+            );
+          })}
+        </View>
+
+        {challenge.weeklyData.length > 0 && (
+          <View style={[styles.infoBanner, { backgroundColor: 'rgba(201,232,74,.08)' }]}>
+            <Trophy size={15} color={colors.progress} style={{ marginTop: 1 }} />
+            <Text style={{ fontFamily: Fonts.sans, fontSize: 11.5, lineHeight: 17, color: colors.mutedStrong, flex: 1 }}>
+              You finish the challenge by staying on-plan most days each week.
+              {missedWeeks > 0 ? ` You've fallen short ${missedWeeks} week${missedWeeks === 1 ? '' : 's'} so far.` : " You're on track every week so far."}
+            </Text>
+          </View>
+        )}
+
+        {showCheckIn ? (
+          <View style={[styles.card, { backgroundColor: colors.surface, padding: 18, borderWidth: 1.5, borderColor: phase.color }]}>
+            <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 14, color: colors.ink, marginBottom: 4 }}>Week {challenge.currentWeek} check-in</Text>
+            <CheckInField colors={colors} label="Weight this morning (lbs)" value={checkIn.endWeight} onChange={(v) => setCheckIn((c) => ({ ...c, endWeight: v }))} keyboardType="decimal-pad" />
+            <CheckInField colors={colors} label="Avg daily steps" value={checkIn.avgDailySteps} onChange={(v) => setCheckIn((c) => ({ ...c, avgDailySteps: v }))} />
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <CheckInField colors={colors} label="Workouts done" value={checkIn.workoutsCompleted} onChange={(v) => setCheckIn((c) => ({ ...c, workoutsCompleted: v }))} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <CheckInField colors={colors} label="On-plan days" value={checkIn.foodComplianceDays} onChange={(v) => setCheckIn((c) => ({ ...c, foodComplianceDays: v }))} />
+              </View>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
+              <TouchableOpacity onPress={() => setShowCheckIn(false)} style={[styles.cancelBtn, { backgroundColor: colors.surfaceInset }]}>
+                <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 13, color: colors.mutedForeground }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={submitCheckIn} disabled={saving} style={[styles.submitBtn, { backgroundColor: phase.color }]}>
+                {saving ? <ActivityIndicator color="#0E0D0B" /> : <Check size={15} color="#0E0D0B" strokeWidth={2.6} />}
+                <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 13, color: '#0E0D0B' }}>Save & advance</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity onPress={() => setShowCheckIn(true)} style={[styles.checkInBtn, { backgroundColor: phase.color }]}>
+            <Trophy size={17} color="#0E0D0B" />
+            <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 14, color: '#0E0D0B' }}>Week {challenge.currentWeek} check-in</Text>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
     </View>
   );
 }
 
-function TargetRow({ icon, label, value, colors }: { icon: React.ReactNode; label: string; value: string; colors: any }) {
+function StatTile({ colors, label, value, suffix, highlight }: { colors: any; label: string; value: string; suffix: string; highlight?: boolean; color?: any }) {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border + '60' }}>
-      {icon}
-      <Text style={{ flex: 1, marginLeft: 10, fontSize: 13, color: colors.foreground }}>{label}</Text>
-      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.foreground }}>{value}</Text>
+    <View style={[styles.statTile, { backgroundColor: colors.surfaceInset }]}>
+      <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 9.5, letterSpacing: 0.7, color: colors.mutedForeground, textTransform: 'uppercase' }}>{label}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 5, marginTop: 6 }}>
+        <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 17, color: highlight ? colors.progress : colors.ink }}>{value}</Text>
+        <Text style={{ fontFamily: Fonts.sans, fontSize: 11.5, color: colors.mutedForeground }}>{suffix}</Text>
+      </View>
     </View>
   );
 }
 
-function PhaseTarget({ icon, label, color }: { icon: React.ReactNode; label: string; color: string }) {
+function CheckInField({ colors, label, value, onChange, keyboardType = 'numeric' }: {
+  colors: any; label: string; value: number | undefined; onChange: (v: number | undefined) => void; keyboardType?: 'numeric' | 'decimal-pad';
+}) {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
-      {icon}
-      <Text style={{ fontSize: 11, color }}>{label}</Text>
+    <View style={{ marginBottom: 12 }}>
+      <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 10.5, letterSpacing: 0.5, color: colors.mutedForeground, textTransform: 'uppercase', marginBottom: 5 }}>{label}</Text>
+      <TextInput
+        style={{ borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontFamily: Fonts.sans, fontSize: 14, backgroundColor: colors.surfaceInset, color: colors.ink }}
+        keyboardType={keyboardType}
+        placeholderTextColor={colors.mutedForeground}
+        value={value?.toString() ?? ''}
+        onChangeText={(v) => onChange(keyboardType === 'decimal-pad' ? parseFloat(v) || undefined : parseInt(v) || undefined)}
+      />
     </View>
   );
 }
 
-function styles(colors: any) {
-  return StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
-    content: { padding: 16, gap: 14 },
-    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
-    heroCard: { alignItems: 'center', backgroundColor: colors.card, borderRadius: 16, padding: 24, gap: 12, borderWidth: 1, borderColor: colors.border },
-    heroTitle: { fontSize: 22, fontWeight: '800', color: colors.foreground, textAlign: 'center' },
-    heroSubtitle: { fontSize: 13, color: colors.mutedForeground, textAlign: 'center', lineHeight: 20 },
-    phases: { gap: 10 },
-    phaseCard: { backgroundColor: colors.card, borderRadius: 12, padding: 14, borderLeftWidth: 4, borderWidth: 1, borderColor: colors.border },
-    phaseLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-    phaseName: { fontSize: 15, fontWeight: '700', marginTop: 2 },
-    phaseDesc: { fontSize: 12, lineHeight: 18, marginTop: 4 },
-    phaseTargets: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
-    startBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ef4444', borderRadius: 14, paddingVertical: 16, gap: 8 },
-    startBtnText: { fontSize: 16, fontWeight: '700', color: 'white' },
-    headerCard: { borderRadius: 14, padding: 14, borderWidth: 1 },
-    headerRow: { flexDirection: 'row', alignItems: 'center' },
-    headerTitle: { fontSize: 18, fontWeight: '800' },
-    headerPhase: { fontSize: 13, fontWeight: '600', marginTop: 1 },
-    progressBar: { height: 6, backgroundColor: colors.muted, borderRadius: 3, marginTop: 12, overflow: 'hidden' },
-    progressFill: { height: 6, borderRadius: 3 },
-    progressLabel: { fontSize: 11, marginTop: 4 },
-    statsRow: { flexDirection: 'row' },
-    section: { backgroundColor: colors.card, borderRadius: 14, padding: 14, borderWidth: 1 },
-    sectionTitle: { fontSize: 14, fontWeight: '700', marginBottom: 10 },
-    logRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1 },
-    logWeek: { width: 36, fontSize: 12 },
-    logWeight: { width: 70, fontSize: 12, fontWeight: '600' },
-    logSteps: { flex: 1, fontSize: 11 },
-    logWorkouts: { fontSize: 11 },
-    checkInBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 14, paddingVertical: 16, gap: 8 },
-    checkInBtnText: { fontSize: 15, fontWeight: '700', color: 'white', flex: 1, textAlign: 'center' },
-    inputLabel: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4, marginTop: 12 },
-    input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14 },
-    cancelBtn: { flex: 1, borderWidth: 1, borderRadius: 10, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
-    submitBtn: { flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 12 },
-  });
-}
+const styles = StyleSheet.create({
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 4, gap: 10 },
+  circleBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  card: { borderRadius: 18, overflow: 'hidden' },
+  statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 14 },
+  statTile: { flexBasis: '47%', flexGrow: 1, borderRadius: 13, padding: 13 },
+  phaseRow: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 15 },
+  infoBanner: { flexDirection: 'row', gap: 11, borderRadius: 14, padding: 15 },
+  startBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: 15, paddingVertical: 16 },
+  checkInBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: 14, paddingVertical: 15 },
+  cancelBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 11, paddingVertical: 12 },
+  submitBtn: { flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 11, paddingVertical: 12 },
+});

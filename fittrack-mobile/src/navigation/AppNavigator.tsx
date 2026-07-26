@@ -1,183 +1,226 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Home, Dumbbell, UtensilsCrossed, BarChart3, Settings, Bot } from 'lucide-react-native';
+import { Home, Dumbbell, TrendingUp, MessageCircle, Plus } from 'lucide-react-native';
+import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { useTheme } from '../theme/useTheme';
+import { Fonts } from '../theme/fonts';
 
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { WorkoutsScreen } from '../screens/WorkoutsScreen';
 import { WorkoutDetailScreen } from '../screens/WorkoutDetailScreen';
+import { WorkoutSessionScreen } from '../screens/WorkoutSessionScreen';
+import { WorkoutSummaryScreen } from '../screens/WorkoutSummaryScreen';
 import { NutritionScreen } from '../screens/NutritionScreen';
+import { LogFoodScreen } from '../screens/LogFoodScreen';
+import { AIFoodReviewScreen } from '../screens/AIFoodReviewScreen';
+import { WeighInScreen } from '../screens/WeighInScreen';
 import { AnalyticsScreen } from '../screens/AnalyticsScreen';
+import { StrengthDetailScreen } from '../screens/StrengthDetailScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
+import { EditProfileScreen } from '../screens/EditProfileScreen';
+import { AppleHealthScreen } from '../screens/AppleHealthScreen';
 import { NotificationSettingsScreen } from '../screens/NotificationSettingsScreen';
 import { TransformationChallengeScreen } from '../screens/TransformationChallengeScreen';
 import { ChatScreen } from '../screens/ChatScreen';
+import { MeasurementsScreen } from '../screens/MeasurementsScreen';
+import { GoalPaceScreen } from '../screens/GoalPaceScreen';
+import { SplitScheduleScreen } from '../screens/SplitScheduleScreen';
+import { UnitsScreen } from '../screens/UnitsScreen';
+import { CoachModeScreen } from '../screens/CoachModeScreen';
+import { ExportDataScreen } from '../screens/ExportDataScreen';
 
 const Tab = createBottomTabNavigator();
-const WorkoutStack = createNativeStackNavigator();
-const SettingsStack = createNativeStackNavigator();
+const RootStack = createNativeStackNavigator();
+const TrainStack = createNativeStackNavigator();
+const ProgressStack = createNativeStackNavigator();
+const ProfileStack = createNativeStackNavigator();
 
-function WorkoutsStackNavigator() {
+function noHeader(colors: any) {
+  return {
+    headerStyle: { backgroundColor: colors.background },
+    headerTintColor: colors.foreground,
+    headerShadowVisible: false,
+    headerTitleStyle: { fontFamily: Fonts.sansSemiBold, fontSize: 17 },
+  };
+}
+
+function TrainStackNavigator() {
   const { colors } = useTheme();
   return (
-    <WorkoutStack.Navigator screenOptions={{
-      headerStyle: { backgroundColor: colors.background },
-      headerTintColor: colors.foreground,
-      headerShadowVisible: false,
-      headerTitleStyle: { fontWeight: '700', fontSize: 17 },
-    }}>
-      <WorkoutStack.Screen name="WorkoutsList" component={WorkoutsScreen} options={{ headerShown: false }} />
-      <WorkoutStack.Screen name="WorkoutDetail" component={WorkoutDetailScreen} options={{ title: 'Workout' }} />
-    </WorkoutStack.Navigator>
+    <TrainStack.Navigator screenOptions={noHeader(colors)}>
+      <TrainStack.Screen name="WorkoutsList" component={WorkoutsScreen} options={{ headerShown: false }} />
+      <TrainStack.Screen name="WorkoutDetail" component={WorkoutDetailScreen} options={{ title: 'Workout' }} />
+      <TrainStack.Screen name="WorkoutSession" component={WorkoutSessionScreen} options={{ headerShown: false }} />
+      <TrainStack.Screen name="WorkoutSummary" component={WorkoutSummaryScreen} options={{ headerShown: false, gestureEnabled: false }} />
+    </TrainStack.Navigator>
   );
 }
 
-function SettingsStackNavigator() {
+function ProgressStackNavigator() {
   const { colors } = useTheme();
   return (
-    <SettingsStack.Navigator screenOptions={{
-      headerStyle: { backgroundColor: colors.background },
-      headerTintColor: colors.foreground,
-      headerShadowVisible: false,
-      headerTitleStyle: { fontWeight: '700', fontSize: 17 },
-    }}>
-      <SettingsStack.Screen name="SettingsMain" component={SettingsScreen} options={{ headerShown: false }} />
-      <SettingsStack.Screen name="NotificationSettings" component={NotificationSettingsScreen} options={{ title: 'Notifications' }} />
-      <SettingsStack.Screen name="TransformationChallenge" component={TransformationChallengeScreen} options={{ title: '12-Week Challenge' }} />
-    </SettingsStack.Navigator>
+    <ProgressStack.Navigator screenOptions={noHeader(colors)}>
+      <ProgressStack.Screen name="ProgressOverview" component={AnalyticsScreen} options={{ headerShown: false }} />
+      <ProgressStack.Screen name="StrengthDetail" component={StrengthDetailScreen} options={{ headerShown: false }} />
+    </ProgressStack.Navigator>
   );
 }
 
-function TabIcon({ icon, label, focused, colors }: { icon: React.ReactNode; label: string; focused: boolean; colors: any }) {
+function ProfileStackNavigator() {
+  const { colors } = useTheme();
   return (
-    <View style={[tabStyles.iconWrap, focused && { backgroundColor: colors.primary + '18' }]}>
-      {icon}
-    </View>
+    <ProfileStack.Navigator screenOptions={noHeader(colors)}>
+      <ProfileStack.Screen name="ProfileMain" component={SettingsScreen} options={{ headerShown: false }} />
+      <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} options={{ headerShown: false }} />
+      <ProfileStack.Screen name="AppleHealth" component={AppleHealthScreen} options={{ headerShown: false }} />
+      <ProfileStack.Screen name="NotificationSettings" component={NotificationSettingsScreen} options={{ headerShown: false }} />
+      <ProfileStack.Screen name="TransformationChallenge" component={TransformationChallengeScreen} options={{ headerShown: false }} />
+      <ProfileStack.Screen name="Measurements" component={MeasurementsScreen} options={{ headerShown: false }} />
+      <ProfileStack.Screen name="GoalPace" component={GoalPaceScreen} options={{ headerShown: false }} />
+      <ProfileStack.Screen name="SplitSchedule" component={SplitScheduleScreen} options={{ headerShown: false }} />
+      <ProfileStack.Screen name="Units" component={UnitsScreen} options={{ headerShown: false }} />
+      <ProfileStack.Screen name="CoachMode" component={CoachModeScreen} options={{ headerShown: false }} />
+      <ProfileStack.Screen name="ExportData" component={ExportDataScreen} options={{ headerShown: false }} />
+    </ProfileStack.Navigator>
   );
 }
 
-const tabStyles = StyleSheet.create({
-  iconWrap: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5, alignItems: 'center', justifyContent: 'center' },
+// The "＋ Log" tab has no screen of its own — pressing it opens the root-level
+// LogFood modal instead of navigating within the tab bar. This placeholder is
+// never actually shown; RN Navigation requires every Tab.Screen to have one.
+function LogPlaceholder() {
+  return <View />;
+}
+
+function LogFabButton({ colors, onPress }: { colors: any; onPress?: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={fabStyles.wrap} hitSlop={12}>
+      <View style={[fabStyles.fab, { backgroundColor: colors.signal, shadowColor: colors.signal }]}>
+        <Plus size={26} color={colors.signalForeground} strokeWidth={2.4} />
+      </View>
+    </Pressable>
+  );
+}
+
+const fabStyles = StyleSheet.create({
+  wrap: { alignItems: 'center', justifyContent: 'center', top: -16 },
+  fab: {
+    width: 52, height: 52, borderRadius: 26,
+    alignItems: 'center', justifyContent: 'center',
+    shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.32, shadowRadius: 20, elevation: 8,
+  },
 });
 
-export function AppNavigator() {
-  const { colors, isDark } = useTheme();
+function TabLabel({ label, color, focused }: { label: string; color: string; focused: boolean }) {
+  return (
+    <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 9.5, color, marginTop: 2, letterSpacing: 0.03 }}>
+      {label}
+    </Text>
+  );
+}
+
+function MainTabs() {
+  const { colors } = useTheme();
 
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
+      screenOptions={{
         tabBarStyle: {
-          backgroundColor: isDark ? '#111111' : colors.card,
-          borderTopColor: colors.border,
+          backgroundColor: colors.surfaceRaised,
+          borderTopColor: colors.hairline,
           borderTopWidth: 1,
-          paddingBottom: 8,
-          paddingTop: 8,
-          height: 64,
+          paddingTop: 10,
+          height: 88,
         },
-        tabBarActiveTintColor: isDark ? colors.primary : colors.primary,
+        tabBarActiveTintColor: colors.signal,
         tabBarInactiveTintColor: colors.mutedForeground,
-        tabBarLabelStyle: { fontSize: 10, fontWeight: '700', marginTop: 2, letterSpacing: 0.2 },
         tabBarShowLabel: true,
-        headerStyle: { backgroundColor: colors.background },
-        headerTintColor: colors.foreground,
-        headerShadowVisible: false,
-        headerTitleStyle: { fontWeight: '700', fontSize: 17 },
-      })}
+        tabBarHideOnKeyboard: true,
+        headerShown: false,
+      }}
     >
       <Tab.Screen
-        name="Home"
+        name="Today"
         component={DashboardScreen}
         options={{
-          headerShown: false,
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon
-              icon={<Home size={22} color={color} strokeWidth={focused ? 2.5 : 2} />}
-              label="Home"
-              focused={focused}
-              colors={colors}
-            />
-          ),
+          tabBarIcon: ({ color, focused }) => <Home size={21} color={color} strokeWidth={focused ? 2.2 : 2} />,
+          tabBarLabel: ({ color, focused }) => <TabLabel label="Today" color={color} focused={focused} />,
         }}
       />
       <Tab.Screen
         name="Train"
-        component={WorkoutsStackNavigator}
-        options={{
-          headerShown: false,
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon
-              icon={<Dumbbell size={22} color={color} strokeWidth={focused ? 2.5 : 2} />}
-              label="Train"
-              focused={focused}
-              colors={colors}
-            />
-          ),
-        }}
+        component={TrainStackNavigator}
+        options={({ route }) => ({
+          tabBarIcon: ({ color, focused }: any) => <Dumbbell size={21} color={color} strokeWidth={focused ? 2.2 : 2} />,
+          tabBarLabel: ({ color, focused }: any) => <TabLabel label="Train" color={color} focused={focused} />,
+          // Full-immersion screens (in-workout, post-workout) hide the tab bar —
+          // matches the design's frame, which shows no persistent nav on these.
+          tabBarStyle: ['WorkoutSession', 'WorkoutSummary'].includes(getFocusedRouteNameFromRoute(route) ?? '')
+            ? { display: 'none' }
+            : undefined,
+        })}
       />
       <Tab.Screen
-        name="Eat"
-        component={NutritionScreen}
+        name="Log"
+        component={LogPlaceholder}
         options={{
-          title: 'Nutrition',
-          headerTitle: 'Nutrition',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon
-              icon={<UtensilsCrossed size={22} color={color} strokeWidth={focused ? 2.5 : 2} />}
-              label="Eat"
-              focused={focused}
-              colors={colors}
-            />
-          ),
+          tabBarButton: (props) => <LogFabButton colors={colors} onPress={props.onPress as () => void} />,
         }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            (navigation.getParent() as any)?.navigate('LogFood');
+          },
+        })}
+      />
+      <Tab.Screen
+        name="Progress"
+        component={ProgressStackNavigator}
+        options={({ route }) => ({
+          tabBarIcon: ({ color, focused }: any) => <TrendingUp size={21} color={color} strokeWidth={focused ? 2.2 : 2} />,
+          tabBarLabel: ({ color, focused }: any) => <TabLabel label="Progress" color={color} focused={focused} />,
+          tabBarStyle: getFocusedRouteNameFromRoute(route) === 'StrengthDetail' ? { display: 'none' } : undefined,
+        })}
       />
       <Tab.Screen
         name="Coach"
         component={ChatScreen}
         options={{
-          title: 'AI Coach',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon
-              icon={<Bot size={22} color={color} strokeWidth={focused ? 2.5 : 2} />}
-              label="Coach"
-              focused={focused}
-              colors={colors}
-            />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Stats"
-        component={AnalyticsScreen}
-        options={{
-          title: 'Analytics',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon
-              icon={<BarChart3 size={22} color={color} strokeWidth={focused ? 2.5 : 2} />}
-              label="Stats"
-              focused={focused}
-              colors={colors}
-            />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Me"
-        component={SettingsStackNavigator}
-        options={{
-          headerShown: false,
-          title: 'Profile',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon
-              icon={<Settings size={22} color={color} strokeWidth={focused ? 2.5 : 2} />}
-              label="Profile"
-              focused={focused}
-              colors={colors}
-            />
-          ),
+          tabBarIcon: ({ color, focused }) => <MessageCircle size={21} color={color} strokeWidth={focused ? 2.2 : 2} />,
+          tabBarLabel: ({ color, focused }) => <TabLabel label="Coach" color={color} focused={focused} />,
         }}
       />
     </Tab.Navigator>
+  );
+}
+
+// Profile lives behind the avatar in Today's header, not as a tab (per the
+// redesign's IA: six flat tabs become four plus a centre Log action). Food
+// logging, weigh-in and per-exercise strength detail are pushed on the root
+// stack too, so they can render full-screen over the tab bar.
+export function AppNavigator() {
+  const { colors } = useTheme();
+  return (
+    <RootStack.Navigator screenOptions={{ headerShown: false }}>
+      <RootStack.Screen name="MainTabs" component={MainTabs} />
+      <RootStack.Screen name="LogFood" component={LogFoodScreen} options={{ presentation: 'modal' }} />
+      <RootStack.Screen name="AIFoodReview" component={AIFoodReviewScreen} options={{ presentation: 'modal' }} />
+      <RootStack.Screen
+        name="FoodLog"
+        component={NutritionScreen}
+        options={{
+          headerShown: true,
+          title: "Today's log",
+          headerStyle: { backgroundColor: colors.canvas },
+          headerTintColor: colors.ink,
+          headerShadowVisible: false,
+          headerTitleStyle: { fontFamily: Fonts.sansSemiBold, fontSize: 16 },
+        }}
+      />
+      <RootStack.Screen name="WeighIn" component={WeighInScreen} options={{ presentation: 'modal' }} />
+      <RootStack.Screen name="Profile" component={ProfileStackNavigator} options={{ presentation: 'modal' }} />
+    </RootStack.Navigator>
   );
 }

@@ -101,8 +101,7 @@ export function WorkoutDetailScreen({ route, navigation }: { route: any; navigat
     api.getWorkoutById(sessionId).then((s) => {
       setSession(s ?? null);
       if (s?.completed) setPhase('done');
-      setLoading(false);
-    });
+    }).finally(() => setLoading(false));
   }, [sessionId]);
 
   const toggleSet = useCallback(async (exerciseIdx: number, setIdx: number) => {

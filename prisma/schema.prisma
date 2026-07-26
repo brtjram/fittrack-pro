@@ -91,6 +91,12 @@ model FitnessProfile {
   coachingNotes   String?
   nutritionTargetOverride String?
   aiCoachGoal     String?
+  weightUnit      String   @default("lb")
+  heightUnit      String   @default("cm")
+  energyUnit      String   @default("kcal")
+  weekStartsOn    String   @default("mon")
+  trainingDays    String   @default("1,2,4,5,6")
+  sessionLengthMin Int     @default(60)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

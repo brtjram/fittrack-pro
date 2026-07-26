@@ -10,6 +10,7 @@ export * from './algorithms/challenge-phases';
 
 // Utils
 export * from './utils';
+export * from './utils/units';
 
 // Data
 export { foods, getFoodById, searchFoods, getFoodsByCategory } from './data/foods';
