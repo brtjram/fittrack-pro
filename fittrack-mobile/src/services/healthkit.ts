@@ -109,7 +109,8 @@ export function requestHealthKitPermissions(): Promise<boolean> {
 // startDate of local midnight), so converting through toISOString() here
 // would shift the date across the UTC boundary for any non-UTC timezone —
 // e.g. evening steps landing on "tomorrow", making "today" look like 0.
-function toDateString(d: Date): string {
+function toDateString(d: Date): string | null {
+  if (Number.isNaN(d.getTime())) return null;
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
@@ -132,12 +133,20 @@ function getSteps(startDate: Date, endDate: Date): Promise<{ date: string; value
         if (err) console.warn('HealthKit getDailyStepCountSamples error:', err);
         if (err || !results) { resolve([]); return; }
 
-        // Aggregate by date in case HealthKit still returns more than one
-        // bucket for a calendar day (e.g. DST transitions).
+        // With period=24h HealthKit should return exactly one bucket per
+        // calendar day, but a phone + paired Watch both recording steps can
+        // still surface as more than one row landing on the same local day
+        // (each already a same-day cumulative total, not a disjoint slice).
+        // Summing those double/triple-counts the day — e.g. a real 7,388
+        // step day reporting as 12,912. Taking the max is a no-op in the
+        // normal single-row case and avoids the inflation in the multi-row
+        // case, at the cost of (rarely) undercounting a day that
+        // legitimately split into non-overlapping partial buckets.
         const byDate = new Map<string, number>();
         for (const r of results) {
           const d = toDateString(new Date(r.startDate));
-          byDate.set(d, (byDate.get(d) || 0) + Math.round(r.value));
+          if (d === null) continue;
+          byDate.set(d, Math.max(byDate.get(d) || 0, Math.round(r.value)));
         }
         resolve(Array.from(byDate.entries()).map(([date, value]) => ({ date, value })));
       },
@@ -160,11 +169,13 @@ function getActiveCalories(startDate: Date, endDate: Date): Promise<{ date: stri
         if (err) console.warn('HealthKit getActiveEnergyBurned error:', err);
         if (err || !results) { resolve([]); return; }
 
-        // Aggregate by date
+        // Same multi-source-per-day risk as getSteps above — take the max
+        // rather than summing so a phone+Watch pair can't double-count.
         const byDate = new Map<string, number>();
         for (const r of results) {
           const d = toDateString(new Date(r.startDate));
-          byDate.set(d, (byDate.get(d) || 0) + Math.round(r.value));
+          if (d === null) continue;
+          byDate.set(d, Math.max(byDate.get(d) || 0, Math.round(r.value)));
         }
         resolve(Array.from(byDate.entries()).map(([date, value]) => ({ date, value })));
       },
@@ -181,9 +192,10 @@ function getLatestWeight(): Promise<{ date: string; value: number } | null> {
       { unit: 'pound' },
       (err: string | null, result: { value: number; startDate: string }) => {
         if (err) console.warn('HealthKit getLatestWeight error:', err);
-        if (err || !result) { resolve(null); return; }
+        const date = result ? toDateString(new Date(result.startDate)) : null;
+        if (err || !result || date === null) { resolve(null); return; }
         resolve({
-          date: toDateString(new Date(result.startDate)),
+          date,
           value: Math.round(result.value * 10) / 10,
         });
       },
@@ -210,6 +222,7 @@ function getRestingHeartRate(startDate: Date, endDate: Date): Promise<{ date: st
         const byDate = new Map<string, number>();
         for (const r of results) {
           const d = toDateString(new Date(r.startDate));
+          if (d === null) continue;
           const existing = byDate.get(d);
           if (!existing || r.value < existing) {
             byDate.set(d, Math.round(r.value));

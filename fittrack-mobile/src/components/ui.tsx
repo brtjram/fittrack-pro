@@ -241,10 +241,16 @@ export function BarChart({ values, labels, width = 300, height = 76, color, mute
 // `target` can vary per day (e.g. BMR + that day's active calories) — pass
 // an array the same length as `values` and the reference line follows it.
 export function TargetBarChart({
-  values, labels, target, width = 300, height = 90, color, mutedColor, targetColor,
+  values, labels, target, width = 300, height = 90, color, mutedColor, targetColor, highlight,
 }: {
   values: number[]; labels?: string[]; target: number | number[]; width?: number; height?: number;
   color: string; mutedColor: string; targetColor: string;
+  // Overrides the default "bar meets/exceeds target" highlight rule. Needed
+  // for charts where being *under* the reference line is the good outcome
+  // (e.g. calories consumed vs. total burn — a deficit day should light up,
+  // not a surplus day) or where the good range is a band, not a threshold
+  // (e.g. diet adherence within 10% of target).
+  highlight?: boolean[];
 }) {
   const targets = Array.isArray(target) ? target : values.map(() => target);
   const max = Math.max(...values, ...targets, 1);
@@ -264,7 +270,7 @@ export function TargetBarChart({
             const h = Math.max(3, (v / max) * height);
             return (
               <View key={i} style={{ flex: 1, height, justifyContent: 'flex-end' }}>
-                <View style={{ width: '100%', height: h, borderRadius: 4, backgroundColor: v >= targets[i] ? color : mutedColor }} />
+                <View style={{ width: '100%', height: h, borderRadius: 4, backgroundColor: (highlight ? highlight[i] : v >= targets[i]) ? color : mutedColor }} />
               </View>
             );
           })}

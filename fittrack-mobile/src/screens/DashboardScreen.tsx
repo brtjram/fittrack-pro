@@ -14,6 +14,13 @@ import { calculateMacroTargets, calculateAdaptiveAdjustment } from '@fittrack/co
 import { analyzeActivity, shouldSuggestRestDay } from '@fittrack/core/src/algorithms/activity-analyzer';
 import type { WorkoutSession, WeightEntry, DailyActivity } from '@fittrack/core';
 
+// Mirrors the day-count baked into each split's label elsewhere (Settings'
+// SPLIT_LABEL, workout-generator's getWorkoutSplitDescription) — used only
+// to gauge weekly workout pace for the evening nudge below, not to render.
+const SPLIT_DAYS_PER_WEEK: Record<string, number> = {
+  ppl: 6, upper_lower: 4, full_body: 3, bro_split: 5,
+};
+
 function getGreeting(): string {
   const hour = new Date().getHours();
   if (hour < 12) return 'Morning';
@@ -77,11 +84,61 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
 
         const insightsList: string[] = [];
         const activityInsight = analyzeActivity(activities);
+        const hour = new Date().getHours();
 
         if (weightEntries.length > 0) {
           const sorted = [...weightEntries].sort((a, b) => b.date.localeCompare(a.date));
           const adj = calculateAdaptiveAdjustment(macros.calories, weightEntries, profile.goal);
           if (adj.shouldAdjust) insightsList.push(adj.reason);
+        }
+
+        // Evening "how far behind today" comparison. Steps, weekly workout
+        // pace, and protein are all the same kind of signal — you're short
+        // of a target right now — so instead of a fixed code-order priority
+        // (which always favored whichever check happened to run first),
+        // score each by how far behind it actually is and lead with the
+        // worst one. A day where you're miles behind on steps but fine on
+        // protein should say so, and vice versa.
+        if (hour >= 17) {
+          const stepTarget = profile.stepTarget ?? 10000;
+          const todaySteps = todayActivity?.steps ?? 0;
+          const stepsSeverity = Math.max(0, (stepTarget - todaySteps) / stepTarget);
+
+          const startOfWeek = new Date();
+          startOfWeek.setHours(0, 0, 0, 0);
+          startOfWeek.setDate(startOfWeek.getDate() - ((startOfWeek.getDay() + 6) % 7));
+          const dayIndex = (new Date().getDay() + 6) % 7; // Monday = 0 .. Sunday = 6
+          const completedThisCalendarWeek = w.filter((s) => s.completed && new Date(s.date) >= startOfWeek);
+          const workedOutToday = w.some((s) => s.completed && s.date === toDateString());
+          const daysPerWeekGoal = SPLIT_DAYS_PER_WEEK[profile.preferredSplit] ?? 4;
+          const expectedByToday = Math.round((daysPerWeekGoal * (dayIndex + 1)) / 7);
+          const workoutSeverity = workedOutToday
+            ? 0
+            : Math.max(0, (expectedByToday - completedThisCalendarWeek.length) / Math.max(expectedByToday, 1));
+
+          const proteinSeverity = Math.max(0, (macros.protein - eaten.protein) / macros.protein);
+
+          const candidates = [
+            {
+              severity: stepsSeverity,
+              qualifies: stepsSeverity > 0.2,
+              text: `${(stepTarget - todaySteps).toLocaleString()} steps to go tonight — a walk closes the gap.`,
+            },
+            {
+              severity: workoutSeverity,
+              qualifies: workoutSeverity > 0,
+              text: `${completedThisCalendarWeek.length}/${daysPerWeekGoal} workouts this week — a session tonight keeps you on pace.`,
+            },
+            {
+              severity: proteinSeverity,
+              qualifies: proteinSeverity > 0.3,
+              text: `Only ${Math.round(eaten.protein)}g protein logged. You need ${Math.round(macros.protein - eaten.protein)}g more today.`,
+            },
+          ]
+            .filter((c) => c.qualifies)
+            .sort((a, b) => b.severity - a.severity);
+
+          candidates.slice(0, 2).forEach((c) => insightsList.push(c.text));
         }
 
         if (activityInsight.averageSteps > 0 && activityInsight.category === 'sedentary') {
@@ -96,10 +153,6 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
 
         const restSuggestion = shouldSuggestRestDay(activities, completedThisWeek.length);
         if (restSuggestion.suggest) insightsList.push(restSuggestion.reason);
-
-        if (eaten.protein < macros.protein * 0.5 && new Date().getHours() >= 14) {
-          insightsList.push(`Only ${Math.round(eaten.protein)}g protein logged. You need ${Math.round(macros.protein - eaten.protein)}g more today.`);
-        }
 
         setInsights(insightsList);
       }
@@ -299,7 +352,7 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
           <SectionLabel colors={colors}>One thing tonight</SectionLabel>
         </View>
         <Text style={{ fontFamily: Fonts.serif, fontSize: 19, lineHeight: 26, color: colors.ink }}>
-          {insights[0] ?? 'You’re on track with nothing urgent — keep the streak going.'}
+          {insights[0] ?? 'You’re on track — keep the streak going!'}
         </Text>
         {insights[1] && (
           <Text style={{ fontFamily: Fonts.sans, fontSize: 12.5, lineHeight: 18, color: colors.mutedStrong, marginTop: 10 }}>

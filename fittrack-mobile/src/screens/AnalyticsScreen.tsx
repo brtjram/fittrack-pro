@@ -146,9 +146,14 @@ export function AnalyticsScreen({ navigation }: { navigation: any }) {
   }
   const caloriesSeries = last7Dates.map((d) => Math.round(caloriesByDate.get(d) ?? 0));
   const calorieTarget = profile ? calculateMacroTargets(profile).calories : null;
-  const calorieGoalDays = calorieTarget !== null
-    ? caloriesSeries.filter((c) => c > 0 && Math.abs(c - calorieTarget) <= calorieTarget * 0.1).length
-    : 0;
+  // "Adherent" means within 10% of target on either side, not just at/over
+  // it — the bar highlight has to follow the same band, or a well-logged
+  // under-target day (which counts toward the 2/7 badge) renders as a dead
+  // muted bar right next to the days that don't count.
+  const dietHighlight = calorieTarget !== null
+    ? caloriesSeries.map((c) => c > 0 && Math.abs(c - calorieTarget) <= calorieTarget * 0.1)
+    : caloriesSeries.map(() => false);
+  const calorieGoalDays = dietHighlight.filter(Boolean).length;
 
   // "Calories out" per day = BMR (maintenance at rest) + that day's actual
   // active calories burned — not the flat calculateTDEE() number, which just
@@ -157,6 +162,12 @@ export function AnalyticsScreen({ navigation }: { navigation: any }) {
   const bmr = profile ? Math.round(calculateBMR(profile)) : null;
   const activeCaloriesByDate = new Map(validActivities.map((a) => [a.date, a.activeCalories]));
   const caloriesOutSeries = last7Dates.map((d) => (bmr ?? 0) + (activeCaloriesByDate.get(d) ?? 0));
+  // A deficit day (consumed <= total burn) is the *good* outcome here, the
+  // opposite of the steps/diet charts where meeting-or-beating the line is
+  // good — so the highlight rule has to flip too, or every deficit day (the
+  // whole point of the "N cal deficit" badge) renders as an invisible muted
+  // bar.
+  const deficitHighlight = caloriesSeries.map((c, i) => c > 0 && c <= caloriesOutSeries[i]);
 
   const loggedDayIdx = caloriesSeries.map((c, i) => (c > 0 ? i : -1)).filter((i) => i >= 0);
   const avgConsumed = loggedDayIdx.length
@@ -332,6 +343,7 @@ export function AnalyticsScreen({ navigation }: { navigation: any }) {
                   values={caloriesSeries}
                   labels={dayLabels}
                   target={calorieTarget}
+                  highlight={dietHighlight}
                   width={296}
                   height={84}
                   color={colors.signal}
@@ -369,6 +381,7 @@ export function AnalyticsScreen({ navigation }: { navigation: any }) {
                   values={caloriesSeries}
                   labels={dayLabels}
                   target={caloriesOutSeries}
+                  highlight={deficitHighlight}
                   width={296}
                   height={84}
                   color={colors.progress}

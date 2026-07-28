@@ -23,6 +23,17 @@ const GOAL_LABEL: Record<string, string> = {
   fat_loss: 'Losing fat', muscle_gain: 'Building muscle', recomp: 'Recomping', maintain: 'Maintaining', ai_coach: 'Coached plan', challenge: '12-week challenge',
 };
 
+// "Coached plan" on its own doesn't tell the user what they're actually
+// working toward — ai_coach mode doesn't store a fat_loss/muscle_gain goal,
+// it derives targets dynamically, so read the real direction off the
+// current-vs-target weight instead of showing the mode name as the goal.
+function goalLabel(profile: UserProfile): string {
+  if (profile.goal !== 'ai_coach') return GOAL_LABEL[profile.goal] ?? 'On a plan';
+  if (profile.targetWeightLbs < profile.currentWeightLbs) return GOAL_LABEL.fat_loss;
+  if (profile.targetWeightLbs > profile.currentWeightLbs) return GOAL_LABEL.muscle_gain;
+  return GOAL_LABEL.maintain;
+}
+
 function initials(name?: string | null): string {
   if (!name) return '·';
   const parts = name.trim().split(/\s+/);
@@ -87,7 +98,7 @@ export function SettingsScreen({ navigation }: { navigation: any }) {
 
   const macros = profile ? calculateMacroTargets(profile) : null;
   const planSentence = profile
-    ? `${GOAL_LABEL[profile.goal] ?? 'On a plan'}${weeklyRate !== 0 ? ` at ${Math.abs(weeklyRate).toFixed(1)} lb a week` : ''}, ${SPLIT_LABEL[profile.preferredSplit]?.toLowerCase() ?? ''}.`
+    ? `${goalLabel(profile)}${weeklyRate !== 0 ? ` at ${Math.abs(weeklyRate).toFixed(1)} lb a week` : ''}, ${SPLIT_LABEL[profile.preferredSplit]?.toLowerCase() ?? ''}.`
     : 'Complete your profile to get a plan.';
 
   const lastSyncFormatted = healthStatus.lastSync
@@ -142,7 +153,7 @@ export function SettingsScreen({ navigation }: { navigation: any }) {
           detail={profile ? `${profile.age} · ${profile.heightCm}cm · ${profile.currentWeightLbs} lb` : undefined}
           onPress={() => navigation.navigate('Measurements')} />
         <ListRow colors={colors} icon={<Target size={17} color={colors.mutedStrong} />} title="Goal & pace"
-          detail={profile ? GOAL_LABEL[profile.goal] : undefined}
+          detail={profile ? goalLabel(profile) : undefined}
           onPress={() => navigation.navigate('GoalPace')} />
         <ListRow colors={colors} icon={<Dumbbell size={17} color={colors.mutedStrong} />} title="Split & schedule"
           detail={profile ? SPLIT_LABEL[profile.preferredSplit] : undefined}

@@ -230,7 +230,29 @@ export function LogFoodScreen({ navigation }: { navigation: any }) {
     try {
       const food = await api.getFoodByBarcode(result.data);
       if (food) {
-        await logFoodItem(food);
+        // Route through the same confirm/edit screen as photo and describe
+        // instead of saving straight away — a barcode match is still just
+        // one serving's worth of assumed values until the user confirms the
+        // portion, and skipping review here was the one capture method that
+        // silently saved and closed with no feedback.
+        const factor = food.servingSizeG / 100;
+        navigation.navigate('AIFoodReview', {
+          photoUri: null,
+          meal,
+          date: toDateString(),
+          items: [{
+            name: food.name,
+            servingDescription: food.servingLabel,
+            servingSizeG: food.servingSizeG,
+            calories: Math.round(food.caloriesPer100g * factor),
+            protein: Math.round(food.proteinPer100g * factor * 10) / 10,
+            carbs: Math.round(food.carbsPer100g * factor * 10) / 10,
+            fat: Math.round(food.fatPer100g * factor * 10) / 10,
+            confidence: 'high',
+          }],
+          notes: null,
+        });
+        closeBarcode();
         return;
       }
       setBarcodeError("Couldn't find that product. Try again or search by name.");
@@ -240,7 +262,7 @@ export function LogFoodScreen({ navigation }: { navigation: any }) {
       setLookingUpBarcode(false);
       scanLockRef.current = false;
     }
-  }, [logFoodItem]);
+  }, [meal, navigation, closeBarcode]);
 
   const showPlainHeader = !!photoUri || describeMode || searchOpen;
 
