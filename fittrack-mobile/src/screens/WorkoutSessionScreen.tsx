@@ -6,11 +6,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ChevronLeft, Ellipsis, Play, Repeat, ChartLine,
-  CircleCheckBig, Circle, Plus, X,
+  CircleCheckBig, Circle, Plus,
 } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import { Fonts } from '../theme/fonts';
-import { Ring } from '../components/ui';
+import { Ring, SwipeToDelete } from '../components/ui';
 import * as api from '../services/api';
 import type { WorkoutSession, WorkoutSet } from '@fittrack/core';
 
@@ -205,62 +205,62 @@ export function WorkoutSessionScreen({ route, navigation }: { route: any; naviga
 
               <View style={[styles.setTable, { backgroundColor: colors.surfaceInset }]}>
                 <View style={[styles.setHeaderRow, { borderBottomColor: colors.hairline }]}>
-                  <Text style={[styles.setHeaderText, { color: colors.mutedForeground, width: 30 }]}>Set</Text>
+                  <Text style={[styles.setHeaderText, { color: colors.mutedForeground, width: 34 }]}>Set</Text>
                   <Text style={[styles.setHeaderText, { color: colors.mutedForeground, flex: 1 }]}>Weight</Text>
                   <Text style={[styles.setHeaderText, { color: colors.mutedForeground, flex: 1 }]}>Reps</Text>
-                  <View style={{ width: 32 }} />
-                  <View style={{ width: 22 }} />
+                  <View style={{ width: 36 }} />
                 </View>
                 {exercise.sets.map((set, si) => {
                   const last = lastSetFor(exercise, set.setNumber);
                   const isCurrent = !set.completed && exercise.sets.slice(0, si).every((s) => s.completed);
+                  const canDelete = exercise.sets.length > 1;
                   return (
-                    <View
+                    <SwipeToDelete
                       key={si}
-                      style={[
-                        styles.setRow,
-                        si > 0 && { borderTopWidth: 1, borderTopColor: colors.hairline },
-                        isCurrent && { backgroundColor: colors.surface },
-                      ]}
+                      colors={colors}
+                      disabled={!canDelete}
+                      borderRadius={0}
+                      onDelete={() => deleteSet(ei, si)}
                     >
-                      <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 13, color: isCurrent ? colors.signal : colors.mutedForeground, width: 30, textAlign: 'center' }}>
-                        {set.setNumber}
-                      </Text>
-                      <View style={{ flex: 1 }}>
-                        <TextInput
-                          value={set.actualWeight != null ? String(set.actualWeight) : ''}
-                          onChangeText={(t) => updateSet(ei, si, { actualWeight: parseFloat(t) || 0 })}
-                          keyboardType="numeric"
-                          placeholder={String(set.targetWeight)}
-                          placeholderTextColor={colors.mutedForeground}
-                          style={{ fontFamily: Fonts.sansSemiBold, fontSize: isCurrent ? 20 : 15, color: colors.ink, padding: 0 }}
-                        />
-                        {last?.actualWeight != null && <Text style={{ fontFamily: Fonts.sans, fontSize: 9.5, color: colors.mutedForeground }}>last: {last.actualWeight}</Text>}
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <TextInput
-                          value={set.actualReps != null ? String(set.actualReps) : ''}
-                          onChangeText={(t) => updateSet(ei, si, { actualReps: parseInt(t) || 0 })}
-                          keyboardType="numeric"
-                          placeholder={String(set.targetReps)}
-                          placeholderTextColor={colors.mutedForeground}
-                          style={{ fontFamily: Fonts.sansSemiBold, fontSize: isCurrent ? 20 : 15, color: colors.ink, padding: 0 }}
-                        />
-                        {last?.actualReps != null && <Text style={{ fontFamily: Fonts.sans, fontSize: 9.5, color: colors.mutedForeground }}>last: {last.actualReps}</Text>}
-                      </View>
-                      <TouchableOpacity onPress={() => toggleSet(ei, si)} style={{ width: 32, alignItems: 'center' }}>
-                        {set.completed
-                          ? <CircleCheckBig size={isCurrent ? 30 : 22} color={colors.progress} />
-                          : <Circle size={22} color={colors.trackMuted} />}
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => deleteSet(ei, si)}
-                        disabled={exercise.sets.length <= 1}
-                        style={{ width: 22, alignItems: 'center', opacity: exercise.sets.length <= 1 ? 0.25 : 1 }}
+                      <View
+                        style={[
+                          styles.setRow,
+                          si > 0 && { borderTopWidth: 1, borderTopColor: colors.hairline },
+                          isCurrent && { backgroundColor: colors.surface },
+                        ]}
                       >
-                        <X size={15} color={colors.mutedForeground} />
-                      </TouchableOpacity>
-                    </View>
+                        <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 15, color: isCurrent ? colors.signal : colors.mutedForeground, width: 34, textAlign: 'center' }}>
+                          {set.setNumber}
+                        </Text>
+                        <View style={{ flex: 1 }}>
+                          <TextInput
+                            value={set.actualWeight != null ? String(set.actualWeight) : ''}
+                            onChangeText={(t) => updateSet(ei, si, { actualWeight: parseFloat(t) || 0 })}
+                            keyboardType="numeric"
+                            placeholder={String(set.targetWeight)}
+                            placeholderTextColor={colors.mutedForeground}
+                            style={{ fontFamily: Fonts.sansSemiBold, fontSize: isCurrent ? 23 : 17, color: colors.ink, padding: 0 }}
+                          />
+                          {last?.actualWeight != null && <Text style={{ fontFamily: Fonts.sans, fontSize: 10.5, color: colors.mutedForeground, marginTop: 2 }}>last: {last.actualWeight}</Text>}
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <TextInput
+                            value={set.actualReps != null ? String(set.actualReps) : ''}
+                            onChangeText={(t) => updateSet(ei, si, { actualReps: parseInt(t) || 0 })}
+                            keyboardType="numeric"
+                            placeholder={String(set.targetReps)}
+                            placeholderTextColor={colors.mutedForeground}
+                            style={{ fontFamily: Fonts.sansSemiBold, fontSize: isCurrent ? 23 : 17, color: colors.ink, padding: 0 }}
+                          />
+                          {last?.actualReps != null && <Text style={{ fontFamily: Fonts.sans, fontSize: 10.5, color: colors.mutedForeground, marginTop: 2 }}>last: {last.actualReps}</Text>}
+                        </View>
+                        <TouchableOpacity onPress={() => toggleSet(ei, si)} style={{ width: 36, alignItems: 'center' }}>
+                          {set.completed
+                            ? <CircleCheckBig size={isCurrent ? 34 : 26} color={colors.progress} />
+                            : <Circle size={26} color={colors.trackMuted} />}
+                        </TouchableOpacity>
+                      </View>
+                    </SwipeToDelete>
                   );
                 })}
                 <TouchableOpacity onPress={() => addSet(ei)} style={[styles.addSetBtn, { borderTopColor: colors.hairline }]}>
@@ -336,9 +336,9 @@ const styles = StyleSheet.create({
   pillIconWrap: { width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   exCard: { borderRadius: 18, padding: 18, marginBottom: 14 },
   setTable: { marginTop: 12, borderRadius: 14, overflow: 'hidden' },
-  setHeaderRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1 },
-  setHeaderText: { fontFamily: Fonts.sansMedium, fontSize: 10, letterSpacing: 0.5, textTransform: 'uppercase' },
-  setRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 9, gap: 8 },
+  setHeaderRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 11, borderBottomWidth: 1 },
+  setHeaderText: { fontFamily: Fonts.sansMedium, fontSize: 11, letterSpacing: 0.5, textTransform: 'uppercase' },
+  setRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
   addSetBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 12, borderTopWidth: 1 },
   footer: { padding: 16, paddingBottom: 30, borderTopWidth: 1 },
   restRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },

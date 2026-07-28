@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, Alert, StyleSheet,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowRight, Sparkles } from 'lucide-react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { ArrowRight, Sparkles, Settings } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import { useAuth } from '../hooks/useAuth';
 import { Fonts } from '../theme/fonts';
@@ -164,6 +165,27 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
 
   useEffect(() => { loadDashboard(); }, [loadDashboard]);
 
+  // Today should always show the top of the page, not wherever you last
+  // scrolled to. Two cases: switching back to this tab from elsewhere (a
+  // focus event, not a press — isFocused() is still false while the event
+  // fires, so this needs to be separate from the tabPress case below), and
+  // re-tapping the tab while already on it (a press with no focus change,
+  // which useFocusEffect never sees).
+  const scrollRef = useRef<ScrollView>(null);
+  useFocusEffect(
+    useCallback(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+    }, []),
+  );
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('tabPress', () => {
+      if (navigation.isFocused()) {
+        scrollRef.current?.scrollTo({ y: 0, animated: true });
+      }
+    });
+    return unsubscribe;
+  }, [navigation]);
+
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     loadDashboard();
@@ -215,6 +237,7 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
 
   return (
     <ScrollView
+      ref={scrollRef}
       style={{ flex: 1, backgroundColor: colors.canvas }}
       contentContainerStyle={{ paddingBottom: 32 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.signal} />}
@@ -231,10 +254,16 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
         </View>
         <TouchableOpacity
           onPress={() => navigation.getParent()?.navigate('Profile')}
-          style={[styles.avatar, { backgroundColor: colors.surfaceInset }]}
+          style={[styles.avatar, { backgroundColor: colors.surfaceInset, borderColor: colors.hairline }]}
           activeOpacity={0.7}
         >
-          <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 13, color: colors.mutedStrong }}>{initials(user?.name)}</Text>
+          <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 18, color: colors.mutedStrong }}>{initials(user?.name)}</Text>
+          {/* Gear badge — the avatar alone read as a static initials chip,
+              not a settings entry point. This makes "there's more here,
+              tap me" explicit instead of relying on the user discovering it. */}
+          <View style={[styles.avatarBadge, { backgroundColor: colors.signal, borderColor: colors.canvas }]}>
+            <Settings size={11} color={colors.signalForeground} strokeWidth={2.4} />
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -386,7 +415,11 @@ function RingStat({ colors, percent, color, value, suffix, label }: {
 const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingTop: 60, paddingHorizontal: 20 },
-  avatar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  avatar: { width: 60, height: 60, borderRadius: 30, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  avatarBadge: {
+    position: 'absolute', bottom: -2, right: -2, width: 22, height: 22, borderRadius: 11,
+    borderWidth: 2, alignItems: 'center', justifyContent: 'center',
+  },
   heroCard: { marginHorizontal: 16, marginTop: 24, borderRadius: 20, overflow: 'hidden' },
   heroImage: { height: 172, position: 'relative', justifyContent: 'flex-end' },
   heroImageWash: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },

@@ -76,7 +76,9 @@ export function AIFoodReviewScreen({ route, navigation }: { route: any; navigati
         servingSizeG: item.servingSizeG || 1, meal,
         calories: item.calories, protein: item.protein, carbs: item.carbs, fat: item.fat,
       })));
-      navigation.navigate('MainTabs');
+      // 'MainTabs' lives on the root stack, one level up from this screen's
+      // own LogFood stack (capture + review share a single modal entry now).
+      navigation.getParent()?.navigate('MainTabs');
     } finally {
       setSaving(false);
     }

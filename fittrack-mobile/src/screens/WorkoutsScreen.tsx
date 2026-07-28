@@ -6,6 +6,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Dumbbell, Trash2, RotateCcw, CheckCircle, ChevronRight, Zap, Calendar } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
+import { Fonts } from '../theme/fonts';
+import { SectionLabel, PillButton, SwipeToDelete } from '../components/ui';
 import * as api from '../services/api';
 import type { WorkoutSession } from '@fittrack/core';
 
@@ -140,12 +142,15 @@ export function WorkoutsScreen({ navigation }: { navigation: any }) {
 
   if (loading) {
     return (
-      <View style={[styles.centered, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={[styles.centered, { backgroundColor: colors.canvas }]}>
+        <ActivityIndicator size="large" color={colors.signal} />
       </View>
     );
   }
 
+  // Swipe left to delete, rather than a permanent Trash2 button riding
+  // alongside every card — matches the native iOS row-action pattern and
+  // gives the card itself the full row width to breathe.
   const renderWorkoutCard = (session: WorkoutSession) => {
     const dateStr = new Date(session.date + 'T00:00:00').toLocaleDateString('en-US', {
       weekday: 'short', month: 'short', day: 'numeric',
@@ -155,89 +160,75 @@ export function WorkoutsScreen({ navigation }: { navigation: any }) {
     const isToday = session.date === today;
 
     return (
-      <View key={session.sessionId} style={styles.cardRow}>
-        <TouchableOpacity
-          style={[
-            styles.card,
-            { backgroundColor: colors.card, borderColor: isToday && !session.completed ? colors.primary : colors.border },
-            isToday && !session.completed && { borderWidth: 1.5 },
-          ]}
-          onPress={() => navigation.navigate('WorkoutSession', { sessionId: session.sessionId })}
-          activeOpacity={0.7}
-        >
-          <View style={styles.cardLeft}>
-            <View style={[styles.cardIcon, { backgroundColor: session.completed ? colors.success + '20' : colors.primary + '15' }]}>
-              {session.completed
-                ? <CheckCircle size={16} color={colors.success} />
-                : <Dumbbell size={16} color={colors.primary} />
-              }
+      <View key={session.sessionId} style={{ marginBottom: 12 }}>
+        <SwipeToDelete colors={colors} onDelete={() => handleDelete(session.sessionId)}>
+          <TouchableOpacity
+            style={[
+              styles.card,
+              { backgroundColor: colors.surface, borderColor: isToday && !session.completed ? colors.signal : colors.hairline },
+              isToday && !session.completed && { borderWidth: 1.5 },
+            ]}
+            onPress={() => navigation.navigate('WorkoutSession', { sessionId: session.sessionId })}
+            activeOpacity={0.7}
+          >
+            <View style={styles.cardLeft}>
+              <View style={[styles.cardIcon, { backgroundColor: session.completed ? 'rgba(201,232,74,0.14)' : 'rgba(245,145,72,0.14)' }]}>
+                {session.completed
+                  ? <CheckCircle size={20} color={colors.progress} />
+                  : <Dumbbell size={20} color={colors.signal} />
+                }
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.cardName, { color: colors.ink }]} numberOfLines={1}>{session.name}</Text>
+                <Text style={[styles.cardMeta, { color: colors.mutedForeground }]}>
+                  {dateStr} · {exerciseCount} exercises
+                </Text>
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.cardName, { color: colors.foreground }]} numberOfLines={1}>{session.name}</Text>
-              <Text style={[styles.cardMeta, { color: colors.mutedForeground }]}>
-                {dateStr} · {exerciseCount} exercises
-              </Text>
+            <View style={styles.cardRight}>
+              {!session.completed && (
+                <Text style={[styles.cardProgress, { color: colors.signal }]}>
+                  {completedCount}/{exerciseCount}
+                </Text>
+              )}
+              <ChevronRight size={18} color={colors.mutedForeground} />
             </View>
-          </View>
-          <View style={styles.cardRight}>
-            {!session.completed && (
-              <Text style={[styles.cardProgress, { color: colors.primary }]}>
-                {completedCount}/{exerciseCount}
-              </Text>
-            )}
-            <ChevronRight size={16} color={colors.mutedForeground} />
-          </View>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.deleteBtn, { borderColor: colors.border }]}
-          onPress={() => handleDelete(session.sessionId)}
-          activeOpacity={0.6}
-        >
-          <Trash2 size={15} color={colors.destructive} />
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </SwipeToDelete>
       </View>
     );
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.canvas }}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.background, paddingTop: insets.top + 16 }]}>
-        <Text style={[styles.screenTitle, { color: colors.foreground }]}>Train</Text>
+      <View style={[styles.header, { backgroundColor: colors.canvas, paddingTop: insets.top + 16 }]}>
+        <Text style={{ fontFamily: Fonts.serif, fontSize: 30, color: colors.ink, marginBottom: 14 }}>Train</Text>
         <View style={styles.generateRow}>
-          <TouchableOpacity
-            style={[styles.generateBtn, { backgroundColor: colors.primary }]}
+          <PillButton
+            colors={colors}
+            style={{ flex: 1 }}
             onPress={handleGenerate}
             disabled={generating || generatingWeek}
-            activeOpacity={0.85}
-          >
-            {generating
-              ? <ActivityIndicator size="small" color={colors.primaryForeground} />
-              : <Zap size={15} color={colors.primaryForeground} />}
-            <Text style={[styles.generateBtnText, { color: colors.primaryForeground }]}>
-              {generating ? 'Generating…' : 'Next Workout'}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.generateBtn, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }]}
+            label={generating ? 'Generating…' : 'Next workout'}
+            icon={generating ? <ActivityIndicator size="small" color={colors.signalForeground} /> : <Zap size={15} color={colors.signalForeground} />}
+          />
+          <PillButton
+            colors={colors}
+            tone="ghost"
+            style={{ flex: 1 }}
             onPress={handleGenerateWeek}
             disabled={generating || generatingWeek}
-            activeOpacity={0.85}
-          >
-            {generatingWeek
-              ? <ActivityIndicator size="small" color={colors.primary} />
-              : <Calendar size={15} color={colors.primary} />}
-            <Text style={[styles.generateBtnText, { color: colors.primary }]}>
-              {generatingWeek ? 'Planning…' : 'Plan Week'}
-            </Text>
-          </TouchableOpacity>
+            label={generatingWeek ? 'Planning…' : 'Plan week'}
+            icon={generatingWeek ? <ActivityIndicator size="small" color={colors.ink} /> : <Calendar size={15} color={colors.ink} />}
+          />
         </View>
       </View>
 
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: 16 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.signal} />}
       >
         {todayWorkouts.length > 0 && (
           <Section title="Today" colors={colors}>
@@ -267,27 +258,27 @@ export function WorkoutsScreen({ navigation }: { navigation: any }) {
           <View style={{ marginTop: 8 }}>
             <TouchableOpacity onPress={() => setShowDeleted(!showDeleted)} style={styles.deletedToggle}>
               <Trash2 size={13} color={colors.mutedForeground} />
-              <Text style={[styles.deletedToggleText, { color: colors.mutedForeground }]}>
+              <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12, color: colors.mutedForeground }}>
                 Deleted ({deletedWorkouts.length})  {showDeleted ? '↑' : '↓'}
               </Text>
             </TouchableOpacity>
             {showDeleted && deletedWorkouts.map((session) => (
-              <View key={session.sessionId} style={[styles.deletedCard, { borderColor: colors.border }]}>
+              <View key={session.sessionId} style={[styles.deletedCard, { borderColor: colors.hairline }]}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.mutedForeground, textDecorationLine: 'line-through' }}>
+                  <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 14, color: colors.mutedForeground, textDecorationLine: 'line-through' }}>
                     {session.name}
                   </Text>
-                  <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 2 }}>
+                  <Text style={{ fontFamily: Fonts.sans, fontSize: 11, color: colors.mutedForeground, marginTop: 2 }}>
                     {new Date(session.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                   </Text>
                 </View>
                 <TouchableOpacity
-                  style={[styles.reinstateBtn, { backgroundColor: colors.primary + '20' }]}
+                  style={[styles.reinstateBtn, { backgroundColor: 'rgba(245,145,72,0.14)' }]}
                   onPress={() => handleReinstate(session.sessionId)}
                   activeOpacity={0.7}
                 >
-                  <RotateCcw size={13} color={colors.primary} />
-                  <Text style={{ fontSize: 12, fontWeight: '600', color: colors.primary, marginLeft: 4 }}>Restore</Text>
+                  <RotateCcw size={13} color={colors.signal} />
+                  <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12, color: colors.signal, marginLeft: 4 }}>Restore</Text>
                 </TouchableOpacity>
               </View>
             ))}
@@ -296,12 +287,12 @@ export function WorkoutsScreen({ navigation }: { navigation: any }) {
 
         {workouts.length === 0 && deletedWorkouts.length === 0 && (
           <View style={styles.emptyState}>
-            <View style={[styles.emptyIcon, { backgroundColor: colors.card }]}>
-              <Dumbbell size={32} color={colors.primary} />
+            <View style={[styles.emptyIcon, { backgroundColor: colors.surface }]}>
+              <Dumbbell size={32} color={colors.signal} />
             </View>
-            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No workouts yet</Text>
-            <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
-              Tap "Next Workout" to get a plan personalised to your goals and training history.
+            <Text style={{ fontFamily: Fonts.serif, fontSize: 19, color: colors.ink, marginBottom: 8 }}>No workouts yet</Text>
+            <Text style={{ fontFamily: Fonts.sans, fontSize: 13, lineHeight: 19, textAlign: 'center', color: colors.mutedForeground }}>
+              Tap "Next workout" to get a plan personalised to your goals and training history.
             </Text>
           </View>
         )}
@@ -313,7 +304,7 @@ export function WorkoutsScreen({ navigation }: { navigation: any }) {
 function Section({ title, colors, children }: { title: string; colors: any; children: React.ReactNode }) {
   return (
     <View style={{ marginBottom: 24 }}>
-      <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>{title.toUpperCase()}</Text>
+      <SectionLabel colors={colors} style={{ marginBottom: 10 }}>{title}</SectionLabel>
       {children}
     </View>
   );
@@ -322,32 +313,20 @@ function Section({ title, colors, children }: { title: string; colors: any; chil
 const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: { paddingTop: 60, paddingHorizontal: 16, paddingBottom: 12 },
-  screenTitle: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5, marginBottom: 12 },
-  generateRow: { flexDirection: 'row', gap: 8 },
-  generateBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    paddingVertical: 12, borderRadius: 12, gap: 6,
-  },
-  generateBtnText: { fontSize: 13, fontWeight: '700' },
-  sectionTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 10 },
-  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  card: { flex: 1, borderWidth: 1, borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'center' },
-  cardLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  cardIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  cardName: { fontSize: 14, fontWeight: '700', marginBottom: 2 },
-  cardMeta: { fontSize: 12 },
-  cardRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  cardProgress: { fontSize: 12, fontWeight: '700' },
-  deleteBtn: { width: 40, height: 40, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  generateRow: { flexDirection: 'row', gap: 10 },
+  card: { borderWidth: 1, borderRadius: 18, padding: 18, flexDirection: 'row', alignItems: 'center' },
+  cardLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14 },
+  cardIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  cardName: { fontFamily: Fonts.sansSemiBold, fontSize: 16, marginBottom: 3 },
+  cardMeta: { fontFamily: Fonts.sans, fontSize: 12.5 },
+  cardRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  cardProgress: { fontFamily: Fonts.sansSemiBold, fontSize: 13 },
   deletedToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
-  deletedToggleText: { fontSize: 12, fontWeight: '600' },
   deletedCard: {
     flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderStyle: 'dashed',
-    borderRadius: 12, padding: 12, marginBottom: 8, opacity: 0.65,
+    borderRadius: 14, padding: 14, marginBottom: 8, opacity: 0.65,
   },
-  reinstateBtn: { flexDirection: 'row', alignItems: 'center', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
+  reinstateBtn: { flexDirection: 'row', alignItems: 'center', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7 },
   emptyState: { alignItems: 'center', paddingTop: 60, paddingHorizontal: 32 },
   emptyIcon: { width: 72, height: 72, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', marginBottom: 8 },
-  emptyDesc: { fontSize: 13, textAlign: 'center', lineHeight: 19 },
 });

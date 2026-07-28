@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, Alert, Linking, ActivityIndic
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Pencil, User, Target, Dumbbell, Ruler, Heart, Bell, Flame, Download,
-  ExternalLink, LogOut, X, Sparkles,
+  ExternalLink, LogOut, ChevronLeft, Sparkles,
 } from 'lucide-react-native';
 import Constants from 'expo-constants';
 import { useTheme } from '../theme/useTheme';
@@ -107,10 +107,11 @@ export function SettingsScreen({ navigation }: { navigation: any }) {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.canvas }} contentContainerStyle={{ paddingBottom: 40 }}>
-      {/* Close */}
-      <View style={{ paddingTop: insets.top + 12, paddingHorizontal: 16, alignItems: 'flex-end' }}>
+      {/* Back — Profile is a pushed page now, not a modal sheet, so this
+          reads as ordinary back navigation rather than "dismiss". */}
+      <View style={{ paddingTop: insets.top + 12, paddingHorizontal: 16 }}>
         <TouchableOpacity onPress={() => navigation.getParent()?.goBack()} style={[styles.editBtn, { backgroundColor: colors.surface }]}>
-          <X size={18} color={colors.ink} />
+          <ChevronLeft size={19} color={colors.ink} />
         </TouchableOpacity>
       </View>
 

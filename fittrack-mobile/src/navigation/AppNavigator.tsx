@@ -35,6 +35,7 @@ const RootStack = createNativeStackNavigator();
 const TrainStack = createNativeStackNavigator();
 const ProgressStack = createNativeStackNavigator();
 const ProfileStack = createNativeStackNavigator();
+const LogFoodStack = createNativeStackNavigator();
 
 function noHeader(colors: any) {
   return {
@@ -90,6 +91,20 @@ function ProfileStackNavigator() {
 // never actually shown; RN Navigation requires every Tab.Screen to have one.
 function LogPlaceholder() {
   return <View />;
+}
+
+// One modal entry for the whole "add food" task — capture (photo/describe/
+// barcode) then confirm — rather than two separately-modal screens stacked
+// on top of each other. AIFoodReview is a plain push within this stack, so
+// going from capture to confirm reads as one continuous sheet, not a modal
+// popping up on top of another modal.
+function LogFoodStackNavigator() {
+  return (
+    <LogFoodStack.Navigator screenOptions={{ headerShown: false }}>
+      <LogFoodStack.Screen name="LogFoodMain" component={LogFoodScreen} />
+      <LogFoodStack.Screen name="AIFoodReview" component={AIFoodReviewScreen} />
+    </LogFoodStack.Navigator>
+  );
 }
 
 function LogFabButton({ colors, onPress }: { colors: any; onPress?: () => void }) {
@@ -203,8 +218,7 @@ export function AppNavigator() {
   return (
     <RootStack.Navigator screenOptions={{ headerShown: false }}>
       <RootStack.Screen name="MainTabs" component={MainTabs} />
-      <RootStack.Screen name="LogFood" component={LogFoodScreen} options={{ presentation: 'modal' }} />
-      <RootStack.Screen name="AIFoodReview" component={AIFoodReviewScreen} options={{ presentation: 'modal' }} />
+      <RootStack.Screen name="LogFood" component={LogFoodStackNavigator} options={{ presentation: 'modal' }} />
       <RootStack.Screen
         name="FoodLog"
         component={NutritionScreen}
@@ -218,7 +232,7 @@ export function AppNavigator() {
         }}
       />
       <RootStack.Screen name="WeighIn" component={WeighInScreen} options={{ presentation: 'modal' }} />
-      <RootStack.Screen name="Profile" component={ProfileStackNavigator} options={{ presentation: 'modal' }} />
+      <RootStack.Screen name="Profile" component={ProfileStackNavigator} />
     </RootStack.Navigator>
   );
 }

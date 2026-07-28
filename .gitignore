@@ -25,6 +25,9 @@ node_modules/
 .DS_Store
 *.pem
 
+# local design-handoff scratch bundle
+/project/
+
 # debug
 npm-debug.log*
 yarn-debug.log*

@@ -2,9 +2,9 @@
 // grouped list rows, rings, sparklines, pills. Keeps every screen's markup
 // close to the design doc instead of re-deriving these primitives per file.
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, StyleSheet, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, StyleSheet, Animated, PanResponder } from 'react-native';
 import Svg, { Circle, Path, Line } from 'react-native-svg';
-import { ChevronRight, Check } from 'lucide-react-native';
+import { ChevronRight, Check, Trash2 } from 'lucide-react-native';
 import { Fonts } from '../theme/fonts';
 import type { ThemeColors } from '../theme/colors';
 
@@ -141,6 +141,55 @@ export function ListRow({
 const rowStyles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 18, paddingVertical: 15 },
 });
+
+// Native-feeling swipe-to-delete for card/list rows — a persistent delete
+// button on every row eats width and gets accidentally tapped; hiding it
+// behind a leftward swipe (like Mail/Reminders) is the standard iOS pattern.
+// Pure PanResponder + Animated so it needs no extra native dependency
+// (react-native-gesture-handler isn't installed in this project).
+export function SwipeToDelete({
+  children, onDelete, colors, disabled, borderRadius = 18,
+}: {
+  children: React.ReactNode; onDelete: () => void; colors: ThemeColors; disabled?: boolean; borderRadius?: number;
+}) {
+  const translateX = useRef(new Animated.Value(0)).current;
+  const ACTION_WIDTH = 76;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      // Requires a deliberately horizontal drag past a small deadzone so a
+      // vertical list scroll or a plain tap into a child (button, text
+      // input) never gets mistaken for a swipe.
+      onMoveShouldSetPanResponder: (_, g) => !disabled && Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5 && g.dx < 0,
+      onPanResponderMove: (_, g) => {
+        translateX.setValue(Math.max(-ACTION_WIDTH, Math.min(0, g.dx)));
+      },
+      onPanResponderRelease: (_, g) => {
+        const open = g.dx < -ACTION_WIDTH / 2 || g.vx < -0.6;
+        Animated.spring(translateX, { toValue: open ? -ACTION_WIDTH : 0, useNativeDriver: true, bounciness: 0 }).start();
+      },
+    }),
+  ).current;
+
+  return (
+    <View style={{ borderRadius, overflow: 'hidden' }}>
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.danger, alignItems: 'flex-end', justifyContent: 'center' }]}>
+        <TouchableOpacity
+          onPress={() => {
+            Animated.timing(translateX, { toValue: 0, duration: 150, useNativeDriver: true }).start();
+            onDelete();
+          }}
+          style={{ width: ACTION_WIDTH, height: '100%', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Trash2 size={19} color="#fff" />
+        </TouchableOpacity>
+      </View>
+      <Animated.View style={{ transform: [{ translateX }] }} {...(disabled ? {} : panResponder.panHandlers)}>
+        {children}
+      </Animated.View>
+    </View>
+  );
+}
 
 export function PillButton({
   label, onPress, colors, tone = 'signal', disabled, icon, style,
