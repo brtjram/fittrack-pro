@@ -290,7 +290,7 @@ export function BarChart({ values, labels, width = 300, height = 76, color, mute
 // `target` can vary per day (e.g. BMR + that day's active calories) — pass
 // an array the same length as `values` and the reference line follows it.
 export function TargetBarChart({
-  values, labels, target, width = 300, height = 90, color, mutedColor, targetColor, highlight,
+  values, labels, target, width = 300, height = 90, color, mutedColor, targetColor, highlight, yAxisFormat,
 }: {
   values: number[]; labels?: string[]; target: number | number[]; width?: number; height?: number;
   color: string; mutedColor: string; targetColor: string;
@@ -300,41 +300,79 @@ export function TargetBarChart({
   // not a surplus day) or where the good range is a band, not a threshold
   // (e.g. diet adherence within 10% of target).
   highlight?: boolean[];
+  // Formats the 3 y-axis tick values (0 / half / max) — defaults to a plain
+  // rounded number, callers pass something like a "10k" compactor for charts
+  // where that reads better (steps, large calorie counts).
+  yAxisFormat?: (n: number) => string;
 }) {
   const targets = Array.isArray(target) ? target : values.map(() => target);
   const max = Math.max(...values, ...targets, 1);
+  const format = yAxisFormat ?? ((n: number) => {
+    if (n >= 1000) {
+      const k = n / 1000;
+      return `${Number.isInteger(k) ? k : k.toFixed(1)}k`;
+    }
+    return Math.round(n).toLocaleString();
+  });
+
+  // A left-hand axis column so the bars alone don't have to carry "is this
+  // good" — you can read the actual numbers a bar represents at a glance,
+  // not just whether it crossed the dashed target line.
+  const axisWidth = 34;
+  const chartWidth = width - axisWidth;
   const gap = 9;
-  const barW = (width - gap * (values.length - 1)) / values.length;
+  const barW = (chartWidth - gap * (values.length - 1)) / values.length;
   const targetPoints = targets.map((t, i) => {
     const x = i * (barW + gap) + barW / 2;
     const y = height - (Math.min(t, max) / max) * height;
     return [x, y];
   });
   const targetPath = targetPoints.map((p, i) => (i === 0 ? `M${p[0]} ${p[1]}` : `L${p[0]} ${p[1]}`)).join(' ');
+  const ticks = [max, max / 2, 0];
+
   return (
     <View style={{ width }}>
-      <View style={{ width, height }}>
-        <View style={{ width, height, flexDirection: 'row', alignItems: 'flex-end', gap }}>
-          {values.map((v, i) => {
-            const h = Math.max(3, (v / max) * height);
-            return (
-              <View key={i} style={{ flex: 1, height, justifyContent: 'flex-end' }}>
-                <View style={{ width: '100%', height: h, borderRadius: 4, backgroundColor: (highlight ? highlight[i] : v >= targets[i]) ? color : mutedColor }} />
-              </View>
-            );
-          })}
+      <View style={{ flexDirection: 'row' }}>
+        <View style={{ width: axisWidth, height, justifyContent: 'space-between', paddingRight: 6 }}>
+          {ticks.map((t, i) => (
+            // mutedColor (colors.trackMuted) is calibrated for bar-fill/gridline
+            // contrast, not text — it reads as nearly invisible in dark mode.
+            // targetColor (colors.mutedStrong) is the same "readable but
+            // de-emphasized" tone already used for the target line, and every
+            // caller passes the same value, so this is consistent across all
+            // charts by construction rather than needing a new prop per chart.
+            <Text key={i} style={{ fontSize: 9, fontFamily: Fonts.sans, color: targetColor, textAlign: 'right' }}>
+              {format(t)}
+            </Text>
+          ))}
         </View>
-        <Svg width={width} height={height} style={{ position: 'absolute', top: 0, left: 0 }}>
-          {Array.isArray(target)
-            ? <Path d={targetPath} stroke={targetColor} strokeWidth={1.5} strokeDasharray="4,4" fill="none" />
-            : <Line x1={0} y1={targetPoints[0][1]} x2={width} y2={targetPoints[0][1]} stroke={targetColor} strokeWidth={1.5} strokeDasharray="4,4" />}
-        </Svg>
+        <View style={{ width: chartWidth, height }}>
+          <GridLines width={chartWidth} height={height} rows={3} color={mutedColor} />
+          <View style={{ width: chartWidth, height, flexDirection: 'row', alignItems: 'flex-end', gap }}>
+            {values.map((v, i) => {
+              const h = Math.max(3, (v / max) * height);
+              return (
+                <View key={i} style={{ flex: 1, height, justifyContent: 'flex-end' }}>
+                  <View style={{ width: '100%', height: h, borderRadius: 4, backgroundColor: (highlight ? highlight[i] : v >= targets[i]) ? color : mutedColor }} />
+                </View>
+              );
+            })}
+          </View>
+          <Svg width={chartWidth} height={height} style={{ position: 'absolute', top: 0, left: 0 }}>
+            {Array.isArray(target)
+              ? <Path d={targetPath} stroke={targetColor} strokeWidth={1.5} strokeDasharray="4,4" fill="none" />
+              : <Line x1={0} y1={targetPoints[0][1]} x2={chartWidth} y2={targetPoints[0][1]} stroke={targetColor} strokeWidth={1.5} strokeDasharray="4,4" />}
+          </Svg>
+        </View>
       </View>
       {labels && (
-        <View style={{ flexDirection: 'row', gap, marginTop: 6 }}>
-          {labels.map((l, i) => (
-            <Text key={i} style={{ flex: 1, textAlign: 'center', fontSize: 9.5, fontFamily: Fonts.sans, color: mutedColor }}>{l}</Text>
-          ))}
+        <View style={{ flexDirection: 'row', marginTop: 6 }}>
+          <View style={{ width: axisWidth }} />
+          <View style={{ flexDirection: 'row', gap, width: chartWidth }}>
+            {labels.map((l, i) => (
+              <Text key={i} style={{ flex: 1, textAlign: 'center', fontSize: 9.5, fontFamily: Fonts.sans, color: mutedColor }}>{l}</Text>
+            ))}
+          </View>
         </View>
       )}
     </View>

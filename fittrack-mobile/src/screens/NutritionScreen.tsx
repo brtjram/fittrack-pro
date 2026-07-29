@@ -3,8 +3,10 @@ import {
   View, Text, ScrollView, TouchableOpacity,
   TextInput, Modal, FlatList, ActivityIndicator, StyleSheet,
 } from 'react-native';
-import { ChevronLeft, ChevronRight, Plus, Trash2, Search, X, Clock, Minus } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ChevronLeft, ChevronRight, Plus, Search, X, Clock, Minus, Camera, ScanBarcode } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
+import { Ring, SwipeToDelete } from '../components/ui';
 import * as api from '../services/api';
 import { calculateMacroTargets, calculateAdaptiveAdjustment } from '@fittrack/core/src/algorithms/macro-calculator';
 import { foods as COMMON_FOODS } from '@fittrack/core/src/data/foods';
@@ -24,8 +26,9 @@ function toDateString(d?: Date): string {
 // Day log editor — view/edit what's logged for a date and add foods manually
 // via search. Photo logging lives in LogFoodScreen + AIFoodReviewScreen now;
 // this screen is the fallback/manual-edit path reached from a food entry.
-export function NutritionScreen() {
+export function NutritionScreen({ navigation }: { navigation: any }) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [date, setDate] = useState(toDateString());
   const [entries, setEntries] = useState<FoodLogEntry[]>([]);
   const [targets, setTargets] = useState<MacroTargets>({ calories: 2000, protein: 180, carbs: 200, fat: 65 });
@@ -33,7 +36,6 @@ export function NutritionScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<FoodItem[]>([]);
   const [searching, setSearching] = useState(false);
-  const [tab, setTab] = useState<'common' | 'usda'>('common');
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [recentFoods, setRecentFoods] = useState<FoodItem[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -77,34 +79,39 @@ export function NutritionScreen() {
 
   const isToday = date === toDateString();
 
-  // Zero-query defaults: recently logged foods for this meal, fetched when the
-  // search modal opens (mirrors MacroFactor surfacing favorites/recent before typing).
+  // Zero-query defaults: top 5 recently logged foods for this meal, fetched
+  // when the search modal opens (mirrors MacroFactor surfacing favorites/
+  // recent before typing).
   useEffect(() => {
     if (!searchMeal) { setRecentFoods([]); return; }
-    api.getRecentFoods(searchMeal, 10).then(setRecentFoods).catch(() => setRecentFoods([]));
+    api.getRecentFoods(searchMeal, 5).then(setRecentFoods).catch(() => setRecentFoods([]));
   }, [searchMeal]);
 
-  // Search logic
+  // One unified list across recent, common, and USDA/OFF (via searchUSDAFoods,
+  // which already queries both) instead of a manual tab toggle between
+  // "Common Foods" and "USDA Database" — recent matches always lead, common
+  // matches show instantly, and USDA/OFF results stream in once you've typed
+  // enough to search them.
   useEffect(() => {
     if (!searchMeal) return;
-    if (tab === 'common') {
-      const q = searchQuery.toLowerCase();
-      if (q.length < 1) {
-        setSearchResults(recentFoods.length > 0 ? recentFoods : COMMON_FOODS.slice(0, 20));
-      } else {
-        setSearchResults(COMMON_FOODS.filter((f: FoodItem) => f.name.toLowerCase().includes(q)));
-      }
-    } else {
-      if (searchQuery.length < 2) { setSearchResults([]); return; }
-      clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(async () => {
-        setSearching(true);
-        const results = await api.searchUSDAFoods(searchQuery);
-        setSearchResults(results);
-        setSearching(false);
-      }, 400);
+    const q = searchQuery.toLowerCase().trim();
+    if (q.length === 0) {
+      setSearchResults(recentFoods.length > 0 ? recentFoods : COMMON_FOODS.slice(0, 20));
+      return;
     }
-  }, [searchQuery, tab, searchMeal, recentFoods]);
+    const recentMatches = recentFoods.filter((f) => f.name.toLowerCase().includes(q));
+    const recentIds = new Set(recentMatches.map((f) => f.id));
+    const commonMatches = COMMON_FOODS.filter((f: FoodItem) => !recentIds.has(f.id) && f.name.toLowerCase().includes(q));
+    setSearchResults([...recentMatches, ...commonMatches]);
+    if (q.length < 2) return;
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setSearching(true);
+      const usda = await api.searchUSDAFoods(q);
+      setSearchResults((prev) => [...prev, ...usda.filter((f) => !recentIds.has(f.id))]);
+      setSearching(false);
+    }, 400);
+  }, [searchQuery, searchMeal, recentFoods]);
 
   const handleAddFood = async (food: FoodItem, servings: number) => {
     if (!searchMeal) return;
@@ -155,21 +162,25 @@ export function NutritionScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
+      {/* Date Selector — pinned above the scroll view, not inside it. It used
+          to live at the top of the scrollable content, which scrolled it out
+          of reach as soon as the meal list grew past one screen (this screen
+          also has no native header anymore now that it's a tab root, so it
+          needs its own safe-area top padding too). */}
+      <View style={[styles.dateRow, { paddingTop: insets.top + 12, paddingHorizontal: 16, paddingBottom: 10, backgroundColor: colors.background, borderBottomWidth: 1, borderBottomColor: colors.border }]}>
+        <TouchableOpacity onPress={() => changeDate(-1)} style={styles.dateBtn}>
+          <ChevronLeft size={22} color={colors.foreground} />
+        </TouchableOpacity>
+        <Text style={[styles.dateText, { color: colors.foreground }]}>
+          {isToday ? 'Today' : new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+        </Text>
+        <TouchableOpacity onPress={() => changeDate(1)} disabled={isToday} style={[styles.dateBtn, { opacity: isToday ? 0.3 : 1 }]}>
+          <ChevronRight size={22} color={colors.foreground} />
+        </TouchableOpacity>
+      </View>
+
       <ScrollView>
         <View style={styles.content}>
-          {/* Date Selector */}
-          <View style={styles.dateRow}>
-            <TouchableOpacity onPress={() => changeDate(-1)} style={styles.dateBtn}>
-              <ChevronLeft size={22} color={colors.foreground} />
-            </TouchableOpacity>
-            <Text style={[styles.dateText, { color: colors.foreground }]}>
-              {isToday ? 'Today' : new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-            </Text>
-            <TouchableOpacity onPress={() => changeDate(1)} disabled={isToday} style={[styles.dateBtn, { opacity: isToday ? 0.3 : 1 }]}>
-              <ChevronRight size={22} color={colors.foreground} />
-            </TouchableOpacity>
-          </View>
-
           {/* Macro Summary */}
           <View style={[styles.macroCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.remainingNum, { color: remaining < 0 ? colors.destructive : colors.foreground }]}>
@@ -192,19 +203,23 @@ export function NutritionScreen() {
               <View key={meal} style={[styles.mealCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={styles.mealHeader}>
                   <View>
-                    <Text style={[styles.mealTitle, { color: colors.foreground }]}>
+                    {/* A distinct accent color (not colors.foreground, which
+                        food-item names also use) so meal headers read as
+                        section titles at a glance instead of blending in
+                        with the entries listed under them. */}
+                    <Text style={[styles.mealTitle, { color: colors.primary }]}>
                       {meal.charAt(0).toUpperCase() + meal.slice(1)}
                     </Text>
-                    <Text style={{ fontSize: 12, color: colors.mutedForeground }}>
+                    <Text style={{ fontSize: 13, color: colors.mutedForeground, marginTop: 2 }}>
                       {Math.round(mealCals)} cal
                     </Text>
                   </View>
                   <TouchableOpacity
                     style={[styles.addBtn, { backgroundColor: colors.border }]}
-                    onPress={() => { setSearchMeal(meal); setSearchQuery(''); setTab('common'); }}
+                    onPress={() => { setSearchMeal(meal); setSearchQuery(''); }}
                     activeOpacity={0.7}
                   >
-                    <Plus size={16} color={colors.primary} />
+                    <Plus size={18} color={colors.primary} />
                   </TouchableOpacity>
                 </View>
 
@@ -213,21 +228,20 @@ export function NutritionScreen() {
                   const previewFactor = isEditing ? editServings / (entry.servings || 1) : 1;
                   return (
                     <View key={entry.id} style={[styles.entryRow, { borderTopColor: colors.border }]}>
-                      <TouchableOpacity
-                        style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
-                        onPress={() => (isEditing ? setEditingId(null) : startEditEntry(entry))}
-                        activeOpacity={0.6}
-                      >
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 14, color: colors.foreground }}>{entry.foodName}</Text>
-                          <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 1 }}>
-                            {Math.round(entry.calories * previewFactor)} cal · {Math.round(entry.protein * previewFactor)}p · {Math.round(entry.carbs * previewFactor)}c · {Math.round(entry.fat * previewFactor)}f
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => handleDeleteEntry(entry.id!)} activeOpacity={0.6} style={{ marginLeft: 10 }}>
-                        <Trash2 size={16} color={colors.destructive} />
-                      </TouchableOpacity>
+                      <SwipeToDelete colors={colors} borderRadius={0} onDelete={() => handleDeleteEntry(entry.id!)}>
+                        <TouchableOpacity
+                          style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card }}
+                          onPress={() => (isEditing ? setEditingId(null) : startEditEntry(entry))}
+                          activeOpacity={0.6}
+                        >
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 16, fontWeight: '600', color: colors.foreground }}>{entry.foodName}</Text>
+                            <Text style={{ fontSize: 12.5, color: colors.mutedForeground, marginTop: 3 }}>
+                              {Math.round(entry.calories * previewFactor)} cal · {Math.round(entry.protein * previewFactor)}p · {Math.round(entry.carbs * previewFactor)}c · {Math.round(entry.fat * previewFactor)}f
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      </SwipeToDelete>
                       {isEditing && (
                         <View style={[styles.editRow, { borderTopColor: colors.border }]}>
                           <Text style={{ fontSize: 12, color: colors.mutedForeground, marginRight: 10 }}>Quantity</Text>
@@ -276,42 +290,45 @@ export function NutritionScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Tabs */}
-          <View style={[styles.tabRow, { backgroundColor: colors.muted }]}>
-            <TouchableOpacity
-              style={[styles.tabBtn, tab === 'common' && { backgroundColor: colors.card }]}
-              onPress={() => setTab('common')}
-            >
-              <Text style={{ fontSize: 13, fontWeight: '600', color: tab === 'common' ? colors.foreground : colors.mutedForeground }}>
-                Common Foods
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tabBtn, tab === 'usda' && { backgroundColor: colors.card }]}
-              onPress={() => setTab('usda')}
-            >
-              <Text style={{ fontSize: 13, fontWeight: '600', color: tab === 'usda' ? colors.foreground : colors.mutedForeground }}>
-                USDA Database
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Search Input */}
+          {/* Search Input — one unified search across recent, common, and USDA/OFF */}
           <View style={[styles.searchRow, { borderBottomColor: colors.border }]}>
             <Search size={18} color={colors.mutedForeground} />
             <TextInput
               style={[styles.searchInput, { color: colors.foreground }]}
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholder={tab === 'common' ? 'Search common foods...' : 'Search USDA database...'}
+              placeholder="Search foods..."
               placeholderTextColor={colors.mutedForeground}
               autoFocus
             />
             {searching && <ActivityIndicator size="small" color={colors.primary} />}
           </View>
 
+          {/* Escape hatch to the camera-first capture flow (photo + barcode)
+              for whenever text search comes up short — always visible here
+              rather than only appearing after a failed search, since a
+              barcode scan is often just faster than typing anyway. */}
+          <TouchableOpacity
+            style={[styles.captureFallback, { borderBottomColor: colors.border }]}
+            activeOpacity={0.7}
+            onPress={() => {
+              const meal = searchMeal;
+              setSearchMeal(null);
+              setSearchQuery('');
+              navigation.getParent()?.navigate('LogFood', { screen: 'LogFoodMain', params: { meal } });
+            }}
+          >
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              <Camera size={15} color={colors.primary} />
+              <ScanBarcode size={15} color={colors.primary} />
+            </View>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.primary }}>
+              Can't find it? Scan a barcode or snap a photo
+            </Text>
+          </TouchableOpacity>
+
           {/* Results */}
-          {tab === 'common' && searchQuery.length === 0 && recentFoods.length > 0 && (
+          {searchQuery.length === 0 && recentFoods.length > 0 && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 2 }}>
               <Clock size={12} color={colors.mutedForeground} />
               <Text style={{ fontSize: 12, fontWeight: '600', color: colors.mutedForeground }}>Recently logged</Text>
@@ -338,9 +355,7 @@ export function NutritionScreen() {
             ListEmptyComponent={
               <View style={{ padding: 32, alignItems: 'center' }}>
                 <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
-                  {tab === 'usda' && searchQuery.length < 2
-                    ? 'Type at least 2 characters to search USDA'
-                    : 'No results found'}
+                  {searchQuery.length === 1 ? 'Keep typing to search more sources' : 'No results found'}
                 </Text>
               </View>
             }
@@ -357,14 +372,14 @@ function MacroBar({ label, current, target, color, colors }: {
   const pct = target > 0 ? Math.min(current / target, 1) : 0;
   return (
     <View style={{ flex: 1, alignItems: 'center' }}>
-      <View style={[styles.barTrack, { backgroundColor: colors.muted }]}>
-        <View style={[styles.barFill, { backgroundColor: color, height: `${pct * 100}%` }]} />
+      <View style={{ width: 88, height: 88, alignItems: 'center', justifyContent: 'center' }}>
+        <Ring size={88} stroke={8} percent={pct} trackColor={colors.muted} fillColor={color} />
+        <View style={{ position: 'absolute', alignItems: 'center' }}>
+          <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground }}>{Math.round(current)}g</Text>
+        </View>
       </View>
-      <Text style={{ fontSize: 12, fontWeight: '600', color: colors.foreground, marginTop: 6 }}>
-        {Math.round(current)}g
-      </Text>
-      <Text style={{ fontSize: 10, color: colors.mutedForeground }}>/ {Math.round(target)}g</Text>
-      <Text style={{ fontSize: 10, color: colors.mutedForeground, marginTop: 2 }}>{label}</Text>
+      <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 8 }}>/ {Math.round(target)}g</Text>
+      <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 2 }}>{label}</Text>
     </View>
   );
 }
@@ -377,21 +392,21 @@ const styles = StyleSheet.create({
   macroCard: { borderWidth: 1, borderRadius: 12, padding: 20, alignItems: 'center' },
   remainingNum: { fontSize: 32, fontWeight: '700' },
   macroRow: { flexDirection: 'row', marginTop: 20, gap: 16, width: '100%' },
-  barTrack: { width: 8, height: 60, borderRadius: 4, overflow: 'hidden', justifyContent: 'flex-end' },
-  barFill: { width: '100%', borderRadius: 4 },
-  mealCard: { borderWidth: 1, borderRadius: 12, padding: 14 },
+  mealCard: { borderWidth: 1, borderRadius: 16, padding: 18 },
   mealHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  mealTitle: { fontSize: 15, fontWeight: '600' },
-  addBtn: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  entryRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', borderTopWidth: 1, paddingTop: 10, marginTop: 10 },
-  editRow: { flexDirection: 'row', alignItems: 'center', width: '100%', borderTopWidth: 1, marginTop: 10, paddingTop: 10, gap: 8 },
+  mealTitle: { fontSize: 18, fontWeight: '700' },
+  addBtn: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  // Column, not row — SwipeToDelete is now the single child that needs to
+  // stretch full width (column's default cross-axis stretch handles that),
+  // with the quantity-edit row appearing as a second stacked child beneath it.
+  entryRow: { borderTopWidth: 1, paddingTop: 14, marginTop: 14 },
+  editRow: { flexDirection: 'row', alignItems: 'center', width: '100%', borderTopWidth: 1, marginTop: 12, paddingTop: 12, gap: 8 },
   stepBtn: { width: 28, height: 28, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   saveEditBtn: { marginLeft: 'auto', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 16, paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1 },
   modalTitle: { fontSize: 17, fontWeight: '600' },
-  tabRow: { flexDirection: 'row', margin: 16, borderRadius: 8, padding: 2 },
-  tabBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 6 },
   searchRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, gap: 8 },
+  captureFallback: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1 },
   searchInput: { flex: 1, fontSize: 14, paddingVertical: 4 },
   foodResult: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1 },
 });

@@ -156,6 +156,24 @@ export async function POST(request: NextRequest) {
   const userId = await getAuthUserId();
   if (userId instanceof NextResponse) return userId;
 
+  // Nothing below here was previously caught — any thrown error (a bad tool
+  // input, a DB hiccup, an Anthropic API error) turned into a bare framework
+  // 500 with no server-side trace, which is what showed up in the app as an
+  // unexplained "HTTP 500" with no way to diagnose it. Catching here logs the
+  // real error and still gives the user a coach-shaped reply instead of a
+  // raw HTTP status.
+  try {
+    return await handleChat(request, userId);
+  } catch (err) {
+    console.error('[api/chat] Unhandled error:', err);
+    return new Response(
+      "Sorry, I hit a snag processing that. Mind trying again, maybe in a slightly different way?",
+      { headers: { 'Content-Type': 'text/plain; charset=utf-8' } },
+    );
+  }
+}
+
+async function handleChat(request: NextRequest, userId: string) {
   const { messages } = await request.json() as { messages: { role: 'user' | 'assistant'; content: string }[] };
 
   const [profile, challenge, coachMemories] = await Promise.all([
@@ -264,10 +282,23 @@ You have long-term memory of this user from past sessions (below, if any exists)
       // writes (e.g. save_coaching_instructions) without an extra DB round-trip.
       let currentProfile = profile;
       const toolResults: Anthropic.ToolResultBlockParam[] = [];
+      // Only tools that actually completed land here (name -> its resultText)
+      // — the "Applied" card below is built from this, not from which tools
+      // the model merely attempted, so it can't claim a change stuck when it
+      // didn't. The resultText doubles as the card's lightweight "what
+      // exactly happened" detail (e.g. the actual scheduled dates), reusing
+      // text already generated for the model instead of a separate preview step.
+      const succeededToolResults = new Map<string, string>();
 
       for (const block of toolUseBlocks) {
         let resultText = 'Done.';
 
+        // A single tool erroring (a DB constraint, an unexpected input shape)
+        // used to throw straight out of this loop and take the whole request
+        // down with it. Contained here, it instead becomes a tool_result the
+        // model can see and explain, and the other tool calls in this turn
+        // still get a chance to run.
+        try {
         if (block.name === 'save_coaching_instructions') {
           if (!currentProfile) {
             resultText = 'Could not save instructions: no fitness profile found for this user yet.';
@@ -279,6 +310,7 @@ You have long-term memory of this user from past sessions (below, if any exists)
             });
             currentProfile = result.profile;
             resultText = result.resultText;
+            succeededToolResults.set(block.name, resultText);
           }
         } else if (block.name === 'schedule_workout_plan') {
           if (!currentProfile) {
@@ -291,6 +323,7 @@ You have long-term memory of this user from past sessions (below, if any exists)
             });
             currentProfile = result.profile;
             resultText = result.resultText;
+            succeededToolResults.set(block.name, resultText);
           }
         } else if (block.name === 'set_nutrition_targets') {
           if (!currentProfile) {
@@ -299,6 +332,7 @@ You have long-term memory of this user from past sessions (below, if any exists)
             const result = await setNutritionTargetsAction(userId, currentProfile, block.input as { calories: number; protein?: number; carbs?: number; fat?: number; reason: string });
             currentProfile = result.profile;
             resultText = result.resultText;
+            succeededToolResults.set(block.name, resultText);
           }
         } else if (block.name === 'set_ai_coach_goal') {
           if (!currentProfile) {
@@ -307,10 +341,16 @@ You have long-term memory of this user from past sessions (below, if any exists)
             const result = await setAiCoachGoalAction(userId, currentProfile, block.input as { goalDescription: string });
             currentProfile = result.profile;
             resultText = result.resultText;
+            succeededToolResults.set(block.name, resultText);
           }
         } else if (block.name === 'remember_insight') {
           const result = await rememberInsightAction(userId, block.input as { category: 'insight' | 'preference' | 'constraint' | 'outcome'; content: string });
           resultText = result.resultText;
+          succeededToolResults.set(block.name, resultText);
+        }
+        } catch (err) {
+          console.error(`[api/chat] Tool "${block.name}" failed:`, err);
+          resultText = `Something went wrong trying to do that (${block.name.replace(/_/g, ' ')}) — nothing was changed. Let the user know and suggest they try again.`;
         }
 
         toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: resultText });
@@ -330,20 +370,41 @@ You have long-term memory of this user from past sessions (below, if any exists)
         messages: messagesWithTool,
       });
 
-      // If a plan-shaping tool fired this turn, the client renders a structured
-      // "Proposed plan" card instead of just the prose — append a trailing
-      // sentinel with the resulting targets so it doesn't need to re-fetch.
-      const planToolNames = ['schedule_workout_plan', 'set_nutrition_targets', 'set_ai_coach_goal'];
-      const planRelevant = toolUseBlocks.some((b) => planToolNames.includes(b.name));
-      let planSummary: { calories?: number; protein?: number; split?: string; stepTarget?: number } | null = null;
+      // If a plan-shaping tool actually *succeeded* this turn (not merely
+      // attempted — see succeededToolResults above), the client renders a
+      // structured "Proposed plan" card instead of just the prose. The card's
+      // "Applied" line is built from exactly which of these succeeded, so it
+      // can't claim something stuck when the tool errored or was a no-op.
+      const planToolLabels: Record<string, string> = {
+        schedule_workout_plan: "This week's workouts",
+        set_nutrition_targets: 'Nutrition targets',
+        set_ai_coach_goal: 'AI Coach goal',
+      };
+      const succeededPlanTools = toolUseBlocks.filter((b) => b.name in planToolLabels && succeededToolResults.has(b.name));
+      const planRelevant = succeededPlanTools.length > 0;
+      let planSummary: {
+        calories?: number; protein?: number; carbs?: number; fat?: number; split?: string; stepTarget?: number;
+        applied?: string[]; details?: string[];
+      } | null = null;
       if (planRelevant && currentProfile) {
-        planSummary = { split: currentProfile.preferredSplit, stepTarget: currentProfile.stepTarget };
+        planSummary = {
+          split: currentProfile.preferredSplit,
+          stepTarget: currentProfile.stepTarget,
+          applied: succeededPlanTools.map((b) => planToolLabels[b.name]),
+          // Reuses each action's own resultText (already-written, human-readable
+          // detail — e.g. "Scheduled this week's workouts:\n- Jul 29: Upper Body B...")
+          // as a lightweight after-the-fact "what exactly happened" instead of a
+          // separate pre-apply preview step.
+          details: succeededPlanTools.map((b) => succeededToolResults.get(b.name)!),
+        };
         if (currentProfile.nutritionTargetOverride) {
           try {
-            const override = JSON.parse(currentProfile.nutritionTargetOverride) as { calories?: number; protein?: number };
+            const override = JSON.parse(currentProfile.nutritionTargetOverride) as { calories?: number; protein?: number; carbs?: number; fat?: number };
             if (typeof override.calories === 'number') {
               planSummary.calories = override.calories;
               planSummary.protein = override.protein;
+              planSummary.carbs = override.carbs;
+              planSummary.fat = override.fat;
             }
           } catch {
             // ignore parse errors — plan card just omits calories/protein

@@ -104,7 +104,7 @@ export interface PersonalRecord {
 
 // ==================== Nutrition Models ====================
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
-export type FoodCategory = 'protein' | 'carbs' | 'fat' | 'dairy' | 'fruit' | 'vegetable' | 'grain' | 'beverage' | 'snack' | 'supplement' | 'usda' | 'openfoodfacts' | 'recent' | 'photo';
+export type FoodCategory = 'protein' | 'carbs' | 'fat' | 'dairy' | 'fruit' | 'vegetable' | 'grain' | 'beverage' | 'snack' | 'supplement' | 'usda' | 'openfoodfacts' | 'fatsecret' | 'recent' | 'photo';
 
 export interface FoodItem {
   id: string;

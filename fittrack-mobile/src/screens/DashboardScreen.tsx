@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { ArrowRight, Sparkles, Settings } from 'lucide-react-native';
+import { ArrowRight, Sparkles, Settings, TrendingUp, ChevronRight } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import { useAuth } from '../hooks/useAuth';
 import { Fonts } from '../theme/fonts';
@@ -327,7 +327,7 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
       {/* Today's targets */}
       <View style={styles.sectionHeaderRow}>
         <SectionLabel colors={colors}>Today's targets</SectionLabel>
-        <TouchableOpacity onPress={() => navigation.getParent()?.navigate('FoodLog')}>
+        <TouchableOpacity onPress={() => navigation.navigate('Food')}>
           <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 11.5, color: colors.signal }}>Log food</Text>
         </TouchableOpacity>
       </View>
@@ -340,37 +340,50 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
         <RingStat colors={colors} percent={stepsPercent} color={colors.info} value={formatSteps(todaySteps)} label="steps" />
       </View>
 
-      {/* Weight trend */}
-      {sortedWeights.length >= 2 && latestWeight !== null && (
-        <TouchableOpacity
-          style={[styles.trendCard, { backgroundColor: colors.surface }]}
-          activeOpacity={0.8}
-          onPress={() => navigation.navigate('Progress')}
-        >
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <View>
-              <SectionLabel colors={colors}>Weight trend</SectionLabel>
-              <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 6 }}>
+      {/* Progress entry point — now that Progress isn't a tab, this card (not
+          just its weight readout) is the way in from Home, so it always
+          renders and always links out, even before there's a trend to show. */}
+      <TouchableOpacity
+        style={[styles.trendCard, { backgroundColor: colors.surface }]}
+        activeOpacity={0.8}
+        onPress={() => navigation.getParent()?.navigate('Progress')}
+      >
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <TrendingUp size={12} color={colors.progress} strokeWidth={2.5} />
+            <SectionLabel colors={colors}>Progress</SectionLabel>
+          </View>
+          <ChevronRight size={16} color={colors.mutedForeground} />
+        </View>
+
+        {sortedWeights.length >= 2 && latestWeight !== null ? (
+          <>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
                 <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 28, letterSpacing: -0.5, color: colors.ink }}>{latestWeight}</Text>
                 <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 12, color: colors.mutedForeground, marginLeft: 7 }}>lb</Text>
               </View>
+              <View style={[styles.trendBadge, { backgroundColor: weeklyRate <= 0 ? 'rgba(201,232,74,0.14)' : 'rgba(245,145,72,0.14)' }]}>
+                <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12, color: weeklyRate <= 0 ? colors.progress : colors.signal }}>
+                  {weeklyRate === 0 ? 'steady' : `${weeklyRate > 0 ? '+' : ''}${weeklyRate.toFixed(1)} lb/wk`}
+                </Text>
+              </View>
             </View>
-            <View style={[styles.trendBadge, { backgroundColor: weeklyRate <= 0 ? 'rgba(201,232,74,0.14)' : 'rgba(245,145,72,0.14)' }]}>
-              <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12, color: weeklyRate <= 0 ? colors.progress : colors.signal }}>
-                {weeklyRate === 0 ? 'steady' : `${weeklyRate > 0 ? '+' : ''}${weeklyRate.toFixed(1)} lb/wk`}
+            <View style={{ marginTop: 10 }}>
+              <Sparkline values={sortedWeights.map((w) => w.weightLbs)} width={296} height={64} color={colors.progress} dotColor={colors.faint} />
+            </View>
+            {sinceDate && (
+              <Text style={{ fontFamily: Fonts.sans, fontSize: 11.5, color: colors.mutedForeground, marginTop: 6 }}>
+                {Math.abs(totalChange).toFixed(1)} lb {totalChange <= 0 ? 'down' : 'up'} since {sinceDate}
               </Text>
-            </View>
-          </View>
-          <View style={{ marginTop: 10 }}>
-            <Sparkline values={sortedWeights.map((w) => w.weightLbs)} width={296} height={64} color={colors.progress} dotColor={colors.faint} />
-          </View>
-          {sinceDate && (
-            <Text style={{ fontFamily: Fonts.sans, fontSize: 11.5, color: colors.mutedForeground, marginTop: 6 }}>
-              {Math.abs(totalChange).toFixed(1)} lb {totalChange <= 0 ? 'down' : 'up'} since {sinceDate}
-            </Text>
-          )}
-        </TouchableOpacity>
-      )}
+            )}
+          </>
+        ) : (
+          <Text style={{ fontFamily: Fonts.sans, fontSize: 12.5, color: colors.mutedForeground, marginTop: 8, lineHeight: 18 }}>
+            Log a weigh-in to start your trend — or tap in for strength and habit stats.
+          </Text>
+        )}
+      </TouchableOpacity>
 
       {/* Coach nudge */}
       <View style={[styles.coachCard, { backgroundColor: colors.surface }]}>

@@ -4,7 +4,7 @@ import {
   Keyboard, Platform, ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowUp, ArrowUpRight, Sparkles, Check } from 'lucide-react-native';
+import { ArrowUp, ArrowUpRight, Sparkles, Check, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import { Fonts } from '../theme/fonts';
 import { getToken } from '../services/auth-storage';
@@ -30,8 +30,12 @@ const PLAN_MARKER = '<<<PLAN>>>';
 interface PlanSummary {
   calories?: number;
   protein?: number;
+  carbs?: number;
+  fat?: number;
   split?: string;
   stepTarget?: number;
+  applied?: string[];
+  details?: string[];
 }
 
 interface Message {
@@ -269,25 +273,66 @@ export function ChatScreen() {
 
 function PlanCard({ colors, plan }: { colors: any; plan: PlanSummary }) {
   const hasNutrition = typeof plan.calories === 'number';
+  // Lighter-weight than a pre-apply preview: changes still apply immediately
+  // (consistent with how every other auto-apply surface in the app works),
+  // but the exact detail — which dates got which workouts, the reasoning
+  // behind a nutrition change — is one tap away right here instead of hidden.
+  const [expanded, setExpanded] = useState(false);
   return (
     <View style={{ marginTop: 12, backgroundColor: colors.surfaceRaised, borderRadius: 16, borderWidth: 1, borderColor: colors.hairline, overflow: 'hidden' }}>
       <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 10, letterSpacing: 1, color: colors.progress, textTransform: 'uppercase', padding: 14, paddingBottom: 0 }}>
-        Proposed plan
+        Plan
       </Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 12 }}>
         {hasNutrition && (
           <>
             <PlanStat colors={colors} label="Calories" value={`${Math.round(plan.calories!).toLocaleString()}`} />
             {typeof plan.protein === 'number' && <PlanStat colors={colors} label="Protein" value={`${Math.round(plan.protein)} g`} />}
+            {typeof plan.carbs === 'number' && <PlanStat colors={colors} label="Carbs" value={`${Math.round(plan.carbs)} g`} />}
+            {typeof plan.fat === 'number' && <PlanStat colors={colors} label="Fat" value={`${Math.round(plan.fat)} g`} />}
           </>
         )}
         {plan.split && <PlanStat colors={colors} label="Training" value={SPLIT_LABEL[plan.split] ?? plan.split} />}
         {typeof plan.stepTarget === 'number' && <PlanStat colors={colors} label="Steps" value={plan.stepTarget.toLocaleString()} />}
       </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, padding: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.hairline, marginTop: 4 }}>
-        <Check size={13} color={colors.progress} strokeWidth={3} />
-        <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 11.5, color: colors.progress }}>Applied · Today and Train updated</Text>
-      </View>
+      {/* Built from exactly which tools succeeded server-side (see api/chat's
+          succeededToolResults) — never shown for a tool that was only attempted,
+          so this can't claim a change applied when it actually failed. */}
+      {!!plan.applied?.length && (
+        <View style={{ borderTopWidth: 1, borderTopColor: colors.hairline, marginTop: 4 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 14, paddingTop: 12, paddingBottom: plan.details?.length ? 6 : 14 }}>
+            <Check size={13} color={colors.progress} strokeWidth={3} />
+            <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 11.5, color: colors.progress, flex: 1 }}>
+              Applied · {plan.applied.join(' & ')} updated
+            </Text>
+          </View>
+          {!!plan.details?.length && (
+            <>
+              <TouchableOpacity
+                onPress={() => setExpanded((v) => !v)}
+                activeOpacity={0.7}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 14, paddingBottom: 12 }}
+              >
+                <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 11, color: colors.mutedForeground }}>
+                  {expanded ? 'Hide details' : 'See exactly what changed'}
+                </Text>
+                {expanded
+                  ? <ChevronUp size={12} color={colors.mutedForeground} />
+                  : <ChevronDown size={12} color={colors.mutedForeground} />}
+              </TouchableOpacity>
+              {expanded && (
+                <View style={{ paddingHorizontal: 14, paddingBottom: 14, gap: 10 }}>
+                  {plan.details.map((detail, i) => (
+                    <Text key={i} style={{ fontFamily: Fonts.sans, fontSize: 12, lineHeight: 18, color: colors.mutedStrong }}>
+                      {detail}
+                    </Text>
+                  ))}
+                </View>
+              )}
+            </>
+          )}
+        </View>
+      )}
     </View>
   );
 }

@@ -17,14 +17,6 @@ import type { FoodItem, MealType } from '@fittrack/core';
 
 const MEALS: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 
-function defaultMeal(): MealType {
-  const h = new Date().getHours();
-  if (h < 11) return 'breakfast';
-  if (h < 16) return 'lunch';
-  if (h < 21) return 'dinner';
-  return 'snack';
-}
-
 function toDateString(d?: Date): string {
   const dt = d ?? new Date();
   const year = dt.getFullYear();
@@ -35,10 +27,17 @@ function toDateString(d?: Date): string {
 
 function label(m: MealType) { return m.charAt(0).toUpperCase() + m.slice(1); }
 
-export function LogFoodScreen({ navigation }: { navigation: any }) {
+export function LogFoodScreen({ navigation, route }: { navigation: any; route: any }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const [meal, setMeal] = useState<MealType>(defaultMeal());
+  // A fixed starting point, not a clock-based guess — always opens on
+  // Breakfast regardless of what time it is, and the pill row right above
+  // lets you change it before you ever hit capture/analyze/log. A caller
+  // (e.g. the Food tab's "scan/snap" fallback) can override the starting
+  // meal via route params so it opens already matching the meal you were
+  // searching for.
+  const initialMeal = route?.params?.meal as MealType | undefined;
+  const [meal, setMeal] = useState<MealType>(initialMeal ?? 'breakfast');
   const [recentFoods, setRecentFoods] = useState<FoodItem[]>([]);
   const [loadingRecents, setLoadingRecents] = useState(true);
 
@@ -73,22 +72,28 @@ export function LogFoodScreen({ navigation }: { navigation: any }) {
 
   useEffect(() => {
     setLoadingRecents(true);
-    api.getRecentFoods(meal, 6).then(setRecentFoods).finally(() => setLoadingRecents(false));
+    api.getRecentFoods(meal, 5).then(setRecentFoods).finally(() => setLoadingRecents(false));
   }, [meal]);
 
   useEffect(() => {
     if (!searchOpen) return;
     const q = query.toLowerCase().trim();
     if (q.length === 0) {
-      setResults(recentFoods.length ? recentFoods : COMMON_FOODS.slice(0, 12));
+      setResults(recentFoods.length ? recentFoods.slice(0, 5) : COMMON_FOODS.slice(0, 12));
       return;
     }
-    setResults(COMMON_FOODS.filter((f: FoodItem) => f.name.toLowerCase().includes(q)).slice(0, 20));
+    // Recently-logged foods that match stay pinned above common/USDA/OFF
+    // matches, even while actively typing — not just in the empty-query
+    // browse view — so your usual order shows up first as you search.
+    const recentMatches = recentFoods.filter((f) => f.name.toLowerCase().includes(q)).slice(0, 5);
+    const recentIds = new Set(recentMatches.map((f) => f.id));
+    const commonMatches = COMMON_FOODS.filter((f: FoodItem) => !recentIds.has(f.id) && f.name.toLowerCase().includes(q)).slice(0, 20);
+    setResults([...recentMatches, ...commonMatches]);
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       if (q.length >= 2) {
         const usda = await api.searchUSDAFoods(q);
-        setResults((prev) => [...prev, ...usda].slice(0, 30));
+        setResults((prev) => [...prev, ...usda.filter((f) => !recentIds.has(f.id))].slice(0, 30));
       }
     }, 400);
   }, [query, searchOpen, recentFoods]);

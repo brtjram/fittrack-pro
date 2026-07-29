@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Home, Dumbbell, TrendingUp, MessageCircle, Plus } from 'lucide-react-native';
+import { Home, Dumbbell, Utensils, MessageCircle, Plus } from 'lucide-react-native';
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { useTheme } from '../theme/useTheme';
 import { Fonts } from '../theme/fonts';
@@ -189,13 +189,12 @@ function MainTabs() {
         })}
       />
       <Tab.Screen
-        name="Progress"
-        component={ProgressStackNavigator}
-        options={({ route }) => ({
-          tabBarIcon: ({ color, focused }: any) => <TrendingUp size={21} color={color} strokeWidth={focused ? 2.2 : 2} />,
-          tabBarLabel: ({ color, focused }: any) => <TabLabel label="Progress" color={color} focused={focused} />,
-          tabBarStyle: getFocusedRouteNameFromRoute(route) === 'StrengthDetail' ? { display: 'none' } : undefined,
-        })}
+        name="Food"
+        component={NutritionScreen}
+        options={{
+          tabBarIcon: ({ color, focused }) => <Utensils size={21} color={color} strokeWidth={focused ? 2.2 : 2} />,
+          tabBarLabel: ({ color, focused }) => <TabLabel label="Food" color={color} focused={focused} />,
+        }}
       />
       <Tab.Screen
         name="Coach"
@@ -209,28 +208,17 @@ function MainTabs() {
   );
 }
 
-// Profile lives behind the avatar in Today's header, not as a tab (per the
-// redesign's IA: six flat tabs become four plus a centre Log action). Food
-// logging, weigh-in and per-exercise strength detail are pushed on the root
-// stack too, so they can render full-screen over the tab bar.
+// Profile lives behind the avatar in Today's header, not as a tab. Food
+// capture, weigh-in, Progress and per-exercise strength detail are all
+// pushed on the root stack, so they can render full-screen over the tab bar
+// (Progress keeps its own back chevron in AnalyticsScreen's custom header
+// since it's no longer a tab root).
 export function AppNavigator() {
-  const { colors } = useTheme();
   return (
     <RootStack.Navigator screenOptions={{ headerShown: false }}>
       <RootStack.Screen name="MainTabs" component={MainTabs} />
       <RootStack.Screen name="LogFood" component={LogFoodStackNavigator} options={{ presentation: 'modal' }} />
-      <RootStack.Screen
-        name="FoodLog"
-        component={NutritionScreen}
-        options={{
-          headerShown: true,
-          title: "Today's log",
-          headerStyle: { backgroundColor: colors.canvas },
-          headerTintColor: colors.ink,
-          headerShadowVisible: false,
-          headerTitleStyle: { fontFamily: Fonts.sansSemiBold, fontSize: 16 },
-        }}
-      />
+      <RootStack.Screen name="Progress" component={ProgressStackNavigator} />
       <RootStack.Screen name="WeighIn" component={WeighInScreen} options={{ presentation: 'modal' }} />
       <RootStack.Screen name="Profile" component={ProfileStackNavigator} />
     </RootStack.Navigator>

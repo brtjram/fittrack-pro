@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Footprints, UtensilsCrossed, Flame } from 'lucide-react-native';
+import { Footprints, UtensilsCrossed, Flame, ChevronLeft, Plus } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import { Fonts } from '../theme/fonts';
-import { SectionLabel, Sparkline, TargetBarChart } from '../components/ui';
+import { SectionLabel, Sparkline, TargetBarChart, PillButton } from '../components/ui';
 import * as api from '../services/api';
 import { calculateMacroTargets, calculateBMR, toDateString } from '@fittrack/core';
 import type { WeightEntry, DailyActivity, WorkoutSession, UserProfile, FoodLogEntry } from '@fittrack/core';
@@ -198,7 +198,17 @@ export function AnalyticsScreen({ navigation }: { navigation: any }) {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.signal} />}
     >
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <Text style={{ fontFamily: Fonts.serif, fontSize: 28, color: colors.ink }}>Progress</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          {navigation.canGoBack() && (
+            // Progress is pushed on the root stack now rather than living on
+            // the tab bar, so it needs its own way back — folded into this
+            // screen's existing custom header instead of a second native one.
+            <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { backgroundColor: colors.surface }]}>
+              <ChevronLeft size={19} color={colors.ink} />
+            </TouchableOpacity>
+          )}
+          <Text style={{ fontFamily: Fonts.serif, fontSize: 28, color: colors.ink }}>Progress</Text>
+        </View>
         <View style={[styles.tabRow, { backgroundColor: colors.surface }]}>
           {(['body', 'strength', 'habits'] as TabId[]).map((t) => (
             <TouchableOpacity key={t} onPress={() => setTab(t)} style={[styles.tabBtn, tab === t && { backgroundColor: colors.surfaceInset }]}>
@@ -222,7 +232,14 @@ export function AnalyticsScreen({ navigation }: { navigation: any }) {
                     <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 13, color: colors.mutedForeground, marginLeft: 8 }}>lb</Text>
                   </View>
                 </View>
-                <View style={{ alignItems: 'flex-end' }}>
+                <View style={{ alignItems: 'flex-end', gap: 8 }}>
+                  <TouchableOpacity
+                    onPress={() => navigation.getParent()?.navigate('WeighIn')}
+                    style={[styles.logWeightBtn, { backgroundColor: colors.surfaceInset }]}
+                    activeOpacity={0.7}
+                  >
+                    <Plus size={13} color={colors.ink} strokeWidth={2.6} />
+                  </TouchableOpacity>
                   <View style={[styles.trendBadge, { backgroundColor: weeklyRate <= 0 ? 'rgba(201,232,74,0.14)' : 'rgba(245,145,72,0.14)' }]}>
                     <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12, color: weeklyRate <= 0 ? colors.progress : colors.signal }}>
                       {weeklyRate === 0 ? 'steady' : `${weeklyRate.toFixed(1)} lb/wk`}
@@ -237,7 +254,12 @@ export function AnalyticsScreen({ navigation }: { navigation: any }) {
               )}
             </View>
           ) : (
-            <EmptyState colors={colors} text="Log a weigh-in to start your trend." />
+            <EmptyState
+              colors={colors}
+              text="Log a weigh-in to start your trend."
+              actionLabel="Log weigh-in"
+              onPress={() => navigation.getParent()?.navigate('WeighIn')}
+            />
           )}
 
           {projectionText && (
@@ -409,8 +431,8 @@ function LiftRow({ lift, colors, isLast, navigation }: { lift: LiftTrend; colors
       activeOpacity={0.6}
     >
       <View style={{ flex: 1 }}>
-        <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 13.5, color: colors.ink }}>{lift.exerciseName}</Text>
-        <Text style={{ fontFamily: Fonts.sans, fontSize: 10.5, color: colors.mutedForeground, marginTop: 2 }}>est. 1RM</Text>
+        <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 16, color: colors.ink, marginBottom: 3 }}>{lift.exerciseName}</Text>
+        <Text style={{ fontFamily: Fonts.sans, fontSize: 12.5, color: colors.mutedForeground }}>est. 1RM</Text>
       </View>
       {lift.points.length >= 2 && <Sparkline values={lift.points} width={60} height={22} color={colors.progress} showEndDot={false} />}
       <View style={{ alignItems: 'flex-end', minWidth: 62 }}>
@@ -436,10 +458,13 @@ function Tile({ colors, label, value, suffix, sub }: { colors: any; label: strin
   );
 }
 
-function EmptyState({ colors, text }: { colors: any; text: string }) {
+function EmptyState({ colors, text, actionLabel, onPress }: { colors: any; text: string; actionLabel?: string; onPress?: () => void }) {
   return (
-    <View style={{ alignItems: 'center', paddingVertical: 40, paddingHorizontal: 32 }}>
+    <View style={{ alignItems: 'center', paddingVertical: 40, paddingHorizontal: 32, gap: 16 }}>
       <Text style={{ fontFamily: Fonts.sans, fontSize: 13, color: colors.mutedForeground, textAlign: 'center' }}>{text}</Text>
+      {actionLabel && onPress && (
+        <PillButton label={actionLabel} colors={colors} tone="ghost" onPress={onPress} style={{ paddingHorizontal: 24 }} />
+      )}
     </View>
   );
 }
@@ -447,12 +472,14 @@ function EmptyState({ colors, text }: { colors: any; text: string }) {
 const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: { paddingTop: 60, paddingHorizontal: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  backBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   tabRow: { flexDirection: 'row', borderRadius: 9, padding: 3, gap: 3 },
   tabBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 7 },
   card: { borderRadius: 18, padding: 20 },
   trendBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 99 },
+  logWeightBtn: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   tileRow: { flexDirection: 'row', gap: 10, marginHorizontal: 16, marginTop: 12, marginBottom: 24 },
   tile: { flex: 1, borderRadius: 16, padding: 16 },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 12 },
-  liftRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 18, paddingVertical: 14 },
+  liftRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 18, paddingVertical: 18 },
 });

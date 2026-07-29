@@ -197,7 +197,10 @@ export function WorkoutSessionScreen({ route, navigation }: { route: any; naviga
                 <Pill colors={colors} onPress={() => notBuilt('Swap exercise')} label="Swap" icon={<Repeat size={13} color={colors.mutedStrong} />} />
                 <Pill
                   colors={colors}
-                  onPress={() => navigation.getParent()?.navigate('Progress', { screen: 'StrengthDetail', params: { exerciseId: exercise.exerciseId, exerciseName: exercise.exerciseName } })}
+                  // Progress now lives on the root stack, not as a sibling tab — this
+                  // screen sits inside TrainStack, so it's two levels up (TrainStack ->
+                  // MainTabs -> RootStack) to reach it, not one.
+                  onPress={() => navigation.getParent()?.getParent()?.navigate('Progress', { screen: 'StrengthDetail', params: { exerciseId: exercise.exerciseId, exerciseName: exercise.exerciseName } })}
                   label="History"
                   icon={<ChartLine size={13} color={colors.mutedStrong} />}
                 />
@@ -216,7 +219,12 @@ export function WorkoutSessionScreen({ route, navigation }: { route: any; naviga
                   const canDelete = exercise.sets.length > 1;
                   return (
                     <SwipeToDelete
-                      key={si}
+                      // Keying on the set count too (not just index) forces every
+                      // row to remount after an add/delete — otherwise React
+                      // reuses row instances by index and a swiped-open row's
+                      // gesture state (and its now-stale `disabled` closure) can
+                      // land on the wrong, unrelated row once the array shifts.
+                      key={`${exercise.sets.length}-${si}`}
                       colors={colors}
                       disabled={!canDelete}
                       borderRadius={0}
@@ -225,6 +233,12 @@ export function WorkoutSessionScreen({ route, navigation }: { route: any; naviga
                       <View
                         style={[
                           styles.setRow,
+                          // SwipeToDelete always keeps its red delete layer mounted
+                          // behind the row, only hidden because the row itself is
+                          // opaque — a row with no background at all (every row
+                          // that isn't the current one) let that layer show
+                          // through permanently instead of just on a real swipe.
+                          { backgroundColor: colors.surfaceInset },
                           si > 0 && { borderTopWidth: 1, borderTopColor: colors.hairline },
                           isCurrent && { backgroundColor: colors.surface },
                         ]}
