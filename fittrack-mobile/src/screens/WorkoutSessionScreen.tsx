@@ -370,6 +370,9 @@ export function WorkoutSessionScreen({ route, navigation }: { route: any; naviga
         onRequestClose={() => setHowToExercise(null)}
       >
         <View style={{ flex: 1, backgroundColor: colors.canvas }}>
+          <View style={styles.modalGrabberRow}>
+            <View style={[styles.modalGrabber, { backgroundColor: colors.faint }]} />
+          </View>
           <View style={[styles.modalHeader, { borderBottomColor: colors.hairline }]}>
             <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 15, color: colors.ink }} numberOfLines={1}>
               How to: {howToExercise}
@@ -402,6 +405,9 @@ export function WorkoutSessionScreen({ route, navigation }: { route: any; naviga
         onRequestClose={() => setSwapExerciseIdx(null)}
       >
         <View style={{ flex: 1, backgroundColor: colors.canvas }}>
+          <View style={styles.modalGrabberRow}>
+            <View style={[styles.modalGrabber, { backgroundColor: colors.faint }]} />
+          </View>
           <View style={[styles.modalHeader, { borderBottomColor: colors.hairline }]}>
             <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 15, color: colors.ink }}>
               Swap {swapExerciseIdx !== null ? session.exercises[swapExerciseIdx].exerciseName : ''}
@@ -473,9 +479,11 @@ const styles = StyleSheet.create({
   progressChipTrack: { width: 34, height: 4, borderRadius: 2, overflow: 'hidden' },
   progressChipFill: { height: '100%', borderRadius: 2 },
   finishPill: { alignItems: 'center', justifyContent: 'center', borderRadius: 99, paddingVertical: 15, paddingHorizontal: 22, borderWidth: 1.5 },
+  modalGrabberRow: { alignItems: 'center', paddingTop: 44, paddingBottom: 10 },
+  modalGrabber: { width: 36, height: 5, borderRadius: 2.5 },
   modalHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingTop: 60, paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1,
+    paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1,
   },
   swapRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, padding: 16 },
 });
