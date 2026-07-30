@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  ActivityIndicator, RefreshControl, Alert, StyleSheet,
+  ActivityIndicator, RefreshControl, Alert, StyleSheet, Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -10,6 +10,7 @@ import { useTheme } from '../theme/useTheme';
 import { useAuth } from '../hooks/useAuth';
 import { Fonts } from '../theme/fonts';
 import { Ring, Sparkline, SectionLabel } from '../components/ui';
+import { HeroVisual } from '../components/HeroVisual';
 import * as api from '../services/api';
 import { calculateMacroTargets, calculateAdaptiveAdjustment } from '@fittrack/core/src/algorithms/macro-calculator';
 import { analyzeActivity, shouldSuggestRestDay } from '@fittrack/core/src/algorithms/activity-analyzer';
@@ -56,6 +57,7 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
   const [weights, setWeights] = useState<WeightEntry[]>([]);
   const [todaySteps, setTodaySteps] = useState(0);
   const [insights, setInsights] = useState<string[]>([]);
+  const [restDaySuggested, setRestDaySuggested] = useState(false);
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -154,6 +156,7 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
 
         const restSuggestion = shouldSuggestRestDay(activities, completedThisWeek.length);
         if (restSuggestion.suggest) insightsList.push(restSuggestion.reason);
+        setRestDaySuggested(restSuggestion.suggest);
 
         setInsights(insightsList);
       }
@@ -226,6 +229,11 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
 
   const completedExercises = todayWorkout ? todayWorkout.exercises.filter((e) => e.sets.every((s) => s.completed)).length : 0;
   const totalExercises = todayWorkout?.exercises.length ?? 0;
+  // A workout already under way today is always "active" regardless of the
+  // rest-day suggestion — that signal is about *tomorrow's* planning, not
+  // about overriding a session you're already in.
+  const heroMood = todayWorkout || !restDaySuggested ? 'active' : 'rest';
+  const heroWidth = Dimensions.get('window').width - 32;
 
   if (loading) {
     return (
@@ -270,6 +278,7 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
       {/* Hero: workout resume / start */}
       <View style={[styles.heroCard, { backgroundColor: colors.surface }]}>
         <View style={[styles.heroImage, { backgroundColor: colors.surfaceInset }]}>
+          <HeroVisual colors={colors} mood={heroMood} width={heroWidth} height={172} />
           <View style={[styles.heroImageWash, { backgroundColor: colors.canvas, opacity: 0.55 }]} />
           <View style={{ position: 'absolute', left: 20, bottom: 16 }}>
             <View style={[styles.pill, { backgroundColor: 'rgba(201,232,74,0.16)' }]}>

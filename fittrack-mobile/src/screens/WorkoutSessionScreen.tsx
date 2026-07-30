@@ -1,18 +1,29 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
-  ActivityIndicator, Alert, StyleSheet,
+  ActivityIndicator, Alert, StyleSheet, Modal, FlatList,
 } from 'react-native';
+import { WebView } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  ChevronLeft, Ellipsis, Play, Repeat, ChartLine,
-  CircleCheckBig, Circle, Plus,
+  ChevronLeft, Play, Repeat, ChartLine,
+  CircleCheckBig, Circle, Plus, X,
 } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import { Fonts } from '../theme/fonts';
 import { Ring, SwipeToDelete } from '../components/ui';
 import * as api from '../services/api';
-import type { WorkoutSession, WorkoutSet } from '@fittrack/core';
+import { getExerciseById, getExercisesByMuscleGroup } from '@fittrack/core/data/exercises';
+import type { WorkoutSession, WorkoutSet, Exercise } from '@fittrack/core';
+
+// The mobile site (not www.youtube.com) is the one that renders usably
+// inside a plain WebView — its player is a standard HTML5 <video>, where
+// the desktop site's is not. Same undocumented-but-stable "Duration: under
+// 4 minutes" filter as before, still the closest real filter to "shorts".
+function howToSearchUrl(exerciseName: string): string {
+  const q = encodeURIComponent(`${exerciseName} exercise form`);
+  return `https://m.youtube.com/results?search_query=${q}&sp=EgIYAQ%3D%3D`;
+}
 
 function fmtClock(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
@@ -29,6 +40,8 @@ export function WorkoutSessionScreen({ route, navigation }: { route: any; naviga
   const [loading, setLoading] = useState(true);
   const [restRemaining, setRestRemaining] = useState(0);
   const [restExerciseIdx, setRestExerciseIdx] = useState<number | null>(null);
+  const [swapExerciseIdx, setSwapExerciseIdx] = useState<number | null>(null);
+  const [howToExercise, setHowToExercise] = useState<string | null>(null);
   const startTimeRef = useRef(Date.now());
   const [elapsed, setElapsed] = useState(0);
 
@@ -117,6 +130,31 @@ export function WorkoutSessionScreen({ route, navigation }: { route: any; naviga
     persist(updated);
   }, [session, persist]);
 
+  const swapCandidates = useMemo((): Exercise[] => {
+    if (swapExerciseIdx === null || !session) return [];
+    const current = session.exercises[swapExerciseIdx];
+    const currentDef = getExerciseById(current.exerciseId);
+    if (!currentDef) return [];
+    return getExercisesByMuscleGroup(currentDef.muscleGroup).filter((e) => e.id !== current.exerciseId);
+  }, [swapExerciseIdx, session]);
+
+  const performSwap = useCallback((replacement: Exercise) => {
+    if (swapExerciseIdx === null || !session) return;
+    const updated = {
+      ...session,
+      exercises: session.exercises.map((ex, ei) => ei !== swapExerciseIdx ? ex : {
+        ...ex,
+        exerciseId: replacement.id,
+        exerciseName: replacement.name,
+        // A different exercise invalidates prior actuals/completion — the
+        // rep/weight targets carry over as a starting point, not the log.
+        sets: ex.sets.map((s) => ({ ...s, actualReps: undefined, actualWeight: undefined, completed: false })),
+      }),
+    };
+    persist(updated);
+    setSwapExerciseIdx(null);
+  }, [swapExerciseIdx, session, persist]);
+
   const finishWorkout = useCallback(async () => {
     if (!session) return;
     const duration = Math.max(1, Math.round((Date.now() - startTimeRef.current) / 60000));
@@ -135,8 +173,6 @@ export function WorkoutSessionScreen({ route, navigation }: { route: any; naviga
       ],
     );
   }, [finishWorkout]);
-
-  const notBuilt = (feature: string) => Alert.alert(feature, 'Not available yet — coming in a future update.');
 
   if (loading || !session) {
     return (
@@ -164,9 +200,9 @@ export function WorkoutSessionScreen({ route, navigation }: { route: any; naviga
             {session.exercises.length} exercises · {elapsed}:00
           </Text>
         </View>
-        <TouchableOpacity onPress={() => notBuilt('Options')} style={[styles.circleBtn, { backgroundColor: colors.surface }]}>
-          <Ellipsis size={18} color={colors.mutedStrong} />
-        </TouchableOpacity>
+        {/* No overflow actions live here yet — a spacer keeps the title
+            centered without a dead tap target. */}
+        <View style={styles.circleBtn} />
       </View>
 
       {/* Overall progress */}
@@ -193,8 +229,8 @@ export function WorkoutSessionScreen({ route, navigation }: { route: any; naviga
               </View>
 
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 12, marginBottom: 4 }}>
-                <Pill colors={colors} onPress={() => notBuilt('How to')} label="How to" icon={<Play size={9} color={colors.canvas} strokeWidth={3} />} highlight />
-                <Pill colors={colors} onPress={() => notBuilt('Swap exercise')} label="Swap" icon={<Repeat size={13} color={colors.mutedStrong} />} />
+                <Pill colors={colors} onPress={() => setHowToExercise(exercise.exerciseName)} label="How to" icon={<Play size={9} color={colors.canvas} strokeWidth={3} />} highlight />
+                <Pill colors={colors} onPress={() => setSwapExerciseIdx(ei)} label="Swap" icon={<Repeat size={13} color={colors.mutedStrong} />} />
                 <Pill
                   colors={colors}
                   // Progress now lives on the root stack, not as a sibling tab — this
@@ -326,6 +362,83 @@ export function WorkoutSessionScreen({ route, navigation }: { route: any; naviga
           </View>
         )}
       </View>
+
+      <Modal
+        visible={howToExercise !== null}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setHowToExercise(null)}
+      >
+        <View style={{ flex: 1, backgroundColor: colors.canvas }}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.hairline }]}>
+            <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 15, color: colors.ink }} numberOfLines={1}>
+              How to: {howToExercise}
+            </Text>
+            <TouchableOpacity onPress={() => setHowToExercise(null)}>
+              <X size={20} color={colors.mutedStrong} />
+            </TouchableOpacity>
+          </View>
+          {howToExercise && (
+            <WebView
+              source={{ uri: howToSearchUrl(howToExercise) }}
+              style={{ flex: 1, backgroundColor: colors.canvas }}
+              allowsInlineMediaPlayback
+              mediaPlaybackRequiresUserAction={false}
+              startInLoadingState
+              renderLoading={() => (
+                <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.canvas }]}>
+                  <ActivityIndicator size="large" color={colors.signal} />
+                </View>
+              )}
+            />
+          )}
+        </View>
+      </Modal>
+
+      <Modal
+        visible={swapExerciseIdx !== null}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setSwapExerciseIdx(null)}
+      >
+        <View style={{ flex: 1, backgroundColor: colors.canvas }}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.hairline }]}>
+            <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 15, color: colors.ink }}>
+              Swap {swapExerciseIdx !== null ? session.exercises[swapExerciseIdx].exerciseName : ''}
+            </Text>
+            <TouchableOpacity onPress={() => setSwapExerciseIdx(null)}>
+              <X size={20} color={colors.mutedStrong} />
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={swapCandidates}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={{ padding: 20, gap: 10 }}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[styles.swapRow, { backgroundColor: colors.surface }]}
+                activeOpacity={0.7}
+                onPress={() => performSwap(item)}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 14.5, color: colors.ink }}>{item.name}</Text>
+                  <Text style={{ fontFamily: Fonts.sans, fontSize: 11.5, color: colors.mutedForeground, marginTop: 2, textTransform: 'capitalize' }}>
+                    {item.equipment} · {item.type}
+                  </Text>
+                </View>
+                <Repeat size={16} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            )}
+            ListEmptyComponent={
+              <View style={{ padding: 32, alignItems: 'center' }}>
+                <Text style={{ fontFamily: Fonts.sans, fontSize: 13, color: colors.mutedForeground, textAlign: 'center' }}>
+                  No other exercises for this muscle group yet.
+                </Text>
+              </View>
+            }
+          />
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -360,4 +473,9 @@ const styles = StyleSheet.create({
   progressChipTrack: { width: 34, height: 4, borderRadius: 2, overflow: 'hidden' },
   progressChipFill: { height: '100%', borderRadius: 2 },
   finishPill: { alignItems: 'center', justifyContent: 'center', borderRadius: 99, paddingVertical: 15, paddingHorizontal: 22, borderWidth: 1.5 },
+  modalHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingTop: 60, paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1,
+  },
+  swapRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, padding: 16 },
 });
