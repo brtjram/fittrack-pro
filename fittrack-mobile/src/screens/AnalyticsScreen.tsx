@@ -235,10 +235,11 @@ export function AnalyticsScreen({ navigation }: { navigation: any }) {
                 <View style={{ alignItems: 'flex-end', gap: 8 }}>
                   <TouchableOpacity
                     onPress={() => navigation.getParent()?.navigate('WeighIn')}
-                    style={[styles.logWeightBtn, { backgroundColor: colors.surfaceInset }]}
-                    activeOpacity={0.7}
+                    style={[styles.logWeightBtn, { backgroundColor: colors.signal }]}
+                    activeOpacity={0.8}
                   >
-                    <Plus size={13} color={colors.ink} strokeWidth={2.6} />
+                    <Plus size={12} color={colors.signalForeground} strokeWidth={2.8} />
+                    <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 11.5, color: colors.signalForeground }}>Add</Text>
                   </TouchableOpacity>
                   <View style={[styles.trendBadge, { backgroundColor: weeklyRate <= 0 ? 'rgba(201,232,74,0.14)' : 'rgba(245,145,72,0.14)' }]}>
                     <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12, color: weeklyRate <= 0 ? colors.progress : colors.signal }}>
@@ -477,7 +478,7 @@ const styles = StyleSheet.create({
   tabBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 7 },
   card: { borderRadius: 18, padding: 20 },
   trendBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 99 },
-  logWeightBtn: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  logWeightBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 11, paddingVertical: 6, borderRadius: 99 },
   tileRow: { flexDirection: 'row', gap: 10, marginHorizontal: 16, marginTop: 12, marginBottom: 24 },
   tile: { flex: 1, borderRadius: 16, padding: 16 },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 12 },

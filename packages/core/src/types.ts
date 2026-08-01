@@ -169,6 +169,7 @@ export interface WeightEntry {
   date: string;
   weightLbs: number;
   bodyFatPercent?: number;
+  waistIn?: number;
   note?: string;
 }
 

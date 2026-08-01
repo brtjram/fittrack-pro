@@ -259,6 +259,56 @@ export async function addWeightEntry(entry: Omit<WeightEntry, 'id'>): Promise<vo
   await throwIfNotOk(res, 'Could not save weigh-in');
 }
 
+// ==================== Progress Photos ====================
+
+export type ProgressPhotoAngle = 'front' | 'side' | 'back';
+
+export interface ProgressPhoto {
+  id: string;
+  date: string;
+  angle: ProgressPhotoAngle;
+  createdAt: string;
+}
+
+export async function getProgressPhotos(date?: string): Promise<ProgressPhoto[]> {
+  const res = await apiFetch(`/api/fitness/progress-photos${date ? `?date=${date}` : ''}`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function uploadProgressPhoto(
+  date: string,
+  angle: ProgressPhotoAngle,
+  base64Image: string,
+  mediaType: string,
+): Promise<ProgressPhoto> {
+  const res = await apiFetch('/api/fitness/progress-photos', {
+    method: 'POST',
+    body: JSON.stringify({ date, angle, image: base64Image, mediaType }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Could not save photo.');
+  }
+  return res.json();
+}
+
+export async function deleteProgressPhoto(id: string): Promise<void> {
+  const res = await apiFetch(`/api/fitness/progress-photos?id=${id}`, { method: 'DELETE' });
+  await throwIfNotOk(res, 'Could not delete photo');
+}
+
+// Authenticated image fetch — the API route requires a Bearer token, and
+// RN's <Image> supports that via source.headers, but it needs the raw
+// token, not the apiFetch wrapper (which returns a Response, not a URI).
+export async function getProgressPhotoImageSource(id: string): Promise<{ uri: string; headers: Record<string, string> }> {
+  const token = await getToken();
+  return {
+    uri: `${API_BASE}/api/fitness/progress-photos/${id}/image`,
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  };
+}
+
 // ==================== Activities ====================
 
 export async function getDailyActivities(limit = 90): Promise<DailyActivity[]> {

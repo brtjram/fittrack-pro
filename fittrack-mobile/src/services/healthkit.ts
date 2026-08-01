@@ -34,6 +34,12 @@ export interface HealthKitDayData {
   activeCalories: number;
   restingHeartRate: number | null;
   weight: number | null; // in lbs
+  bodyFatPercent: number | null;
+}
+
+export interface HealthKitBodyMetrics {
+  heightCm: number | null;
+  bodyFatPercent: number | null;
 }
 
 export interface HealthKitStatus {
@@ -87,6 +93,8 @@ export function requestHealthKitPermissions(): Promise<boolean> {
           hk.Constants.Permissions.ActiveEnergyBurned,
           hk.Constants.Permissions.BodyMass,
           hk.Constants.Permissions.HeartRate,
+          hk.Constants.Permissions.BodyFatPercentage,
+          hk.Constants.Permissions.Height,
         ],
         write: [],
       },
@@ -203,6 +211,54 @@ function getLatestWeight(): Promise<{ date: string; value: number } | null> {
   });
 }
 
+function getLatestBodyFat(): Promise<{ date: string; value: number } | null> {
+  return new Promise((resolve) => {
+    const hk = getHealthKit();
+    if (!hk) { resolve(null); return; }
+
+    // The native module's percentUnit path already scales to 0-100 before
+    // it reaches JS (see RCTAppleHealthKit+Methods_Body.m), so `value` here
+    // is a percentage like 22.5, not a 0-1 fraction — no further scaling.
+    hk.getLatestBodyFatPercentage(
+      {},
+      (err: string | null, result: { value: number; startDate: string }) => {
+        if (err) console.warn('HealthKit getLatestBodyFatPercentage error:', err);
+        const date = result ? toDateString(new Date(result.startDate)) : null;
+        if (err || !result || date === null) { resolve(null); return; }
+        resolve({ date, value: Math.round(result.value * 10) / 10 });
+      },
+    );
+  });
+}
+
+function getLatestHeight(): Promise<{ date: string; value: number } | null> {
+  return new Promise((resolve) => {
+    const hk = getHealthKit();
+    if (!hk) { resolve(null); return; }
+
+    hk.getLatestHeight(
+      { unit: 'meter' },
+      (err: string | null, result: { value: number; startDate: string }) => {
+        if (err) console.warn('HealthKit getLatestHeight error:', err);
+        const date = result ? toDateString(new Date(result.startDate)) : null;
+        if (err || !result || date === null) { resolve(null); return; }
+        resolve({ date, value: Math.round(result.value * 100) });
+      },
+    );
+  });
+}
+
+// One-shot read for profile-shaped fields (height, body fat) that a settings
+// screen wants immediately, independent of the per-day activity/weight sync
+// loop below — there's no "day" a height reading belongs to.
+export async function getLatestBodyMetrics(): Promise<HealthKitBodyMetrics> {
+  const [height, bodyFat] = await Promise.all([getLatestHeight(), getLatestBodyFat()]);
+  return {
+    heightCm: height?.value ?? null,
+    bodyFatPercent: bodyFat?.value ?? null,
+  };
+}
+
 function getRestingHeartRate(startDate: Date, endDate: Date): Promise<{ date: string; value: number }[]> {
   return new Promise((resolve) => {
     const hk = getHealthKit();
@@ -244,18 +300,24 @@ export async function fetchHealthKitData(days = 7): Promise<HealthKitDayData[]> 
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
-  const [steps, calories, heartRates, latestWt] = await Promise.all([
+  const [steps, calories, heartRates, latestWt, latestBodyFat] = await Promise.all([
     getSteps(startDate, endDate),
     getActiveCalories(startDate, endDate),
     getRestingHeartRate(startDate, endDate),
     getLatestWeight(),
+    getLatestBodyFat(),
   ]);
 
-  // Merge all data by date
+  // Merge all data by date — includes the weight/body-fat dates too (not
+  // just steps/calories/heart-rate), otherwise a weigh-in or body-fat
+  // reading on a day with no other Health data silently never made it into
+  // `result` at all.
   const dates = new Set<string>();
   steps.forEach((s) => dates.add(s.date));
   calories.forEach((c) => dates.add(c.date));
   heartRates.forEach((h) => dates.add(h.date));
+  if (latestWt) dates.add(latestWt.date);
+  if (latestBodyFat) dates.add(latestBodyFat.date);
 
   const stepsMap = new Map(steps.map((s) => [s.date, s.value]));
   const calsMap = new Map(calories.map((c) => [c.date, c.value]));
@@ -269,6 +331,7 @@ export async function fetchHealthKitData(days = 7): Promise<HealthKitDayData[]> 
       activeCalories: calsMap.get(date) || 0,
       restingHeartRate: hrMap.get(date) || null,
       weight: latestWt && latestWt.date === date ? latestWt.value : null,
+      bodyFatPercent: latestBodyFat && latestBodyFat.date === date ? latestBodyFat.value : null,
     });
   }
 
@@ -277,7 +340,7 @@ export async function fetchHealthKitData(days = 7): Promise<HealthKitDayData[]> 
 
 export async function syncHealthKitToServer(
   syncActivity: (data: { date: string; steps: number; activeCalories: number; restingHeartRate?: number; source: string }) => Promise<void>,
-  syncWeight: (data: { date: string; weightLbs: number }) => Promise<void>,
+  syncWeight: (data: { date: string; weightLbs: number; bodyFatPercent?: number }) => Promise<void>,
   days = 7,
 ): Promise<{ synced: number; errors: number; hasData: boolean }> {
   const data = await fetchHealthKitData(days);
@@ -288,7 +351,7 @@ export async function syncHealthKitToServer(
   // was silently denied (iOS grants/denies per-type without surfacing which),
   // so the UI can tell the user to go check Settings instead of pretending
   // the sync was healthy.
-  const hasData = data.some((day) => day.steps > 0 || day.activeCalories > 0 || day.restingHeartRate != null || day.weight != null);
+  const hasData = data.some((day) => day.steps > 0 || day.activeCalories > 0 || day.restingHeartRate != null || day.weight != null || day.bodyFatPercent != null);
 
   for (const day of data) {
     try {
@@ -301,9 +364,14 @@ export async function syncHealthKitToServer(
       });
       synced++;
 
-      // Also sync weight if available
+      // Body fat only means something attached to an actual weigh-in, so it
+      // rides along with the weight sync rather than getting its own call.
       if (day.weight) {
-        await syncWeight({ date: day.date, weightLbs: day.weight });
+        await syncWeight({
+          date: day.date,
+          weightLbs: day.weight,
+          ...(day.bodyFatPercent ? { bodyFatPercent: day.bodyFatPercent } : {}),
+        });
       }
     } catch (e) {
       console.warn('HealthKit sync error for', day.date, e);

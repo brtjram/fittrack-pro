@@ -280,6 +280,9 @@ export function NutritionScreen({ navigation }: { navigation: any }) {
       {/* Food Search Modal */}
       <Modal visible={searchMeal !== null} animationType="slide" presentationStyle="pageSheet">
         <View style={{ flex: 1, backgroundColor: colors.background }}>
+          <View style={styles.modalGrabberRow}>
+            <View style={[styles.modalGrabber, { backgroundColor: colors.faint }]} />
+          </View>
           {/* Modal Header */}
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>
@@ -307,9 +310,11 @@ export function NutritionScreen({ navigation }: { navigation: any }) {
           {/* Escape hatch to the camera-first capture flow (photo + barcode)
               for whenever text search comes up short — always visible here
               rather than only appearing after a failed search, since a
-              barcode scan is often just faster than typing anyway. */}
+              barcode scan is often just faster than typing anyway. Sized as
+              its own tile (not a thin divider row) so it reads as a real
+              second option, not fine print under the search box. */}
           <TouchableOpacity
-            style={[styles.captureFallback, { borderBottomColor: colors.border }]}
+            style={[styles.captureFallback, { backgroundColor: 'rgba(245,145,72,0.12)', borderColor: 'rgba(245,145,72,0.3)' }]}
             activeOpacity={0.7}
             onPress={() => {
               const meal = searchMeal;
@@ -318,13 +323,19 @@ export function NutritionScreen({ navigation }: { navigation: any }) {
               navigation.getParent()?.navigate('LogFood', { screen: 'LogFoodMain', params: { meal } });
             }}
           >
-            <View style={{ flexDirection: 'row', gap: 6 }}>
-              <Camera size={15} color={colors.primary} />
-              <ScanBarcode size={15} color={colors.primary} />
+            <View style={[styles.captureFallbackIcon, { backgroundColor: colors.primary }]}>
+              <Camera size={19} color={colors.primaryForeground} />
             </View>
-            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.primary }}>
-              Can't find it? Scan a barcode or snap a photo
-            </Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground }}>Can't find it?</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 }}>
+                <ScanBarcode size={13} color={colors.mutedForeground} />
+                <Text style={{ fontSize: 13, fontWeight: '500', color: colors.mutedForeground }}>
+                  Scan a barcode or snap a photo
+                </Text>
+              </View>
+            </View>
+            <ChevronRight size={20} color={colors.primary} />
           </TouchableOpacity>
 
           {/* Results */}
@@ -403,10 +414,18 @@ const styles = StyleSheet.create({
   editRow: { flexDirection: 'row', alignItems: 'center', width: '100%', borderTopWidth: 1, marginTop: 12, paddingTop: 12, gap: 8 },
   stepBtn: { width: 28, height: 28, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   saveEditBtn: { marginLeft: 'auto', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 16, paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1 },
+  modalGrabberRow: { alignItems: 'center', paddingTop: 10, paddingBottom: 6 },
+  modalGrabber: { width: 36, height: 5, borderRadius: 2.5 },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1 },
   modalTitle: { fontSize: 17, fontWeight: '600' },
   searchRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, gap: 8 },
-  captureFallback: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1 },
+  captureFallback: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    marginHorizontal: 16, marginTop: 14, marginBottom: 4,
+    paddingHorizontal: 16, paddingVertical: 16,
+    borderRadius: 16, borderWidth: 1,
+  },
+  captureFallbackIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   searchInput: { flex: 1, fontSize: 14, paddingVertical: 4 },
   foodResult: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1 },
 });

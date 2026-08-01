@@ -15,6 +15,7 @@ import { NutritionScreen } from '../screens/NutritionScreen';
 import { LogFoodScreen } from '../screens/LogFoodScreen';
 import { AIFoodReviewScreen } from '../screens/AIFoodReviewScreen';
 import { WeighInScreen } from '../screens/WeighInScreen';
+import { ProgressPhotoScreen } from '../screens/ProgressPhotoScreen';
 import { AnalyticsScreen } from '../screens/AnalyticsScreen';
 import { StrengthDetailScreen } from '../screens/StrengthDetailScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
@@ -220,6 +221,7 @@ export function AppNavigator() {
       <RootStack.Screen name="LogFood" component={LogFoodStackNavigator} options={{ presentation: 'modal' }} />
       <RootStack.Screen name="Progress" component={ProgressStackNavigator} />
       <RootStack.Screen name="WeighIn" component={WeighInScreen} options={{ presentation: 'modal' }} />
+      <RootStack.Screen name="ProgressPhotoCapture" component={ProgressPhotoScreen} options={{ presentation: 'modal' }} />
       <RootStack.Screen name="Profile" component={ProfileStackNavigator} />
     </RootStack.Navigator>
   );

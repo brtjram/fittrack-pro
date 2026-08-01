@@ -1,13 +1,23 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet, Platform, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Heart, Info } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import { Fonts } from '../theme/fonts';
 import { NumberBubble, SegmentedControl, AppliedBanner } from '../components/ui';
 import * as api from '../services/api';
+import { getHealthKitStatus, getLatestBodyMetrics, requestHealthKitPermissions, setHealthKitEnabled } from '../services/healthkit';
 import type { UserProfile, ActivityLevel, WeightEntry } from '@fittrack/core';
 import { formatWeight, formatHeight } from '@fittrack/core';
+
+function HealthSyncedHint({ colors }: { colors: any }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 }}>
+      <Heart size={11} color={colors.danger2} />
+      <Text style={{ fontFamily: Fonts.sans, fontSize: 11, color: colors.mutedForeground }}>Synced from Apple Health</Text>
+    </View>
+  );
+}
 
 const ACTIVITY_OPTIONS: { value: ActivityLevel; label: string }[] = [
   { value: 'sedentary', label: 'Sedentary' },
@@ -24,6 +34,12 @@ export function MeasurementsScreen({ navigation }: { navigation: any }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [latestWeighIn, setLatestWeighIn] = useState<WeightEntry | null>(null);
   const [applied, setApplied] = useState(false);
+  const [healthBodyFat, setHealthBodyFat] = useState<number | null>(null);
+  const [heightFromHealth, setHeightFromHealth] = useState(false);
+  const [hkAvailable, setHkAvailable] = useState(false);
+  const [hkEnabled, setHkEnabled] = useState(false);
+  const [connectingHealth, setConnectingHealth] = useState(false);
+  const healthSyncAttempted = useRef(false);
 
   useEffect(() => {
     Promise.all([api.getUserProfile(), api.getWeightEntries(30)]).then(([p, weights]) => {
@@ -46,6 +62,50 @@ export function MeasurementsScreen({ navigation }: { navigation: any }) {
       setProfile(profile);
     }
   }, [profile]);
+
+  // Height apply reads `profile` via the `apply` closure, so this needs the
+  // freshest profile snapshot passed in explicitly rather than trusting the
+  // one captured when the effect/handler was defined.
+  const pullHealthMetrics = useCallback(async (currentProfile: UserProfile) => {
+    const metrics = await getLatestBodyMetrics();
+    if (metrics.bodyFatPercent != null) setHealthBodyFat(metrics.bodyFatPercent);
+    if (metrics.heightCm != null) {
+      setHeightFromHealth(true);
+      if (metrics.heightCm !== currentProfile.heightCm) apply({ heightCm: metrics.heightCm });
+    }
+  }, [apply]);
+
+  // Health is the more trustworthy source for height/body-fat once it's
+  // connected — a scale/body-comp reading beats a number typed in once and
+  // never revisited. Runs once per screen visit, not on every apply().
+  useEffect(() => {
+    if (!profile || healthSyncAttempted.current || Platform.OS !== 'ios') return;
+    healthSyncAttempted.current = true;
+    (async () => {
+      const status = await getHealthKitStatus();
+      setHkAvailable(status.available);
+      setHkEnabled(status.enabled);
+      if (!status.enabled) return;
+      pullHealthMetrics(profile);
+    })();
+  }, [profile, pullHealthMetrics]);
+
+  const handleConnectHealth = useCallback(async () => {
+    if (!profile || Platform.OS !== 'ios') return;
+    setConnectingHealth(true);
+    try {
+      const granted = await requestHealthKitPermissions();
+      if (!granted) {
+        Alert.alert('Permission Required', 'Enable Health access in Settings → Privacy & Security → Health → FitTrack Pro.');
+        return;
+      }
+      await setHealthKitEnabled(true);
+      setHkEnabled(true);
+      await pullHealthMetrics(profile);
+    } finally {
+      setConnectingHealth(false);
+    }
+  }, [profile, pullHealthMetrics]);
 
   if (loading || !profile) {
     return (
@@ -72,12 +132,37 @@ export function MeasurementsScreen({ navigation }: { navigation: any }) {
           The four numbers your targets are built on
         </Text>
 
+        {hkAvailable && !hkEnabled && (
+          <TouchableOpacity
+            style={[styles.connectHealthRow, { backgroundColor: 'rgba(255,78,91,0.1)' }]}
+            activeOpacity={0.7}
+            disabled={connectingHealth}
+            onPress={handleConnectHealth}
+          >
+            <View style={[styles.connectHealthIcon, { backgroundColor: 'rgba(255,78,91,0.16)' }]}>
+              <Heart size={17} color={colors.danger2} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 13.5, color: colors.ink }}>Connect Apple Health</Text>
+              <Text style={{ fontFamily: Fonts.sans, fontSize: 11, color: colors.mutedForeground, marginTop: 2 }}>
+                Fills in height and body fat automatically
+              </Text>
+            </View>
+            {connectingHealth
+              ? <ActivityIndicator size="small" color={colors.danger2} />
+              : <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12.5, color: colors.danger2 }}>Connect</Text>}
+          </TouchableOpacity>
+        )}
+
         <View style={[styles.card, { backgroundColor: colors.surface }]}>
           <Row colors={colors} label="Age" hint="Sets your baseline burn">
             <NumberBubble value={profile.age} unit="yrs" colors={colors} onCommit={(v) => apply({ age: Math.round(v) })} />
           </Row>
-          <Row colors={colors} label="Height" hint="Fixed unless you tell us otherwise" bordered>
-            <NumberBubble value={profile.heightCm} unit={heightUnit === 'ftin' ? 'cm (ft/in in Units)' : 'cm'} colors={colors} onCommit={(v) => apply({ heightCm: Math.round(v) })} />
+          <Row colors={colors} label="Height" bordered
+            hint={heightFromHealth ? undefined : 'Fixed unless you tell us otherwise'}
+            hintNode={heightFromHealth ? <HealthSyncedHint colors={colors} /> : undefined}
+          >
+            <NumberBubble value={profile.heightCm} unit={heightUnit === 'ftin' ? 'cm (ft/in in Units)' : 'cm'} colors={colors} onCommit={(v) => { setHeightFromHealth(false); apply({ heightCm: Math.round(v) }); }} />
           </Row>
           <Row colors={colors} label="Sex" hint="Affects the burn estimate only" bordered>
             <SegmentedControl
@@ -107,10 +192,15 @@ export function MeasurementsScreen({ navigation }: { navigation: any }) {
 
         <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 11, letterSpacing: 1, color: colors.mutedForeground, textTransform: 'uppercase', marginTop: 4 }}>Optional</Text>
         <View style={[styles.card, { backgroundColor: colors.surface }]}>
-          <Row colors={colors} label="Body fat" hint="Sharpens your protein floor">
-            <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 15, color: colors.ink }}>
-              {latestWeighIn?.bodyFatPercent ? `${latestWeighIn.bodyFatPercent}%` : 'Not logged'}
-            </Text>
+          <Row colors={colors} label="Body fat"
+            hint={healthBodyFat == null ? 'Sharpens your protein floor' : undefined}
+            hintNode={healthBodyFat != null ? <HealthSyncedHint colors={colors} /> : undefined}
+          >
+            <TouchableOpacity onPress={() => navigation.getParent()?.navigate('AppleHealth')}>
+              <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 15, color: colors.ink }}>
+                {healthBodyFat != null ? `${healthBodyFat}%` : latestWeighIn?.bodyFatPercent ? `${latestWeighIn.bodyFatPercent}%` : 'Not logged'}
+              </Text>
+            </TouchableOpacity>
           </Row>
           <View style={[styles.activityBlock, { borderTopColor: colors.hairline }]}>
             <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 13.5, color: colors.ink }}>Daily activity outside training</Text>
@@ -166,6 +256,8 @@ const styles = StyleSheet.create({
   topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 4, gap: 10 },
   circleBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   card: { borderRadius: 18, padding: 4, overflow: 'hidden' },
+  connectHealthRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 14 },
+  connectHealthIcon: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, paddingVertical: 14 },
   activityBlock: { padding: 16 },
   activityChip: { borderRadius: 10, paddingVertical: 9, paddingHorizontal: 12 },

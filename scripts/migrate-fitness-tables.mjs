@@ -163,6 +163,21 @@ const statements = [
 
   `CREATE UNIQUE INDEX IF NOT EXISTS "ApiToken_tokenHash_key" ON "ApiToken"("tokenHash")`,
   `CREATE INDEX IF NOT EXISTS "ApiToken_userId_idx" ON "ApiToken"("userId")`,
+
+  // Added for weigh-in waist measurement + progress photos.
+  `ALTER TABLE "WeightEntry" ADD COLUMN "waistIn" REAL`,
+
+  `CREATE TABLE IF NOT EXISTS "ProgressPhoto" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "date" TEXT NOT NULL,
+    "angle" TEXT NOT NULL,
+    "blobPathname" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "ProgressPhoto_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+  )`,
+
+  `CREATE UNIQUE INDEX IF NOT EXISTS "ProgressPhoto_userId_date_angle_key" ON "ProgressPhoto"("userId", "date", "angle")`,
 ];
 
 async function migrate() {

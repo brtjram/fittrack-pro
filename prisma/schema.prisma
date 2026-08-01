@@ -31,6 +31,7 @@ model User {
   transformationChallenge TransformationChallenge?
   coachMemories           CoachMemory[]
   apiTokens               ApiToken[]
+  progressPhotos          ProgressPhoto[]
 }
 
 model Account {
@@ -184,12 +185,29 @@ model WeightEntry {
   date           String
   weightLbs      Float
   bodyFatPercent Float?
+  waistIn        Float?
   note           String?
   createdAt      DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
+}
+
+// One row per (user, date, angle) — re-shooting an angle on the same day
+// overwrites the same blob (see progress-photos route) rather than piling
+// up duplicates, so this stays a stable pointer, not a full photo history.
+model ProgressPhoto {
+  id           String   @id @default(cuid())
+  userId       String
+  date         String
+  angle        String // 'front' | 'side' | 'back'
+  blobPathname String
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date, angle])
 }
 
 model DailyActivity {

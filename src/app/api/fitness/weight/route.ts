@@ -23,13 +23,13 @@ export async function POST(request: NextRequest) {
   if (userId instanceof NextResponse) return userId;
 
   const body = await request.json();
-  const { date, weightLbs, bodyFatPercent, note } = body;
+  const { date, weightLbs, bodyFatPercent, waistIn, note } = body;
 
   // Upsert: one entry per user per date
   const entry = await prisma.weightEntry.upsert({
     where: { userId_date: { userId, date } },
-    update: { weightLbs, bodyFatPercent, note },
-    create: { userId, date, weightLbs, bodyFatPercent, note },
+    update: { weightLbs, bodyFatPercent, waistIn, note },
+    create: { userId, date, weightLbs, bodyFatPercent, waistIn, note },
   });
 
   return NextResponse.json(entry);
