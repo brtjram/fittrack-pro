@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getAuthUserId } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
 import { generateNextWorkout, type CoachingNotes } from '@/lib/algorithms/workout-generator';
-import { parseExercises } from '@/lib/utils';
+import { parseExercises, toDateString } from '@/lib/utils';
 import type { WorkoutSession } from '@/types';
 
 export async function POST() {
@@ -12,6 +12,16 @@ export async function POST() {
   const profile = await prisma.fitnessProfile.findUnique({ where: { userId } });
   if (!profile) {
     return NextResponse.json({ error: 'Profile not found. Complete your profile first.' }, { status: 400 });
+  }
+
+  // A day only ever has one assigned workout. Without this, a second tap
+  // (or the client calling generate before its own "today's workout
+  // already exists" check has fresh data) creates a duplicate session for
+  // the same date instead of just handing back the one already there.
+  const today = toDateString(new Date());
+  const existingToday = await prisma.workoutSession.findFirst({ where: { userId, date: today } });
+  if (existingToday) {
+    return NextResponse.json({ ...existingToday, exercises: parseExercises(existingToday.exercises) });
   }
 
   // Fetch recent sessions and parse exercises JSON

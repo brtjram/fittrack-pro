@@ -8,7 +8,7 @@ import { NumberBubble, SegmentedControl, AppliedBanner } from '../components/ui'
 import * as api from '../services/api';
 import { getHealthKitStatus, getLatestBodyMetrics, requestHealthKitPermissions, setHealthKitEnabled } from '../services/healthkit';
 import type { UserProfile, ActivityLevel, WeightEntry } from '@fittrack/core';
-import { formatWeight, formatHeight } from '@fittrack/core';
+import { formatWeight, formatHeight, resolveCurrentWeight } from '@fittrack/core';
 
 function HealthSyncedHint({ colors }: { colors: any }) {
   return (
@@ -184,7 +184,7 @@ export function MeasurementsScreen({ navigation }: { navigation: any }) {
           >
             <TouchableOpacity onPress={() => navigation.getParent()?.navigate('WeighIn')}>
               <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 15, color: colors.ink }}>
-                {formatWeight(latestWeighIn?.weightLbs ?? profile.currentWeightLbs, weightUnit)}
+                {formatWeight(resolveCurrentWeight(latestWeighIn ? [latestWeighIn] : [], profile.currentWeightLbs)!, weightUnit)}
               </Text>
             </TouchableOpacity>
           </Row>

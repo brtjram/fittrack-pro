@@ -13,6 +13,7 @@ import { SectionLabel, ListGroup, ListRow } from '../components/ui';
 import * as api from '../services/api';
 import { getHealthKitStatus } from '../services/healthkit';
 import { calculateMacroTargets } from '@fittrack/core/src/algorithms/macro-calculator';
+import { resolveCurrentWeight } from '@fittrack/core';
 import type { UserProfile, WeightEntry } from '@fittrack/core';
 import type { TransformationChallenge } from '../services/api';
 
@@ -27,10 +28,10 @@ const GOAL_LABEL: Record<string, string> = {
 // working toward — ai_coach mode doesn't store a fat_loss/muscle_gain goal,
 // it derives targets dynamically, so read the real direction off the
 // current-vs-target weight instead of showing the mode name as the goal.
-function goalLabel(profile: UserProfile): string {
+function goalLabel(profile: UserProfile, currentWeightLbs: number): string {
   if (profile.goal !== 'ai_coach') return GOAL_LABEL[profile.goal] ?? 'On a plan';
-  if (profile.targetWeightLbs < profile.currentWeightLbs) return GOAL_LABEL.fat_loss;
-  if (profile.targetWeightLbs > profile.currentWeightLbs) return GOAL_LABEL.muscle_gain;
+  if (profile.targetWeightLbs < currentWeightLbs) return GOAL_LABEL.fat_loss;
+  if (profile.targetWeightLbs > currentWeightLbs) return GOAL_LABEL.muscle_gain;
   return GOAL_LABEL.maintain;
 }
 
@@ -46,6 +47,7 @@ export function SettingsScreen({ navigation }: { navigation: any }) {
   const { user, logout } = useAuth();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<UserProfile | undefined>();
+  const [weights, setWeights] = useState<WeightEntry[]>([]);
   const [weeklyRate, setWeeklyRate] = useState(0);
   const [healthStatus, setHealthStatus] = useState<{ enabled: boolean; lastSync: string | null }>({ enabled: false, lastSync: null });
   const [challenge, setChallenge] = useState<TransformationChallenge | null>(null);
@@ -66,6 +68,7 @@ export function SettingsScreen({ navigation }: { navigation: any }) {
       if (ch.status === 'fulfilled') setChallenge(ch.value);
       if (weights.status === 'fulfilled') {
         const sorted = [...weights.value].sort((a, b) => a.date.localeCompare(b.date));
+        setWeights(sorted);
         if (sorted.length >= 2) {
           setWeeklyRate(sorted[sorted.length - 1].weightLbs - sorted[Math.max(0, sorted.length - 8)].weightLbs);
         }
@@ -96,9 +99,14 @@ export function SettingsScreen({ navigation }: { navigation: any }) {
     );
   }
 
+  // The weigh-in log (fed by both HealthKit syncs and manual weigh-ins) is
+  // always fresher than the profile's one-time onboarding value — see
+  // resolveCurrentWeight. Falls back to the profile only if nothing's ever
+  // been logged.
+  const currentWeight = profile ? resolveCurrentWeight(weights, profile.currentWeightLbs) : null;
   const macros = profile ? calculateMacroTargets(profile) : null;
   const planSentence = profile
-    ? `${goalLabel(profile)}${weeklyRate !== 0 ? ` at ${Math.abs(weeklyRate).toFixed(1)} lb a week` : ''}, ${SPLIT_LABEL[profile.preferredSplit]?.toLowerCase() ?? ''}.`
+    ? `${goalLabel(profile, currentWeight ?? profile.currentWeightLbs)}${weeklyRate !== 0 ? ` at ${Math.abs(weeklyRate).toFixed(1)} lb a week` : ''}, ${SPLIT_LABEL[profile.preferredSplit]?.toLowerCase() ?? ''}.`
     : 'Complete your profile to get a plan.';
 
   const lastSyncFormatted = healthStatus.lastSync
@@ -142,7 +150,7 @@ export function SettingsScreen({ navigation }: { navigation: any }) {
           <View style={styles.pillRow}>
             <Pill colors={colors} label={`${Math.round(macros.calories)} kcal`} progress />
             <Pill colors={colors} label={`${Math.round(macros.protein)}g protein`} progress />
-            <Pill colors={colors} label={`${profile.currentWeightLbs} → ${profile.targetWeightLbs} lb`} />
+            <Pill colors={colors} label={`${currentWeight ?? profile.currentWeightLbs} → ${profile.targetWeightLbs} lb`} />
             <Pill colors={colors} label={profile.experienceLevel.charAt(0).toUpperCase() + profile.experienceLevel.slice(1)} />
           </View>
         )}
@@ -151,10 +159,10 @@ export function SettingsScreen({ navigation }: { navigation: any }) {
       <View style={styles.sectionHeaderRow}><SectionLabel colors={colors}>Body & training</SectionLabel></View>
       <ListGroup colors={colors} style={styles.groupMargin}>
         <ListRow colors={colors} icon={<User size={17} color={colors.mutedStrong} />} title="Measurements"
-          detail={profile ? `${profile.age} · ${profile.heightCm}cm · ${profile.currentWeightLbs} lb` : undefined}
+          detail={profile ? `${profile.age} · ${profile.heightCm}cm · ${currentWeight ?? profile.currentWeightLbs} lb` : undefined}
           onPress={() => navigation.navigate('Measurements')} />
         <ListRow colors={colors} icon={<Target size={17} color={colors.mutedStrong} />} title="Goal & pace"
-          detail={profile ? goalLabel(profile) : undefined}
+          detail={profile ? goalLabel(profile, currentWeight ?? profile.currentWeightLbs) : undefined}
           onPress={() => navigation.navigate('GoalPace')} />
         <ListRow colors={colors} icon={<Dumbbell size={17} color={colors.mutedStrong} />} title="Split & schedule"
           detail={profile ? SPLIT_LABEL[profile.preferredSplit] : undefined}

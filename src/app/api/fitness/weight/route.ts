@@ -32,6 +32,17 @@ export async function POST(request: NextRequest) {
     create: { userId, date, weightLbs, bodyFatPercent, waistIn, note },
   });
 
+  // Keep the profile's canonical currentWeightLbs in sync with the weigh-in
+  // log — this route is the single write path both HealthKit syncs and
+  // manual weigh-ins go through (see mobile healthkit.ts syncWeight /
+  // WeighInScreen), so whichever wrote most recently naturally wins here.
+  // Only applies when this write is (or ties) the most recent entry on
+  // file, so editing/backfilling an older date can't clobber a newer one.
+  const latest = await prisma.weightEntry.findFirst({ where: { userId }, orderBy: { date: 'desc' } });
+  if (latest && latest.date <= date) {
+    await prisma.fitnessProfile.updateMany({ where: { userId }, data: { currentWeightLbs: entry.weightLbs } });
+  }
+
   return NextResponse.json(entry);
 }
 

@@ -211,7 +211,11 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
     }
   }, [navigation]);
 
-  const todayWorkout = workouts.find((w) => w.date === toDateString() && !w.completed);
+  // Any session dated today — completed or not — counts as "assigned".
+  // Generating is only ever offered when today has no session at all; once
+  // one exists (from either tab, or from a previous generate), the hero
+  // just reflects it instead of risking a duplicate for the same date.
+  const todayWorkout = workouts.find((w) => w.date === toDateString());
   const caloriesLeft = Math.max(0, Math.round(todayCalories.target - todayCalories.eaten));
   const caloriePercent = todayCalories.target > 0 ? Math.min(todayCalories.eaten / todayCalories.target, 1) : 0;
   const proteinPercent = todayProtein.target > 0 ? Math.min(todayProtein.eaten / todayProtein.target, 1) : 0;
@@ -284,7 +288,7 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
             <View style={[styles.pill, { backgroundColor: 'rgba(201,232,74,0.16)' }]}>
               <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: colors.progress }} />
               <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 9.5, letterSpacing: 1, color: colors.progress, textTransform: 'uppercase' }}>
-                {todayWorkout ? 'In progress' : 'Today'}
+                {todayWorkout ? (todayWorkout.completed ? 'Completed' : 'In progress') : 'Today'}
               </Text>
             </View>
             <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 25, letterSpacing: -0.4, color: colors.ink, marginTop: 10 }}>
@@ -324,7 +328,9 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
             {generating ? <ActivityIndicator color={colors.signalForeground} /> : (
               <>
                 <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 15.5, color: colors.signalForeground }}>
-                  {todayWorkout ? 'Pick up where you left off' : 'Generate today’s workout'}
+                  {todayWorkout
+                    ? (todayWorkout.completed ? "View today's workout" : 'Pick up where you left off')
+                    : 'Generate today’s workout'}
                 </Text>
                 <ArrowRight size={18} color={colors.signalForeground} strokeWidth={2.5} />
               </>

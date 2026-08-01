@@ -136,6 +136,10 @@ export function WorkoutsScreen({ navigation }: { navigation: any }) {
 
   const today = toDateString();
   const todayWorkouts = workouts.filter((w) => w.date === today && !w.completed);
+  // Completed or not, a session already dated today means there's nothing
+  // left to generate — offering "Next workout" anyway just risks creating
+  // a second session for the same date.
+  const hasTodayWorkout = workouts.some((w) => w.date === today);
   const upcomingWorkouts = workouts.filter((w) => !w.completed && w.date > today);
   const inProgressWorkouts = workouts.filter((w) => !w.completed && w.date !== today && w.date <= today);
   const completedWorkouts = workouts.filter((w) => w.completed);
@@ -208,10 +212,16 @@ export function WorkoutsScreen({ navigation }: { navigation: any }) {
           <PillButton
             colors={colors}
             style={{ flex: 1 }}
-            onPress={handleGenerate}
+            onPress={hasTodayWorkout
+              ? () => navigation.navigate('WorkoutSession', { sessionId: workouts.find((w) => w.date === today)!.sessionId })
+              : handleGenerate}
             disabled={generating || generatingWeek}
-            label={generating ? 'Generating…' : 'Next workout'}
-            icon={generating ? <ActivityIndicator size="small" color={colors.signalForeground} /> : <Zap size={15} color={colors.signalForeground} />}
+            label={generating ? 'Generating…' : hasTodayWorkout ? "Today's workout" : 'Generate workout'}
+            icon={generating
+              ? <ActivityIndicator size="small" color={colors.signalForeground} />
+              : hasTodayWorkout
+                ? <Dumbbell size={15} color={colors.signalForeground} />
+                : <Zap size={15} color={colors.signalForeground} />}
           />
           <PillButton
             colors={colors}

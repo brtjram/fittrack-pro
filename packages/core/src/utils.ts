@@ -36,3 +36,20 @@ export function movingAverage(values: number[], window: number): number {
   const slice = values.slice(-window);
   return slice.reduce((sum, v) => sum + v, 0) / slice.length;
 }
+
+// Single source of truth for "current weight" — without it, screens that
+// read different fields (a one-time onboarding value vs. the live weigh-in
+// log) can disagree. HealthKit syncs and manual weigh-ins both write through
+// the same weigh-in log (see mobile healthkit.ts syncWeight / WeighInScreen),
+// and the server mirrors whichever one landed most recently back onto the
+// profile (see src/app/api/fitness/weight/route.ts), so the latest log entry
+// is always the freshest number. The profile value is only a fallback for a
+// user who hasn't logged a weigh-in yet.
+export function resolveCurrentWeight(
+  weightEntries: { date: string; weightLbs: number }[],
+  fallbackLbs?: number | null,
+): number | null {
+  if (weightEntries.length === 0) return fallbackLbs ?? null;
+  const latest = weightEntries.reduce((a, b) => (b.date > a.date ? b : a));
+  return latest.weightLbs;
+}

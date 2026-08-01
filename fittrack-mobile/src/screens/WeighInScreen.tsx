@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
-import { TrendingDown, TrendingUp, Camera, Ruler, Check } from 'lucide-react-native';
+import { TrendingDown, TrendingUp } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import { Fonts } from '../theme/fonts';
-import { Sparkline, PillButton, Divider, NumberBubble } from '../components/ui';
+import { Sparkline, PillButton, Divider } from '../components/ui';
 import * as api from '../services/api';
 import type { WeightEntry } from '@fittrack/core';
 
@@ -21,9 +21,6 @@ export function WeighInScreen({ navigation }: { navigation: any }) {
   const [loading, setLoading] = useState(true);
   const [value, setValue] = useState(0);
   const [saving, setSaving] = useState(false);
-  const [waistOpen, setWaistOpen] = useState(false);
-  const [waistIn, setWaistIn] = useState<number | null>(null);
-  const [photoCount, setPhotoCount] = useState(0);
 
   const today = toDateString();
 
@@ -32,11 +29,8 @@ export function WeighInScreen({ navigation }: { navigation: any }) {
       const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
       setWeights(sorted);
       setValue(sorted.length ? sorted[sorted.length - 1].weightLbs : 170);
-      const todayEntry = sorted.find((w) => w.date === today);
-      if (todayEntry?.waistIn) setWaistIn(todayEntry.waistIn);
     }).finally(() => setLoading(false));
-    api.getProgressPhotos(today).then((photos) => setPhotoCount(photos.length));
-  }, [today]);
+  }, []);
 
   const trend = weights.length > 0
     ? weights.slice(-7).reduce((a, w) => a + w.weightLbs, 0) / Math.min(7, weights.length)
@@ -46,16 +40,16 @@ export function WeighInScreen({ navigation }: { navigation: any }) {
   const save = useCallback(async () => {
     setSaving(true);
     try {
-      await api.addWeightEntry({
-        date: today,
-        weightLbs: Math.round(value * 10) / 10,
-        ...(waistIn ? { waistIn: Math.round(waistIn * 10) / 10 } : {}),
-      });
+      // Waist and progress photos are logged separately from the Body tab
+      // now — this only ever touches weightLbs, and omitting waistIn here
+      // (rather than sending null) leaves whatever's already on today's
+      // entry untouched, since the API skips undefined fields on upsert.
+      await api.addWeightEntry({ date: today, weightLbs: Math.round(value * 10) / 10 });
       navigation.goBack();
     } finally {
       setSaving(false);
     }
-  }, [value, waistIn, today, navigation]);
+  }, [value, today, navigation]);
 
   if (loading) {
     return (
@@ -109,42 +103,6 @@ export function WeighInScreen({ navigation }: { navigation: any }) {
           </Text>
         </View>
 
-        <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
-          <TouchableOpacity
-            style={[styles.quickBtn, { backgroundColor: colors.surface }]}
-            onPress={() => navigation.navigate('ProgressPhotoCapture')}
-          >
-            {photoCount > 0
-              ? <Check size={16} color={colors.progress} strokeWidth={2.6} />
-              : <Camera size={16} color={colors.mutedStrong} />}
-            <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12.5, color: photoCount > 0 ? colors.progress : colors.mutedStrong }}>
-              {photoCount > 0 ? `Photo · ${photoCount}/3` : 'Progress photo'}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.quickBtn, { backgroundColor: waistOpen ? colors.surfaceInset : colors.surface }]}
-            onPress={() => setWaistOpen((v) => !v)}
-          >
-            <Ruler size={16} color={waistIn ? colors.progress : colors.mutedStrong} />
-            <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12.5, color: waistIn ? colors.progress : colors.mutedStrong }}>
-              {waistIn ? `Waist · ${waistIn}"` : 'Waist'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {waistOpen && (
-          <View style={[styles.waistRow, { backgroundColor: colors.surface }]}>
-            <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 13, color: colors.ink }}>Waist</Text>
-            <NumberBubble
-              value={waistIn ?? 34}
-              unit="in"
-              colors={colors}
-              keyboardType="decimal-pad"
-              onCommit={(v) => setWaistIn(v)}
-            />
-          </View>
-        )}
-
         <View style={{ marginTop: 18 }}>
           <PillButton label={saving ? 'Saving…' : 'Save weigh-in'} colors={colors} onPress={save} disabled={saving} />
         </View>
@@ -161,6 +119,4 @@ const styles = StyleSheet.create({
   readout: { alignItems: 'center', marginTop: 18, gap: 2 },
   adjustBtn: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   trendCard: { borderRadius: 16, padding: 16, marginTop: 18 },
-  quickBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 13, paddingVertical: 14 },
-  waistRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 13, padding: 14, marginTop: 10 },
 });

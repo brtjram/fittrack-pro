@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Footprints, UtensilsCrossed, Flame, ChevronLeft, Plus } from 'lucide-react-native';
+import { Footprints, UtensilsCrossed, Flame, ChevronLeft, Plus, Ruler, Camera } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import { Fonts } from '../theme/fonts';
-import { SectionLabel, Sparkline, TargetBarChart, PillButton } from '../components/ui';
+import { SectionLabel, Sparkline, TargetBarChart, PillButton, ListGroup, ListRow, NumberBubble } from '../components/ui';
 import * as api from '../services/api';
-import { calculateMacroTargets, calculateBMR, toDateString } from '@fittrack/core';
+import { calculateMacroTargets, calculateBMR, toDateString, resolveCurrentWeight } from '@fittrack/core';
 import type { WeightEntry, DailyActivity, WorkoutSession, UserProfile, FoodLogEntry } from '@fittrack/core';
 
 const DEFAULT_STEP_TARGET = 10000;
@@ -68,24 +68,29 @@ export function AnalyticsScreen({ navigation }: { navigation: any }) {
   const [activities, setActivities] = useState<DailyActivity[]>([]);
   const [profile, setProfile] = useState<UserProfile | undefined>();
   const [foodLogs, setFoodLogs] = useState<FoodLogEntry[]>([]);
+  const [photoCount, setPhotoCount] = useState(0);
+  const [waistEditing, setWaistEditing] = useState(false);
+  const [savingWaist, setSavingWaist] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
       const today = new Date();
       const sevenDaysAgoStr = toDateString(new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000));
       const todayStr = toDateString(today);
-      const [w, a, s, p, f] = await Promise.all([
+      const [w, a, s, p, f, photos] = await Promise.all([
         api.getWeightEntries(90),
         api.getDailyActivities(60),
         api.getRecentWorkouts(60),
         api.getUserProfile(),
         api.getFoodLogByDateRange(sevenDaysAgoStr, todayStr),
+        api.getProgressPhotos(todayStr),
       ]);
       setWeights(w);
       setWorkouts(s);
       setActivities(a);
       setProfile(p);
       setFoodLogs(f);
+      setPhotoCount(photos.length);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -95,6 +100,31 @@ export function AnalyticsScreen({ navigation }: { navigation: any }) {
   useEffect(() => { loadData(); }, [loadData]);
   const onRefresh = useCallback(() => { setRefreshing(true); loadData(); }, [loadData]);
 
+  // Derived from state directly (not gated behind the loading check below)
+  // so it's available to the saveWaist hook, which — like every hook — has
+  // to be called unconditionally before any early return.
+  const sortedWeights = [...weights].sort((a, b) => a.date.localeCompare(b.date));
+  // Waist gets logged without necessarily re-entering weight, so it needs
+  // whatever weight is already on file to upsert today's row against — same
+  // resolution order as everywhere else current weight is shown.
+  const resolvedCurrentWeight = resolveCurrentWeight(sortedWeights, profile?.currentWeightLbs);
+
+  const saveWaist = useCallback(async (value: number) => {
+    if (resolvedCurrentWeight === null) return;
+    setSavingWaist(true);
+    try {
+      await api.addWeightEntry({
+        date: toDateString(),
+        weightLbs: resolvedCurrentWeight,
+        waistIn: Math.round(value * 10) / 10,
+      });
+      await loadData();
+    } finally {
+      setSavingWaist(false);
+      setWaistEditing(false);
+    }
+  }, [resolvedCurrentWeight, loadData]);
+
   if (loading) {
     return (
       <View style={[styles.centered, { backgroundColor: colors.canvas }]}>
@@ -103,11 +133,11 @@ export function AnalyticsScreen({ navigation }: { navigation: any }) {
     );
   }
 
-  const sortedWeights = [...weights].sort((a, b) => a.date.localeCompare(b.date));
   const latestWeight = sortedWeights.length ? sortedWeights[sortedWeights.length - 1].weightLbs : null;
   const weeklyRate = sortedWeights.length >= 2
     ? sortedWeights[sortedWeights.length - 1].weightLbs - sortedWeights[Math.max(0, sortedWeights.length - 8)].weightLbs
     : 0;
+  const latestWaistEntry = [...sortedWeights].reverse().find((w) => w.waistIn != null) ?? null;
 
   const stepTarget = profile?.stepTarget ?? DEFAULT_STEP_TARGET;
   const validActivities = activities.filter((a) => /^\d{4}-\d{2}-\d{2}$/.test(a.date));
@@ -284,6 +314,41 @@ export function AnalyticsScreen({ navigation }: { navigation: any }) {
               suffix={`/ ${stepTarget.toLocaleString()}`}
               sub={stepGoalPct !== null ? `${stepGoalPct}% of goal` : 'Connect Apple Health'}
             />
+          </View>
+
+          <View style={{ marginTop: 8 }}>
+            <SectionLabel colors={colors} style={{ marginHorizontal: 20, marginBottom: 12 }}>Waist & photos</SectionLabel>
+            <ListGroup colors={colors} style={{ marginHorizontal: 16 }}>
+              <ListRow
+                colors={colors}
+                icon={<Ruler size={17} color={colors.mutedStrong} />}
+                title="Waist"
+                detail={latestWaistEntry?.waistIn != null ? `${latestWaistEntry.waistIn}"` : 'Not logged'}
+                onPress={() => setWaistEditing((v) => !v)}
+              />
+              <ListRow
+                colors={colors}
+                icon={<Camera size={17} color={colors.mutedStrong} />}
+                title="Progress photos"
+                detail={photoCount > 0 ? `${photoCount}/3 today` : 'Not started today'}
+                isLast
+                onPress={() => navigation.getParent()?.navigate('ProgressPhotoCapture')}
+              />
+            </ListGroup>
+            {waistEditing && (
+              <View style={[styles.card, { backgroundColor: colors.surface, marginHorizontal: 16, marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
+                <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 13, color: colors.ink }}>
+                  {savingWaist ? 'Saving…' : 'Waist'}
+                </Text>
+                <NumberBubble
+                  value={latestWaistEntry?.waistIn ?? 34}
+                  unit="in"
+                  colors={colors}
+                  keyboardType="decimal-pad"
+                  onCommit={saveWaist}
+                />
+              </View>
+            )}
           </View>
 
           {mainLifts.length > 0 && (

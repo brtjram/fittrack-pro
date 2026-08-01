@@ -147,6 +147,12 @@ const rowStyles = StyleSheet.create({
 // behind a leftward swipe (like Mail/Reminders) is the standard iOS pattern.
 // Pure PanResponder + Animated so it needs no extra native dependency
 // (react-native-gesture-handler isn't installed in this project).
+//
+// Matches the full Mail-style gesture set, not just reveal-on-swipe:
+//  - short left swipe past the halfway point: snaps open, button stays put
+//  - long left swipe (or a fast flick) past ~55% of the row width: the row
+//    finishes sliding off and deletes immediately, no second tap needed
+//  - right swipe while open: closes/undoes back to the resting position
 export function SwipeToDelete({
   children, onDelete, colors, disabled, borderRadius = 18,
 }: {
@@ -154,28 +160,58 @@ export function SwipeToDelete({
 }) {
   const translateX = useRef(new Animated.Value(0)).current;
   const ACTION_WIDTH = 76;
+  // Row width isn't known until layout; this is just a sane pre-layout
+  // guess so a swipe that starts before onLayout fires still behaves.
+  const FALLBACK_WIDTH = 320;
+
+  // Plain refs, not state — PanResponder handlers read `.current` on every
+  // touch event, so these need to be mutable without triggering (or
+  // waiting on) a re-render.
+  const restingX = useRef(0);
+  const rowWidth = useRef(0);
 
   const panResponder = useRef(
     PanResponder.create({
       // Requires a deliberately horizontal drag past a small deadzone so a
       // vertical list scroll or a plain tap into a child (button, text
-      // input) never gets mistaken for a swipe.
-      onMoveShouldSetPanResponder: (_, g) => !disabled && Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5 && g.dx < 0,
+      // input) never gets mistaken for a swipe. A rightward drag only
+      // starts the gesture if the row is already open — closed rows have
+      // nothing to reveal on the right.
+      onMoveShouldSetPanResponder: (_, g) => {
+        if (disabled) return false;
+        if (Math.abs(g.dx) <= 8 || Math.abs(g.dx) <= Math.abs(g.dy) * 1.5) return false;
+        return g.dx < 0 || restingX.current < 0;
+      },
       onPanResponderMove: (_, g) => {
-        translateX.setValue(Math.max(-ACTION_WIDTH, Math.min(0, g.dx)));
+        const width = rowWidth.current || FALLBACK_WIDTH;
+        translateX.setValue(Math.max(-width, Math.min(0, restingX.current + g.dx)));
       },
       onPanResponderRelease: (_, g) => {
-        const open = g.dx < -ACTION_WIDTH / 2 || g.vx < -0.6;
-        Animated.spring(translateX, { toValue: open ? -ACTION_WIDTH : 0, useNativeDriver: true, bounciness: 0 }).start();
+        const width = rowWidth.current || FALLBACK_WIDTH;
+        const next = Math.max(-width, Math.min(0, restingX.current + g.dx));
+        const deleteThreshold = Math.max(width * 0.55, ACTION_WIDTH * 2.5);
+
+        if (next <= -deleteThreshold) {
+          restingX.current = -width;
+          Animated.timing(translateX, { toValue: -(width + 60), duration: 200, useNativeDriver: true }).start(() => onDelete());
+          return;
+        }
+
+        const flickOpen = g.dx < 0 && g.vx < -0.6;
+        const flickClose = g.dx > 0 && g.vx > 0.6;
+        const open = !flickClose && (next < -ACTION_WIDTH / 2 || flickOpen);
+        restingX.current = open ? -ACTION_WIDTH : 0;
+        Animated.spring(translateX, { toValue: restingX.current, useNativeDriver: true, bounciness: 0 }).start();
       },
     }),
   ).current;
 
   return (
-    <View style={{ borderRadius, overflow: 'hidden' }}>
+    <View style={{ borderRadius, overflow: 'hidden' }} onLayout={(e) => { rowWidth.current = e.nativeEvent.layout.width; }}>
       <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.danger, alignItems: 'flex-end', justifyContent: 'center' }]}>
         <TouchableOpacity
           onPress={() => {
+            restingX.current = 0;
             Animated.timing(translateX, { toValue: 0, duration: 150, useNativeDriver: true }).start();
             onDelete();
           }}
