@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Dumbbell, Trash2, RotateCcw, CheckCircle, ChevronRight, Zap, Calendar } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import { Fonts } from '../theme/fonts';
-import { SectionLabel, PillButton, SwipeToDelete } from '../components/ui';
+import { SectionLabel, PillButton, SwipeToDelete, CoachBubble } from '../components/ui';
 import * as api from '../services/api';
 import type { WorkoutSession } from '@fittrack/core';
 
@@ -237,7 +237,11 @@ export function WorkoutsScreen({ navigation }: { navigation: any }) {
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 16 }}
+        // +72 clears the floating CoachBubble (48px tall, floating 16px
+        // above the tab bar) so a swiped-to-delete card at the bottom of
+        // the list never rests underneath — and can't intercept a swipe
+        // gesture that would otherwise start there.
+        contentContainerStyle={{ padding: 16, paddingBottom: 16 + 80 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.signal} />}
       >
         {todayWorkouts.length > 0 && (
@@ -307,6 +311,10 @@ export function WorkoutsScreen({ navigation }: { navigation: any }) {
           </View>
         )}
       </ScrollView>
+      {/* Two levels up: this screen sits inside TrainStack, inside the
+          Progress-sibling MainTabs tab navigator, inside RootStack (where
+          Coach now lives as a pushed screen). */}
+      <CoachBubble colors={colors} onPress={() => navigation.getParent()?.getParent()?.navigate('Coach')} />
     </View>
   );
 }

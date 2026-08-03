@@ -134,7 +134,7 @@ export function GoalPaceScreen({ navigation }: { navigation: any }) {
             </Text>
           </View>
           <TouchableOpacity
-            onPress={() => navigation.getParent()?.navigate('MainTabs', { screen: 'Coach' })}
+            onPress={() => navigation.getParent()?.navigate('Coach')}
             style={[styles.applyBtn, { backgroundColor: colors.progress }]}
           >
             <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 14, color: colors.canvas }}>Open coach chat</Text>

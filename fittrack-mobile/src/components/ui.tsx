@@ -4,7 +4,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, Animated, PanResponder } from 'react-native';
 import Svg, { Circle, Path, Line } from 'react-native-svg';
-import { ChevronRight, Check, Trash2 } from 'lucide-react-native';
+import { ChevronRight, Check, Trash2, Sparkles } from 'lucide-react-native';
 import { Fonts } from '../theme/fonts';
 import type { ThemeColors } from '../theme/colors';
 
@@ -41,6 +41,54 @@ export function NumberBubble({
 
 const bubbleStyles = StyleSheet.create({
   wrap: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 11, paddingHorizontal: 12, paddingVertical: 7, justifyContent: 'flex-end' },
+});
+
+// Persistent floating entry point into Coach on Today/Train/Food — Coach
+// gave up its tab slot to Progress, and the Home card alone still only
+// helps if you're on Today and scrolled down to it. Deliberately the
+// quieter of the app's two floating elements: outlined/surface-fill (not a
+// solid signal circle) so the center Log FAB stays the obvious primary
+// action, with the accent living in the icon color instead of the bubble.
+// Screens that render this need to leave matching bottom padding on their
+// scrollable content — see the paddingBottom bump next to each usage — so
+// it never rests on top of real content (list rows, in particular ones
+// with a swipe-to-delete action on their right edge).
+//
+// `bottom: 16` is relative to each tab screen's own root view — that view's
+// bottom edge already sits at the tab bar's top edge (the bar is a sibling
+// rendered outside every tab's content area, not inside it), so this reads
+// as "16pt above the tab bar" without needing to add the bar's own height.
+export function CoachBubble({ colors, onPress }: { colors: ThemeColors; onPress: () => void }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.8}
+      hitSlop={4}
+      style={[coachBubbleStyles.wrap, { backgroundColor: colors.surfaceRaised, borderColor: colors.hairline }]}
+    >
+      <Sparkles size={20} color={colors.signal} strokeWidth={2.1} />
+    </TouchableOpacity>
+  );
+}
+
+const coachBubbleStyles = StyleSheet.create({
+  wrap: {
+    position: 'absolute',
+    right: 16,
+    bottom: 16,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 8,
+    zIndex: 20,
+  },
 });
 
 // Segmented control (2+ options) sharing the profile drill-ins' "pill row"

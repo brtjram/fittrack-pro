@@ -154,7 +154,7 @@ export function CoachModeScreen({ navigation }: { navigation: any }) {
             </View>
 
             <TouchableOpacity
-              onPress={() => navigation.getParent()?.navigate('MainTabs', { screen: 'Coach' })}
+              onPress={() => navigation.getParent()?.navigate('Coach')}
               style={[styles.chatBtn, { backgroundColor: colors.progress }]}
             >
               <MessageCircle size={17} color={colors.canvas} strokeWidth={2.3} />

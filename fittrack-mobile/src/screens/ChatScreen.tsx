@@ -4,7 +4,7 @@ import {
   Keyboard, Platform, ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowUp, ArrowUpRight, Sparkles, Check, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { ArrowUp, ArrowUpRight, Sparkles, Check, ChevronDown, ChevronUp, ChevronLeft } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import { Fonts } from '../theme/fonts';
 import { getToken } from '../services/auth-storage';
@@ -56,7 +56,7 @@ function splitPlan(text: string): { display: string; plan: PlanSummary | null | 
   }
 }
 
-export function ChatScreen() {
+export function ChatScreen({ navigation }: { navigation: any }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -144,6 +144,15 @@ export function ChatScreen() {
     >
       <View style={{ paddingTop: insets.top + 18, paddingHorizontal: 24, paddingBottom: 18 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          {/* Coach is a pushed screen (opened from Today or a profile drill-in),
+              not a tab root, so unlike the old tab version it needs its own
+              way back. */}
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={{ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface }}
+          >
+            <ChevronLeft size={19} color={colors.ink} />
+          </TouchableOpacity>
           <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.signal, alignItems: 'center', justifyContent: 'center' }}>
             <Sparkles size={18} color={colors.signalForeground} strokeWidth={2.4} />
           </View>

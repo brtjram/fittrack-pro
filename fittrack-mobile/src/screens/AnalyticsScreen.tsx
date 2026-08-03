@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Footprints, UtensilsCrossed, Flame, ChevronLeft, Plus, Ruler, Camera, Moon } from 'lucide-react-native';
+import { Footprints, UtensilsCrossed, Flame, Plus, Ruler, Camera, Moon } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import { Fonts } from '../theme/fonts';
 import { SectionLabel, Sparkline, TrendLineChart, TargetBarChart, PillButton, ListGroup, ListRow, NumberBubble } from '../components/ui';
@@ -274,14 +274,10 @@ export function AnalyticsScreen({ navigation }: { navigation: any }) {
     >
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          {navigation.canGoBack() && (
-            // Progress is pushed on the root stack now rather than living on
-            // the tab bar, so it needs its own way back — folded into this
-            // screen's existing custom header instead of a second native one.
-            <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { backgroundColor: colors.surface }]}>
-              <ChevronLeft size={19} color={colors.ink} />
-            </TouchableOpacity>
-          )}
+          {/* Progress is a tab root now (ProgressStackNavigator's only other
+              screen, StrengthDetail, has its own back chevron), so unlike
+              when this screen could also be reached as a root-stack push,
+              it never needs a way back of its own — matches Today/Train/Food. */}
           <Text style={{ fontFamily: Fonts.serif, fontSize: 28, color: colors.ink }}>Progress</Text>
         </View>
         <View style={[styles.tabRow, { backgroundColor: colors.surface }]}>

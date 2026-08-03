@@ -2,6 +2,7 @@
   "expo": {
     "name": "FitTrack Pro",
     "slug": "fittrack-pro",
+    "scheme": "com.brtjram.fittrackpro",
     "version": "1.0.0",
     "runtimeVersion": {
       "policy": "appVersion"
@@ -23,7 +24,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.brtjram.fittrackpro",
-      "buildNumber": "23",
+      "buildNumber": "24",
       "config": {
         "usesNonExemptEncryption": false
       },

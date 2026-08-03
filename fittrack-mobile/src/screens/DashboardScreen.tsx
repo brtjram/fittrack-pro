@@ -9,7 +9,7 @@ import { ArrowRight, Sparkles, Settings, TrendingUp, ChevronRight } from 'lucide
 import { useTheme } from '../theme/useTheme';
 import { useAuth } from '../hooks/useAuth';
 import { Fonts } from '../theme/fonts';
-import { Ring, Sparkline, SectionLabel } from '../components/ui';
+import { Ring, Sparkline, SectionLabel, CoachBubble } from '../components/ui';
 import { HeroVisual } from '../components/HeroVisual';
 import * as api from '../services/api';
 import { calculateMacroTargets, calculateAdaptiveAdjustment } from '@fittrack/core/src/algorithms/macro-calculator';
@@ -248,10 +248,14 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
   }
 
   return (
+    <View style={{ flex: 1, backgroundColor: colors.canvas }}>
     <ScrollView
       ref={scrollRef}
       style={{ flex: 1, backgroundColor: colors.canvas }}
-      contentContainerStyle={{ paddingBottom: 32 }}
+      // +72 over the plain bottom inset — clears the floating CoachBubble
+      // (48px tall, floating 16px above the tab bar) so the last card never
+      // rests underneath it.
+      contentContainerStyle={{ paddingBottom: 32 + 80 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.signal} />}
     >
       {/* Header */}
@@ -355,13 +359,15 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
         <RingStat colors={colors} percent={stepsPercent} color={colors.info} value={formatSteps(todaySteps)} label="steps" />
       </View>
 
-      {/* Progress entry point — now that Progress isn't a tab, this card (not
-          just its weight readout) is the way in from Home, so it always
-          renders and always links out, even before there's a trend to show. */}
+      {/* Progress preview — Progress is a tab now, so this card is a shortcut
+          into it rather than the only way in, but it stays: user testing
+          showed the full Progress tab still gets missed on first open, and a
+          live weight trend right on Today gives people a reason to go find
+          the tab in the first place. */}
       <TouchableOpacity
         style={[styles.trendCard, { backgroundColor: colors.surface }]}
         activeOpacity={0.8}
-        onPress={() => navigation.getParent()?.navigate('Progress')}
+        onPress={() => navigation.navigate('Progress')}
       >
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -400,13 +406,23 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
         )}
       </TouchableOpacity>
 
-      {/* Coach nudge */}
-      <View style={[styles.coachCard, { backgroundColor: colors.surface }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-          <View style={[styles.coachIcon, { backgroundColor: colors.signal }]}>
-            <Sparkles size={12} color={colors.signalForeground} strokeWidth={2.5} />
+      {/* Coach entry point — Coach gave up its tab slot to Progress, so this
+          nudge (previously a static, non-tappable tip) is now the way in
+          from Home: real insight text plus a clear "there's more, tap
+          through" affordance, not just a passive card. */}
+      <TouchableOpacity
+        style={[styles.coachCard, { backgroundColor: colors.surface }]}
+        activeOpacity={0.8}
+        onPress={() => navigation.getParent()?.navigate('Coach')}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View style={[styles.coachIcon, { backgroundColor: colors.signal }]}>
+              <Sparkles size={12} color={colors.signalForeground} strokeWidth={2.5} />
+            </View>
+            <SectionLabel colors={colors}>One thing tonight</SectionLabel>
           </View>
-          <SectionLabel colors={colors}>One thing tonight</SectionLabel>
+          <ChevronRight size={16} color={colors.mutedForeground} />
         </View>
         <Text style={{ fontFamily: Fonts.serif, fontSize: 19, lineHeight: 26, color: colors.ink }}>
           {insights[0] ?? 'You’re on track — keep the streak going!'}
@@ -416,8 +432,13 @@ export function DashboardScreen({ navigation }: { navigation: any }) {
             {insights[1]}
           </Text>
         )}
-      </View>
+        <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 11.5, color: colors.signal, marginTop: 12 }}>
+          Ask your coach →
+        </Text>
+      </TouchableOpacity>
     </ScrollView>
+    <CoachBubble colors={colors} onPress={() => navigation.getParent()?.navigate('Coach')} />
+    </View>
   );
 }
 

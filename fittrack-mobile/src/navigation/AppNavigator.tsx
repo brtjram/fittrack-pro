@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Home, Dumbbell, Utensils, MessageCircle, Plus } from 'lucide-react-native';
+import { Home, Dumbbell, Utensils, TrendingUp, Plus } from 'lucide-react-native';
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { useTheme } from '../theme/useTheme';
 import { Fonts } from '../theme/fonts';
@@ -198,28 +198,34 @@ function MainTabs() {
         }}
       />
       <Tab.Screen
-        name="Coach"
-        component={ChatScreen}
+        name="Progress"
+        component={ProgressStackNavigator}
         options={{
-          tabBarIcon: ({ color, focused }) => <MessageCircle size={21} color={color} strokeWidth={focused ? 2.2 : 2} />,
-          tabBarLabel: ({ color, focused }) => <TabLabel label="Coach" color={color} focused={focused} />,
+          tabBarIcon: ({ color, focused }) => <TrendingUp size={21} color={color} strokeWidth={focused ? 2.2 : 2} />,
+          tabBarLabel: ({ color, focused }) => <TabLabel label="Progress" color={color} focused={focused} />,
+          // StrengthDetail (pushed on top within this stack) is a lightweight
+          // scrollable drill-in with its own back chevron, not a full-immersion
+          // flow like Train's WorkoutSession — the tab bar stays visible under
+          // it, same as every other browsing-depth screen in the app.
         }}
       />
     </Tab.Navigator>
   );
 }
 
-// Profile lives behind the avatar in Today's header, not as a tab. Food
-// capture, weigh-in, Progress and per-exercise strength detail are all
-// pushed on the root stack, so they can render full-screen over the tab bar
-// (Progress keeps its own back chevron in AnalyticsScreen's custom header
-// since it's no longer a tab root).
+// Profile lives behind the avatar in Today's header, not as a tab. Coach,
+// food capture, weigh-in and progress-photo capture are all pushed on the
+// root stack, so they can render full-screen over the tab bar (Coach was a
+// tab until user testing showed Progress — the one that replaced it in the
+// bar — was getting missed as a Home-screen card; Coach is a "dip in with a
+// question" screen rather than a several-times-a-day one, so it gives up
+// its tab slot and gets a real entry card on Today instead).
 export function AppNavigator() {
   return (
     <RootStack.Navigator screenOptions={{ headerShown: false }}>
       <RootStack.Screen name="MainTabs" component={MainTabs} />
       <RootStack.Screen name="LogFood" component={LogFoodStackNavigator} options={{ presentation: 'modal' }} />
-      <RootStack.Screen name="Progress" component={ProgressStackNavigator} />
+      <RootStack.Screen name="Coach" component={ChatScreen} />
       <RootStack.Screen name="WeighIn" component={WeighInScreen} options={{ presentation: 'modal' }} />
       <RootStack.Screen name="ProgressPhotoCapture" component={ProgressPhotoScreen} options={{ presentation: 'modal' }} />
       <RootStack.Screen name="Profile" component={ProfileStackNavigator} />

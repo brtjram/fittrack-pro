@@ -6,7 +6,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, ChevronRight, Plus, Search, X, Clock, Minus, Camera, ScanBarcode } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
-import { Ring, SwipeToDelete } from '../components/ui';
+import { Ring, SwipeToDelete, CoachBubble } from '../components/ui';
 import * as api from '../services/api';
 import { calculateMacroTargets, calculateAdaptiveAdjustment } from '@fittrack/core/src/algorithms/macro-calculator';
 import { foods as COMMON_FOODS } from '@fittrack/core/src/data/foods';
@@ -179,7 +179,12 @@ export function NutritionScreen({ navigation }: { navigation: any }) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView>
+      <ScrollView
+        // Clears the floating CoachBubble (48px tall, floating 16px above
+        // the tab bar) so a swiped-to-delete entry at the bottom of the
+        // last meal never rests underneath it.
+        contentContainerStyle={{ paddingBottom: 80 }}
+      >
         <View style={styles.content}>
           {/* Macro Summary */}
           <View style={[styles.macroCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -276,6 +281,8 @@ export function NutritionScreen({ navigation }: { navigation: any }) {
           })}
         </View>
       </ScrollView>
+
+      <CoachBubble colors={colors} onPress={() => navigation.getParent()?.navigate('Coach')} />
 
       {/* Food Search Modal */}
       <Modal visible={searchMeal !== null} animationType="slide" presentationStyle="pageSheet">

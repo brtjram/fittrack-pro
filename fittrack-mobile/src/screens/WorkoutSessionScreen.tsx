@@ -233,10 +233,10 @@ export function WorkoutSessionScreen({ route, navigation }: { route: any; naviga
                 <Pill colors={colors} onPress={() => setSwapExerciseIdx(ei)} label="Swap" icon={<Repeat size={13} color={colors.mutedStrong} />} />
                 <Pill
                   colors={colors}
-                  // Progress now lives on the root stack, not as a sibling tab — this
-                  // screen sits inside TrainStack, so it's two levels up (TrainStack ->
-                  // MainTabs -> RootStack) to reach it, not one.
-                  onPress={() => navigation.getParent()?.getParent()?.navigate('Progress', { screen: 'StrengthDetail', params: { exerciseId: exercise.exerciseId, exerciseName: exercise.exerciseName } })}
+                  // Progress is a sibling tab of Train, not a root-stack push — this
+                  // screen sits inside TrainStack, so one level up (TrainStack ->
+                  // MainTabs) reaches the tab navigator that has it.
+                  onPress={() => navigation.getParent()?.navigate('Progress', { screen: 'StrengthDetail', params: { exerciseId: exercise.exerciseId, exerciseName: exercise.exerciseName } })}
                   label="History"
                   icon={<ChartLine size={13} color={colors.mutedStrong} />}
                 />
