@@ -6,6 +6,14 @@ const HK_STEP_COUNT = 'HKQuantityTypeIdentifierStepCount';
 const HK_ACTIVE_ENERGY = 'HKQuantityTypeIdentifierActiveEnergyBurned';
 const HK_BODY_MASS = 'HKQuantityTypeIdentifierBodyMass';
 const HK_HEART_RATE = 'HKQuantityTypeIdentifierHeartRate';
+const HK_SLEEP_ANALYSIS = 'HKCategoryTypeIdentifierSleepAnalysis';
+
+// Sleep sample values that represent time actually asleep — excludes
+// "INBED" (in bed but not necessarily asleep) and "AWAKE" (woke up during
+// the night). Covers both the legacy single-stage API ("ASLEEP") and the
+// watchOS 9+ sleep-stage API (CORE/DEEP/REM), per react-native-health's
+// RCTAppleHealthKit+Queries.m value mapping.
+const ASLEEP_VALUES = new Set(['ASLEEP', 'CORE', 'DEEP', 'REM']);
 
 const HEALTHKIT_ENABLED_KEY = 'healthkit_enabled';
 const HEALTHKIT_LAST_SYNC_KEY = 'healthkit_last_sync';
@@ -33,6 +41,7 @@ export interface HealthKitDayData {
   steps: number;
   activeCalories: number;
   restingHeartRate: number | null;
+  sleepHours: number | null;
   weight: number | null; // in lbs
   bodyFatPercent: number | null;
 }
@@ -95,6 +104,7 @@ export function requestHealthKitPermissions(): Promise<boolean> {
           hk.Constants.Permissions.HeartRate,
           hk.Constants.Permissions.BodyFatPercentage,
           hk.Constants.Permissions.Height,
+          hk.Constants.Permissions.SleepAnalysis,
         ],
         write: [],
       },
@@ -168,9 +178,17 @@ function getActiveCalories(startDate: Date, endDate: Date): Promise<{ date: stri
     if (!hk) { resolve([]); return; }
 
     hk.getActiveEnergyBurned(
+      // Same period bug as getSteps: react-native-health's native query
+      // defaults `period` to 60 (hourly buckets) when it's omitted. Each
+      // hourly bucket is that hour's own sum (not a running daily total),
+      // so without period=24h the by-date merge below — which takes the
+      // max across rows to dedupe phone+Watch sources — was keeping only
+      // the single highest-burning hour of the day instead of the full-day
+      // total, e.g. a real ~180 kcal day reporting as ~40 kcal.
       {
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
+        period: 24 * 60,
         ascending: true,
       },
       (err: string | null, results: Array<{ startDate: string; value: number }>) => {
@@ -290,6 +308,38 @@ function getRestingHeartRate(startDate: Date, endDate: Date): Promise<{ date: st
   });
 }
 
+function getSleepAnalysis(startDate: Date, endDate: Date): Promise<{ date: string; value: number }[]> {
+  return new Promise((resolve) => {
+    const hk = getHealthKit();
+    if (!hk) { resolve([]); return; }
+
+    hk.getSleepSamples(
+      { startDate: startDate.toISOString(), endDate: endDate.toISOString(), ascending: true },
+      (err: string | null, results: Array<{ startDate: string; endDate: string; value: string }>) => {
+        if (err) console.warn('HealthKit getSleepSamples error:', err);
+        if (err || !results) { resolve([]); return; }
+
+        // A night's sleep is bucketed by the day it ends on (wake-up day),
+        // not the day it started — an 11pm-7am session should count toward
+        // "today", the day the user actually experiences the rest, matching
+        // how Apple's own Health app attributes sleep. In-bed and awake
+        // samples overlap with asleep samples for the same session, so only
+        // ASLEEP_VALUES rows are counted to avoid double-counting duration.
+        const minutesByDate = new Map<string, number>();
+        for (const r of results) {
+          if (!ASLEEP_VALUES.has(r.value)) continue;
+          const d = toDateString(new Date(r.endDate));
+          if (d === null) continue;
+          const minutes = (new Date(r.endDate).getTime() - new Date(r.startDate).getTime()) / 60000;
+          if (minutes <= 0) continue;
+          minutesByDate.set(d, (minutesByDate.get(d) || 0) + minutes);
+        }
+        resolve(Array.from(minutesByDate.entries()).map(([date, minutes]) => ({ date, value: Math.round((minutes / 60) * 10) / 10 })));
+      },
+    );
+  });
+}
+
 // ==================== Sync ====================
 
 export async function fetchHealthKitData(days = 7): Promise<HealthKitDayData[]> {
@@ -300,28 +350,31 @@ export async function fetchHealthKitData(days = 7): Promise<HealthKitDayData[]> 
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
-  const [steps, calories, heartRates, latestWt, latestBodyFat] = await Promise.all([
+  const [steps, calories, heartRates, sleep, latestWt, latestBodyFat] = await Promise.all([
     getSteps(startDate, endDate),
     getActiveCalories(startDate, endDate),
     getRestingHeartRate(startDate, endDate),
+    getSleepAnalysis(startDate, endDate),
     getLatestWeight(),
     getLatestBodyFat(),
   ]);
 
   // Merge all data by date — includes the weight/body-fat dates too (not
-  // just steps/calories/heart-rate), otherwise a weigh-in or body-fat
+  // just steps/calories/heart-rate/sleep), otherwise a weigh-in or body-fat
   // reading on a day with no other Health data silently never made it into
   // `result` at all.
   const dates = new Set<string>();
   steps.forEach((s) => dates.add(s.date));
   calories.forEach((c) => dates.add(c.date));
   heartRates.forEach((h) => dates.add(h.date));
+  sleep.forEach((s) => dates.add(s.date));
   if (latestWt) dates.add(latestWt.date);
   if (latestBodyFat) dates.add(latestBodyFat.date);
 
   const stepsMap = new Map(steps.map((s) => [s.date, s.value]));
   const calsMap = new Map(calories.map((c) => [c.date, c.value]));
   const hrMap = new Map(heartRates.map((h) => [h.date, h.value]));
+  const sleepMap = new Map(sleep.map((s) => [s.date, s.value]));
 
   const result: HealthKitDayData[] = [];
   for (const date of Array.from(dates).sort()) {
@@ -330,6 +383,7 @@ export async function fetchHealthKitData(days = 7): Promise<HealthKitDayData[]> 
       steps: stepsMap.get(date) || 0,
       activeCalories: calsMap.get(date) || 0,
       restingHeartRate: hrMap.get(date) || null,
+      sleepHours: sleepMap.get(date) || null,
       weight: latestWt && latestWt.date === date ? latestWt.value : null,
       bodyFatPercent: latestBodyFat && latestBodyFat.date === date ? latestBodyFat.value : null,
     });
@@ -339,7 +393,7 @@ export async function fetchHealthKitData(days = 7): Promise<HealthKitDayData[]> 
 }
 
 export async function syncHealthKitToServer(
-  syncActivity: (data: { date: string; steps: number; activeCalories: number; restingHeartRate?: number; source: string }) => Promise<void>,
+  syncActivity: (data: { date: string; steps: number; activeCalories: number; restingHeartRate?: number; sleepHours?: number; source: string }) => Promise<void>,
   syncWeight: (data: { date: string; weightLbs: number; bodyFatPercent?: number }) => Promise<void>,
   days = 7,
 ): Promise<{ synced: number; errors: number; hasData: boolean }> {
@@ -351,7 +405,7 @@ export async function syncHealthKitToServer(
   // was silently denied (iOS grants/denies per-type without surfacing which),
   // so the UI can tell the user to go check Settings instead of pretending
   // the sync was healthy.
-  const hasData = data.some((day) => day.steps > 0 || day.activeCalories > 0 || day.restingHeartRate != null || day.weight != null || day.bodyFatPercent != null);
+  const hasData = data.some((day) => day.steps > 0 || day.activeCalories > 0 || day.restingHeartRate != null || day.sleepHours != null || day.weight != null || day.bodyFatPercent != null);
 
   for (const day of data) {
     try {
@@ -360,6 +414,7 @@ export async function syncHealthKitToServer(
         steps: day.steps,
         activeCalories: day.activeCalories,
         ...(day.restingHeartRate ? { restingHeartRate: day.restingHeartRate } : {}),
+        ...(day.sleepHours ? { sleepHours: day.sleepHours } : {}),
         source: 'healthkit',
       });
       synced++;

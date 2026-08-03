@@ -322,6 +322,7 @@ export async function saveDailyActivity(data: {
   steps: number;
   activeCalories: number;
   restingHeartRate?: number;
+  sleepHours?: number;
   source?: string;
 }): Promise<void> {
   const res = await apiFetch('/api/fitness/activities', {

@@ -38,13 +38,13 @@ export async function POST(request: NextRequest) {
   if (userId instanceof NextResponse) return userId;
 
   const body = await request.json();
-  const { date, steps, activeCalories, restingHeartRate, source } = body;
+  const { date, steps, activeCalories, restingHeartRate, sleepHours, source } = body;
 
   // Upsert: one entry per user per date
   const activity = await prisma.dailyActivity.upsert({
     where: { userId_date: { userId, date } },
-    update: { steps, activeCalories, restingHeartRate, source },
-    create: { userId, date, steps, activeCalories, restingHeartRate, source: source ?? 'manual' },
+    update: { steps, activeCalories, restingHeartRate, sleepHours, source },
+    create: { userId, date, steps, activeCalories, restingHeartRate, sleepHours, source: source ?? 'manual' },
   });
 
   return NextResponse.json(activity);
@@ -55,7 +55,7 @@ export async function PUT(request: NextRequest) {
   if (userId instanceof NextResponse) return userId;
 
   const body = await request.json();
-  const { originalDate, date, steps, activeCalories, restingHeartRate, source } = body;
+  const { originalDate, date, steps, activeCalories, restingHeartRate, sleepHours, source } = body;
 
   if (!originalDate || !date) {
     return NextResponse.json({ error: 'originalDate and date required' }, { status: 400 });
@@ -70,8 +70,8 @@ export async function PUT(request: NextRequest) {
 
   const activity = await prisma.dailyActivity.upsert({
     where: { userId_date: { userId, date } },
-    update: { steps, activeCalories, restingHeartRate, source: source ?? 'manual' },
-    create: { userId, date, steps, activeCalories, restingHeartRate, source: source ?? 'manual' },
+    update: { steps, activeCalories, restingHeartRate, sleepHours, source: source ?? 'manual' },
+    create: { userId, date, steps, activeCalories, restingHeartRate, sleepHours, source: source ?? 'manual' },
   });
 
   return NextResponse.json(activity);

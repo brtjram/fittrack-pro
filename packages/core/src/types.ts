@@ -179,6 +179,7 @@ export interface DailyActivity {
   steps: number;
   activeCalories: number;
   restingHeartRate?: number;
+  sleepHours?: number;
   source: 'healthkit' | 'manual';
 }
 

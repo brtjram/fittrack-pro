@@ -217,6 +217,7 @@ model DailyActivity {
   steps           Int
   activeCalories  Int
   restingHeartRate Int?
+  sleepHours      Float?
   source          String   @default("manual")
   createdAt       DateTime @default(now())
 

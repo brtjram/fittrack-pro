@@ -178,6 +178,9 @@ const statements = [
   )`,
 
   `CREATE UNIQUE INDEX IF NOT EXISTS "ProgressPhoto_userId_date_angle_key" ON "ProgressPhoto"("userId", "date", "angle")`,
+
+  // Added for sleep tracking (HealthKit sleep analysis + recovery view).
+  `ALTER TABLE "DailyActivity" ADD COLUMN "sleepHours" REAL`,
 ];
 
 async function migrate() {

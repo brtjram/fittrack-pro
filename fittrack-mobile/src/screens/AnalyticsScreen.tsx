@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Footprints, UtensilsCrossed, Flame, ChevronLeft, Plus, Ruler, Camera } from 'lucide-react-native';
+import { Footprints, UtensilsCrossed, Flame, ChevronLeft, Plus, Ruler, Camera, Moon } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import { Fonts } from '../theme/fonts';
 import { SectionLabel, Sparkline, TargetBarChart, PillButton, ListGroup, ListRow, NumberBubble } from '../components/ui';
@@ -10,6 +10,9 @@ import { calculateMacroTargets, calculateBMR, toDateString, resolveCurrentWeight
 import type { WeightEntry, DailyActivity, WorkoutSession, UserProfile, FoodLogEntry } from '@fittrack/core';
 
 const DEFAULT_STEP_TARGET = 10000;
+// No per-user sleep goal exists yet (unlike stepTarget), so this mirrors the
+// generic 7-9hr adult recommendation most recovery guidance anchors to.
+const DEFAULT_SLEEP_TARGET_HOURS = 8;
 
 type TabId = 'body' | 'strength' | 'habits';
 
@@ -167,6 +170,14 @@ export function AnalyticsScreen({ navigation }: { navigation: any }) {
   const stepsByDate = new Map(validActivities.map((a) => [a.date, a.steps]));
   const stepsSeries = last7Dates.map((d) => stepsByDate.get(d) ?? 0);
   const stepGoalDays = stepsSeries.filter((s) => s >= stepTarget).length;
+
+  const sleepByDate = new Map(validActivities.filter((a) => a.sleepHours != null).map((a) => [a.date, a.sleepHours as number]));
+  const sleepSeries = last7Dates.map((d) => sleepByDate.get(d) ?? 0);
+  const sleepLoggedDays = last7Dates.filter((d) => sleepByDate.has(d)).length;
+  const avgSleep = sleepLoggedDays
+    ? Math.round((last7Dates.reduce((sum, d) => sum + (sleepByDate.get(d) ?? 0), 0) / sleepLoggedDays) * 10) / 10
+    : null;
+  const sleepGoalDays = sleepSeries.filter((s) => s >= DEFAULT_SLEEP_TARGET_HOURS).length;
 
   const caloriesByDate = new Map<string, number>();
   for (const f of foodLogs) {
@@ -402,6 +413,31 @@ export function AnalyticsScreen({ navigation }: { navigation: any }) {
               values={stepsSeries}
               labels={dayLabels}
               target={stepTarget}
+              width={296}
+              height={84}
+              color={colors.info}
+              mutedColor={colors.trackMuted}
+              targetColor={colors.mutedStrong}
+            />
+          </View>
+
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Moon size={18} color={colors.info} />
+                <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 13, color: colors.ink }}>Sleep vs target</Text>
+              </View>
+              <View style={[styles.trendBadge, { backgroundColor: 'rgba(63,110,150,0.14)' }]}>
+                <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12, color: colors.info }}>{sleepGoalDays}/7 days</Text>
+              </View>
+            </View>
+            <Text style={{ fontFamily: Fonts.sans, fontSize: 12, color: colors.mutedForeground, marginBottom: 14 }}>
+              {avgSleep !== null ? `${avgSleep} hr avg` : 'No sleep data from Health yet'} · goal {DEFAULT_SLEEP_TARGET_HOURS} hr/night
+            </Text>
+            <TargetBarChart
+              values={sleepSeries}
+              labels={dayLabels}
+              target={DEFAULT_SLEEP_TARGET_HOURS}
               width={296}
               height={84}
               color={colors.info}

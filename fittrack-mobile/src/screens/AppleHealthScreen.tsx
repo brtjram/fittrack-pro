@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, Switch, Alert, ActivityIndicator, Platform, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, Heart, RefreshCw, CircleCheckBig, Footprints, Flame, Activity, Scale, Dumbbell, Utensils, Lock, TriangleAlert } from 'lucide-react-native';
+import { ChevronLeft, Heart, RefreshCw, CircleCheckBig, Footprints, Flame, Activity, Scale, Dumbbell, Utensils, Lock, TriangleAlert, Percent, Moon } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import { Fonts } from '../theme/fonts';
 import { SectionLabel, ListGroup, ListRow } from '../components/ui';
@@ -15,8 +15,8 @@ export function AppleHealthScreen({ navigation }: { navigation: any }) {
   const [status, setStatus] = useState<HealthKitStatus>({ available: false, enabled: false, lastSync: null });
   const [syncing, setSyncing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [latest, setLatest] = useState<{ steps: number | null; activeCalories: number | null; restingHeartRate: number | null; weight: number | null }>({
-    steps: null, activeCalories: null, restingHeartRate: null, weight: null,
+  const [latest, setLatest] = useState<{ steps: number | null; activeCalories: number | null; restingHeartRate: number | null; sleepHours: number | null; weight: number | null; bodyFatPercent: number | null }>({
+    steps: null, activeCalories: null, restingHeartRate: null, sleepHours: null, weight: null, bodyFatPercent: null,
   });
   const [daysSynced, setDaysSynced] = useState(0);
   const [history, setHistory] = useState<DailyActivity[]>([]);
@@ -33,14 +33,21 @@ export function AppleHealthScreen({ navigation }: { navigation: any }) {
         api.getWeightEntries(1),
       ]);
       if (hk.status === 'fulfilled') setStatus(hk.value);
-      const activityList = activities.status === 'fulfilled' ? activities.value : [];
+      const rawActivityList = activities.status === 'fulfilled' ? activities.value : [];
       const weightList = weights.status === 'fulfilled' ? weights.value : [];
+      // A pre-fix HealthKit sync bug (see healthkit.ts) once wrote rows with
+      // an unparseable date; those stale rows still exist server-side and
+      // would otherwise render as "Invalid Date" here — same guard as
+      // AnalyticsScreen's validActivities filter.
+      const activityList = rawActivityList.filter((a) => /^\d{4}-\d{2}-\d{2}$/.test(a.date));
       const sorted = [...activityList].sort((a, b) => b.date.localeCompare(a.date));
       setLatest({
         steps: sorted[0]?.steps ?? null,
         activeCalories: sorted[0]?.activeCalories ?? null,
         restingHeartRate: sorted[0]?.restingHeartRate ?? null,
+        sleepHours: sorted[0]?.sleepHours ?? null,
         weight: weightList[0]?.weightLbs ?? null,
+        bodyFatPercent: weightList[0]?.bodyFatPercent ?? null,
       });
       setHistory(sorted);
       setDaysSynced(activityList.filter((a) => a.source === 'healthkit').length);
@@ -71,6 +78,14 @@ export function AppleHealthScreen({ navigation }: { navigation: any }) {
   const handleSync = async () => {
     setSyncing(true);
     try {
+      // Re-requesting is a no-op for types already granted and silent for
+      // types already denied — but it's what actually surfaces the iOS
+      // permission prompt for a *newly added* read type (e.g. Sleep) to
+      // someone who enabled HealthKit before that type existed here.
+      // Without this, initHealthKit was only ever called once at the
+      // original toggle-on, so a new type would silently return empty
+      // results forever instead of ever getting asked about.
+      await requestHealthKitPermissions();
       const result = await syncHealthKitToServer(api.saveDailyActivity, api.addWeightEntry, 7);
       setNoDataWarning(!result.hasData);
       await load();
@@ -172,9 +187,15 @@ export function AppleHealthScreen({ navigation }: { navigation: any }) {
               <ListRow colors={colors} chevron={false}
                 icon={<Activity size={17} color={colors.danger2} />} title="Resting heart rate" subtitle="Early warning for under-recovery"
                 right={<Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12.5, color: colors.ink }}>{latest.restingHeartRate ? `${latest.restingHeartRate} bpm` : '--'}</Text>} />
-              <ListRow colors={colors} chevron={false} isLast
+              <ListRow colors={colors} chevron={false}
+                icon={<Moon size={17} color={colors.info} />} title="Sleep" subtitle="Time asleep, not just time in bed"
+                right={<Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12.5, color: colors.ink }}>{latest.sleepHours ? `${latest.sleepHours} hr` : '--'}</Text>} />
+              <ListRow colors={colors} chevron={false}
                 icon={<Scale size={17} color={colors.progress} />} title="Body weight" subtitle="Smart-scale readings become your trend"
                 right={<Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12.5, color: colors.ink }}>{latest.weight ? `${latest.weight} lb` : '--'}</Text>} />
+              <ListRow colors={colors} chevron={false} isLast
+                icon={<Percent size={17} color={colors.progress} />} title="Body fat" subtitle="Rides along with a smart-scale weigh-in"
+                right={<Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12.5, color: colors.ink }}>{latest.bodyFatPercent ? `${latest.bodyFatPercent}%` : '--'}</Text>} />
             </ListGroup>
 
             {history.length > 0 && (
