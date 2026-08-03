@@ -53,3 +53,19 @@ export function resolveCurrentWeight(
   const latest = weightEntries.reduce((a, b) => (b.date > a.date ? b : a));
   return latest.weightLbs;
 }
+
+// Body fat only rides along with a weigh-in on days a smart scale actually
+// measured it (see healthkit.ts syncHealthKitToServer), so the most recent
+// weight entry frequently has no bodyFatPercent even though an earlier one
+// does. Showing "--" whenever *today's* row happens to lack it would make a
+// real, still-current reading look like it vanished — same class of bug
+// resolveCurrentWeight exists to avoid, just for the body-fat field instead
+// of weight itself.
+export function resolveLatestBodyFat(
+  weightEntries: { date: string; bodyFatPercent?: number | null }[],
+): number | null {
+  const withBodyFat = weightEntries.filter((w) => w.bodyFatPercent != null);
+  if (withBodyFat.length === 0) return null;
+  const latest = withBodyFat.reduce((a, b) => (b.date > a.date ? b : a));
+  return latest.bodyFatPercent ?? null;
+}

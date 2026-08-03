@@ -7,6 +7,7 @@ import { Fonts } from '../theme/fonts';
 import { SectionLabel, ListGroup, ListRow } from '../components/ui';
 import { getHealthKitStatus, setHealthKitEnabled, requestHealthKitPermissions, syncHealthKitToServer, type HealthKitStatus } from '../services/healthkit';
 import * as api from '../services/api';
+import { resolveLatestBodyFat } from '@fittrack/core';
 import type { DailyActivity } from '@fittrack/core';
 
 export function AppleHealthScreen({ navigation }: { navigation: any }) {
@@ -30,7 +31,11 @@ export function AppleHealthScreen({ navigation }: { navigation: any }) {
       const [hk, activities, weights] = await Promise.allSettled([
         getHealthKitStatus(),
         api.getDailyActivities(7),
-        api.getWeightEntries(1),
+        // More than 1: body fat only rides along with a weigh-in on days a
+        // smart scale actually measured it, so resolveLatestBodyFat below
+        // needs enough history to find the last day that had one, not just
+        // whatever the single most recent weight row happens to carry.
+        api.getWeightEntries(30),
       ]);
       if (hk.status === 'fulfilled') setStatus(hk.value);
       const rawActivityList = activities.status === 'fulfilled' ? activities.value : [];
@@ -47,7 +52,7 @@ export function AppleHealthScreen({ navigation }: { navigation: any }) {
         restingHeartRate: sorted[0]?.restingHeartRate ?? null,
         sleepHours: sorted[0]?.sleepHours ?? null,
         weight: weightList[0]?.weightLbs ?? null,
-        bodyFatPercent: weightList[0]?.bodyFatPercent ?? null,
+        bodyFatPercent: resolveLatestBodyFat(weightList),
       });
       setHistory(sorted);
       setDaysSynced(activityList.filter((a) => a.source === 'healthkit').length);

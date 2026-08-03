@@ -297,6 +297,100 @@ export function Sparkline({ values, width = 300, height = 60, color, dotColor, s
   );
 }
 
+// Sparkline's bigger sibling — same line-and-dots shape, but with a labeled
+// value axis and a handful of date ticks, for trends (weight, body fat)
+// that are read on their own rather than as a compact inline glance.
+export function TrendLineChart({
+  points, width = 296, height = 104, color, mutedColor, axisColor, dotColor, formatY, showEndDot = true,
+}: {
+  points: { date: string; value: number }[];
+  width?: number; height?: number; color: string; mutedColor: string; axisColor: string; dotColor?: string;
+  // Formats the 3 y-axis tick values (min / mid / max) — callers pass unit
+  // conversion + suffix here (e.g. lb->kg, or a bare "%") rather than the
+  // chart converting values itself, so `points` stays in whatever unit the
+  // data is naturally stored in and only the label changes.
+  formatY?: (n: number) => string;
+  showEndDot?: boolean;
+}) {
+  if (points.length < 2) return <View style={{ width, height }} />;
+
+  const values = points.map((p) => p.value);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const format = formatY ?? ((n: number) => `${Math.round(n * 10) / 10}`);
+
+  const axisWidth = 34;
+  const chartWidth = width - axisWidth;
+  const padY = height * 0.12;
+  const pts = points.map((p, i) => {
+    const x = (i / (points.length - 1)) * chartWidth;
+    const y = padY + (1 - (p.value - min) / range) * (height - padY * 2);
+    return [x, y];
+  });
+  const d = pts.map((p, i) => (i === 0 ? `M${p[0]} ${p[1]}` : `L${p[0]} ${p[1]}`)).join(' ');
+  const yTicks = [max, (max + min) / 2, min];
+
+  // At most 4 evenly-spaced date labels — one per point would overlap into
+  // an unreadable smear once history runs past a couple weeks, so this
+  // picks representative indices (first, ..., last) instead.
+  const labelCount = Math.min(points.length, 4);
+  const labelIdx = Array.from(
+    new Set(Array.from({ length: labelCount }, (_, i) => Math.round((i / (labelCount - 1 || 1)) * (points.length - 1)))),
+  );
+  // Only stamp the year on x-axis labels when the data actually spans more
+  // than one calendar year — otherwise it's just repeated noise.
+  const spansMultipleYears = new Set(points.map((p) => p.date.slice(0, 4))).size > 1;
+  const formatDate = (dateStr: string) => new Date(dateStr + 'T00:00:00').toLocaleDateString(
+    'en-US',
+    spansMultipleYears ? { month: 'short', day: 'numeric', year: '2-digit' } : { month: 'short', day: 'numeric' },
+  );
+
+  return (
+    <View style={{ width }}>
+      <View style={{ flexDirection: 'row' }}>
+        <View style={{ width: axisWidth, height, justifyContent: 'space-between', paddingRight: 6 }}>
+          {yTicks.map((t, i) => (
+            <Text key={i} style={{ fontSize: 9, fontFamily: Fonts.sans, color: axisColor, textAlign: 'right' }}>
+              {format(t)}
+            </Text>
+          ))}
+        </View>
+        <View style={{ width: chartWidth, height }}>
+          <GridLines width={chartWidth} height={height} rows={3} color={mutedColor} />
+          <Svg width={chartWidth} height={height}>
+            {pts.slice(0, -1).map(([x, y], i) => (
+              <Circle key={i} cx={x} cy={y} r={2.5} fill={dotColor ?? color} opacity={0.35} />
+            ))}
+            <Path d={d} stroke={color} strokeWidth={2.5} strokeLinecap="round" fill="none" />
+            {showEndDot && <Circle cx={pts[pts.length - 1][0]} cy={pts[pts.length - 1][1]} r={4.5} fill={color} />}
+          </Svg>
+        </View>
+      </View>
+      <View style={{ flexDirection: 'row', marginTop: 6 }}>
+        <View style={{ width: axisWidth }} />
+        <View style={{ width: chartWidth, height: 12 }}>
+          {labelIdx.map((idx) => {
+            const labelWidth = 52;
+            const isFirst = idx === labelIdx[0];
+            const isLast = idx === labelIdx[labelIdx.length - 1];
+            const left = isFirst ? 0 : isLast ? chartWidth - labelWidth : pts[idx][0] - labelWidth / 2;
+            const textAlign = isFirst ? 'left' : isLast ? 'right' : 'center';
+            return (
+              <Text
+                key={idx}
+                style={{ position: 'absolute', left, width: labelWidth, textAlign, fontSize: 9.5, fontFamily: Fonts.sans, color: axisColor }}
+              >
+                {formatDate(points[idx].date)}
+              </Text>
+            );
+          })}
+        </View>
+      </View>
+    </View>
+  );
+}
+
 export function BarChart({ values, labels, width = 300, height = 76, color, mutedColor, highlightLast }: {
   values: number[]; labels?: string[]; width?: number; height?: number; color: string; mutedColor: string; highlightLast?: boolean;
 }) {

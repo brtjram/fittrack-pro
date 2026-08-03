@@ -3,9 +3,17 @@ import type { WeightUnit, HeightUnit, EnergyUnit, WeekStart } from '../types';
 const LB_PER_KG = 2.20462;
 const KCAL_PER_KJ = 0.239006;
 
+// Raw numeric conversion, separate from formatWeight's string output — for
+// callers that need the number on its own (a chart axis, a big headline
+// figure with its unit rendered as a separate smaller label) rather than
+// pre-glued to a unit suffix.
+export function convertWeight(lbs: number, unit: WeightUnit = 'lb'): number {
+  const converted = unit === 'kg' ? lbs / LB_PER_KG : lbs;
+  return Math.round(converted * 10) / 10;
+}
+
 export function formatWeight(lbs: number, unit: WeightUnit = 'lb'): string {
-  if (unit === 'kg') return `${(lbs / LB_PER_KG).toFixed(1)} kg`;
-  return `${lbs.toFixed(1)} lb`;
+  return `${convertWeight(lbs, unit).toFixed(1)} ${unit}`;
 }
 
 export function formatHeight(cm: number, unit: HeightUnit = 'cm'): string {

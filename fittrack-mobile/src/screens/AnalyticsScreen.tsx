@@ -4,9 +4,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Footprints, UtensilsCrossed, Flame, ChevronLeft, Plus, Ruler, Camera, Moon } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import { Fonts } from '../theme/fonts';
-import { SectionLabel, Sparkline, TargetBarChart, PillButton, ListGroup, ListRow, NumberBubble } from '../components/ui';
+import { SectionLabel, Sparkline, TrendLineChart, TargetBarChart, PillButton, ListGroup, ListRow, NumberBubble } from '../components/ui';
 import * as api from '../services/api';
-import { calculateMacroTargets, calculateBMR, toDateString, resolveCurrentWeight } from '@fittrack/core';
+import { calculateMacroTargets, calculateBMR, toDateString, resolveCurrentWeight, resolveLatestBodyFat, convertWeight } from '@fittrack/core';
 import type { WeightEntry, DailyActivity, WorkoutSession, UserProfile, FoodLogEntry } from '@fittrack/core';
 
 const DEFAULT_STEP_TARGET = 10000;
@@ -74,6 +74,8 @@ export function AnalyticsScreen({ navigation }: { navigation: any }) {
   const [photoCount, setPhotoCount] = useState(0);
   const [waistEditing, setWaistEditing] = useState(false);
   const [savingWaist, setSavingWaist] = useState(false);
+  const [bodyFatEditing, setBodyFatEditing] = useState(false);
+  const [savingBodyFat, setSavingBodyFat] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -128,6 +130,22 @@ export function AnalyticsScreen({ navigation }: { navigation: any }) {
     }
   }, [resolvedCurrentWeight, loadData]);
 
+  const saveBodyFat = useCallback(async (value: number) => {
+    if (resolvedCurrentWeight === null) return;
+    setSavingBodyFat(true);
+    try {
+      await api.addWeightEntry({
+        date: toDateString(),
+        weightLbs: resolvedCurrentWeight,
+        bodyFatPercent: Math.round(value * 10) / 10,
+      });
+      await loadData();
+    } finally {
+      setSavingBodyFat(false);
+      setBodyFatEditing(false);
+    }
+  }, [resolvedCurrentWeight, loadData]);
+
   if (loading) {
     return (
       <View style={[styles.centered, { backgroundColor: colors.canvas }]}>
@@ -140,7 +158,23 @@ export function AnalyticsScreen({ navigation }: { navigation: any }) {
   const weeklyRate = sortedWeights.length >= 2
     ? sortedWeights[sortedWeights.length - 1].weightLbs - sortedWeights[Math.max(0, sortedWeights.length - 8)].weightLbs
     : 0;
+  // Goal math above (weightGoalPct, weightToGo, projectionText) stays in raw
+  // lbs throughout since profile.targetWeightLbs is stored in lbs too — only
+  // what's actually shown on screen converts, right at render time.
+  const weightUnit = profile?.weightUnit ?? 'lb';
+  const displayWeight = latestWeight !== null ? convertWeight(latestWeight, weightUnit) : null;
+  const displayWeeklyRate = convertWeight(weeklyRate, weightUnit);
   const latestWaistEntry = [...sortedWeights].reverse().find((w) => w.waistIn != null) ?? null;
+
+  // Body fat only rides along with a weigh-in on days a smart scale actually
+  // measured it, so — same as resolveLatestBodyFat used on the Apple Health
+  // screen — the trend line only has points on the days it was recorded,
+  // not one per weigh-in.
+  const bodyFatHistory = sortedWeights.filter((w) => w.bodyFatPercent != null);
+  const latestBodyFat = resolveLatestBodyFat(sortedWeights);
+  const bodyFatWeeklyRate = bodyFatHistory.length >= 2
+    ? bodyFatHistory[bodyFatHistory.length - 1].bodyFatPercent! - bodyFatHistory[Math.max(0, bodyFatHistory.length - 8)].bodyFatPercent!
+    : 0;
 
   const stepTarget = profile?.stepTarget ?? DEFAULT_STEP_TARGET;
   const validActivities = activities.filter((a) => /^\d{4}-\d{2}-\d{2}$/.test(a.date));
@@ -269,8 +303,8 @@ export function AnalyticsScreen({ navigation }: { navigation: any }) {
                 <View>
                   <SectionLabel colors={colors}>Weight trend</SectionLabel>
                   <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 6 }}>
-                    <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 34, letterSpacing: -0.4, color: colors.ink }}>{latestWeight}</Text>
-                    <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 13, color: colors.mutedForeground, marginLeft: 8 }}>lb</Text>
+                    <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 34, letterSpacing: -0.4, color: colors.ink }}>{displayWeight}</Text>
+                    <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 13, color: colors.mutedForeground, marginLeft: 8 }}>{weightUnit}</Text>
                   </View>
                 </View>
                 <View style={{ alignItems: 'flex-end', gap: 8 }}>
@@ -284,14 +318,23 @@ export function AnalyticsScreen({ navigation }: { navigation: any }) {
                   </TouchableOpacity>
                   <View style={[styles.trendBadge, { backgroundColor: weeklyRate <= 0 ? 'rgba(201,232,74,0.14)' : 'rgba(245,145,72,0.14)' }]}>
                     <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12, color: weeklyRate <= 0 ? colors.progress : colors.signal }}>
-                      {weeklyRate === 0 ? 'steady' : `${weeklyRate.toFixed(1)} lb/wk`}
+                      {weeklyRate === 0 ? 'steady' : `${displayWeeklyRate.toFixed(1)} ${weightUnit}/wk`}
                     </Text>
                   </View>
                 </View>
               </View>
               {sortedWeights.length >= 2 && (
                 <View style={{ marginTop: 12 }}>
-                  <Sparkline values={sortedWeights.map((w) => w.weightLbs)} width={296} height={104} color={colors.progress} dotColor={colors.faint} />
+                  <TrendLineChart
+                    points={sortedWeights.map((w) => ({ date: w.date, value: w.weightLbs }))}
+                    width={296}
+                    height={104}
+                    color={colors.progress}
+                    mutedColor={colors.trackMuted}
+                    axisColor={colors.mutedStrong}
+                    dotColor={colors.faint}
+                    formatY={(n) => `${convertWeight(n, weightUnit)}`}
+                  />
                 </View>
               )}
             </View>
@@ -303,6 +346,63 @@ export function AnalyticsScreen({ navigation }: { navigation: any }) {
               onPress={() => navigation.getParent()?.navigate('WeighIn')}
             />
           )}
+
+          <View style={[styles.card, { backgroundColor: colors.surface, marginHorizontal: 16, marginTop: 16 }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <View>
+                <SectionLabel colors={colors}>Body fat trend</SectionLabel>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 6 }}>
+                  <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 34, letterSpacing: -0.4, color: colors.ink }}>{latestBodyFat ?? '--'}</Text>
+                  <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 13, color: colors.mutedForeground, marginLeft: 8 }}>%</Text>
+                </View>
+              </View>
+              <View style={{ alignItems: 'flex-end', gap: 8 }}>
+                <TouchableOpacity
+                  onPress={() => setBodyFatEditing((v) => !v)}
+                  style={[styles.logWeightBtn, { backgroundColor: colors.signal }]}
+                  activeOpacity={0.8}
+                >
+                  <Plus size={12} color={colors.signalForeground} strokeWidth={2.8} />
+                  <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 11.5, color: colors.signalForeground }}>Add</Text>
+                </TouchableOpacity>
+                {bodyFatHistory.length >= 2 && (
+                  <View style={[styles.trendBadge, { backgroundColor: bodyFatWeeklyRate <= 0 ? 'rgba(201,232,74,0.14)' : 'rgba(245,145,72,0.14)' }]}>
+                    <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 12, color: bodyFatWeeklyRate <= 0 ? colors.progress : colors.signal }}>
+                      {bodyFatWeeklyRate === 0 ? 'steady' : `${bodyFatWeeklyRate.toFixed(1)} pt/wk`}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+            {bodyFatHistory.length >= 2 && (
+              <View style={{ marginTop: 12 }}>
+                <TrendLineChart
+                  points={bodyFatHistory.map((w) => ({ date: w.date, value: w.bodyFatPercent as number }))}
+                  width={296}
+                  height={104}
+                  color={colors.progress}
+                  mutedColor={colors.trackMuted}
+                  axisColor={colors.mutedStrong}
+                  dotColor={colors.faint}
+                  formatY={(n) => `${Math.round(n * 10) / 10}`}
+                />
+              </View>
+            )}
+            {bodyFatEditing && (
+              <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.hairline, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 13, color: colors.ink }}>
+                  {savingBodyFat ? 'Saving…' : 'Body fat %'}
+                </Text>
+                <NumberBubble
+                  value={latestBodyFat ?? 20}
+                  unit="%"
+                  colors={colors}
+                  keyboardType="decimal-pad"
+                  onCommit={saveBodyFat}
+                />
+              </View>
+            )}
+          </View>
 
           {projectionText && (
             <View style={[styles.card, { backgroundColor: colors.surface, marginHorizontal: 16, marginTop: 16 }]}>

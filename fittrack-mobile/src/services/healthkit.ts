@@ -349,6 +349,18 @@ export async function fetchHealthKitData(days = 7): Promise<HealthKitDayData[]> 
   const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
+  // react-native-health's period-bucketed query (used by getSteps and
+  // getActiveCalories below) anchors HealthKit's day buckets to `startDate`
+  // itself, time-of-day included (RCTAppleHealthKit+Queries.m never zeros
+  // the anchor's hour/minute — unlike its non-period sibling query, which
+  // does). Left as "now minus N days", the anchor sits at whatever time you
+  // happen to sync, so every bucket spans e.g. 7:48pm-to-7:48pm instead of
+  // midnight-to-midnight, and the newest bucket — "today" — starts at the
+  // exact instant of the query and is always empty. Zeroing the time here
+  // pins the anchor to local midnight, so buckets line up with real
+  // calendar days and today's (partial, still-forming) bucket correctly
+  // covers midnight through now.
+  startDate.setHours(0, 0, 0, 0);
 
   const [steps, calories, heartRates, sleep, latestWt, latestBodyFat] = await Promise.all([
     getSteps(startDate, endDate),
