@@ -1,0 +1,59 @@
+appId: com.brtjram.fittrackpro
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Today"
+    timeout: 60000
+- tapOn:
+    text: "CT"
+- extendedWaitUntil:
+    visible: "BODY & TRAINING"
+    timeout: 10000
+- tapOn:
+    point: "50%,48%"
+- extendedWaitUntil:
+    visible: "Female"
+    timeout: 15000
+- runFlow:
+    when:
+      visible: "Cycle tracking"
+    commands:
+      - tapOn: "Male"
+      - extendedWaitUntil:
+          notVisible: "Cycle tracking"
+          timeout: 5000
+- assertNotVisible: "Cycle tracking"
+- tapOn: "Female"
+- extendedWaitUntil:
+    visible: "Cycle tracking"
+    timeout: 5000
+- assertVisible: "Personalizes workout intensity by cycle phase"
+- tapOn:
+    point: "85%,53%"
+- runFlow:
+    when:
+      notVisible: "Cycle length"
+    commands:
+      - tapOn:
+          point: "85%,53%"
+- extendedWaitUntil:
+    visible: "Cycle length"
+    timeout: 5000
+- assertVisible: "Last period start"
+- tapOn: "YYYY-MM-DD"
+- eraseText
+- inputText: "2026-09-01"
+- hideKeyboard
+- tapOn: "Age"
+- extendedWaitUntil:
+    visible: "2026-09-01"
+    timeout: 5000
+- tapOn:
+    point: "85%,53%"
+- extendedWaitUntil:
+    notVisible: "Cycle length"
+    timeout: 5000
+- tapOn: "Male"
+- extendedWaitUntil:
+    notVisible: "Cycle tracking"
+    timeout: 5000
