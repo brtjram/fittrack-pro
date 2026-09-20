@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import { TrendingDown, TrendingUp } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
 import { Fonts } from '../theme/fonts';
 import { Sparkline, PillButton, Divider } from '../components/ui';
 import * as api from '../services/api';
-import type { WeightEntry } from '@fittrack/core';
+import type { WeightEntry, WeightUnit } from '@fittrack/core';
+import { convertWeight, convertToLbs } from '@fittrack/core';
 
 function toDateString(d?: Date): string {
   const dt = d ?? new Date();
@@ -19,16 +20,20 @@ export function WeighInScreen({ navigation }: { navigation: any }) {
   const { colors } = useTheme();
   const [weights, setWeights] = useState<WeightEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [value, setValue] = useState(0);
+  const [value, setValue] = useState(0); // always lbs — the storage/API unit
+  const [unit, setUnit] = useState<WeightUnit>('lb');
   const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
 
   const today = toDateString();
 
   useEffect(() => {
-    api.getWeightEntries(14).then((entries) => {
+    Promise.all([api.getWeightEntries(14), api.getUserProfile()]).then(([entries, profile]) => {
       const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
       setWeights(sorted);
       setValue(sorted.length ? sorted[sorted.length - 1].weightLbs : 170);
+      setUnit(profile?.weightUnit ?? 'lb');
     }).finally(() => setLoading(false));
   }, []);
 
@@ -36,6 +41,23 @@ export function WeighInScreen({ navigation }: { navigation: any }) {
     ? weights.slice(-7).reduce((a, w) => a + w.weightLbs, 0) / Math.min(7, weights.length)
     : value;
   const delta = value - trend;
+  const display = convertWeight(value, unit);
+
+  // Steps by 0.2 of whichever unit is on screen (0.2 kg, not a fraction of
+  // 0.2 lb converted to a fiddly kg amount) — round-trip through the display
+  // unit rather than nudging the stored lbs value directly, so repeated taps
+  // don't drift from floating-point conversion error.
+  const step = useCallback((delta: number) => {
+    setValue((v) => convertToLbs(Math.round((convertWeight(v, unit) + delta) * 10) / 10, unit));
+  }, [unit]);
+
+  const commitDraft = useCallback(() => {
+    const parsed = parseFloat(draft);
+    if (!Number.isNaN(parsed) && parsed > 0) {
+      setValue(convertToLbs(parsed, unit));
+    }
+    setEditing(false);
+  }, [draft, unit]);
 
   const save = useCallback(async () => {
     setSaving(true);
@@ -71,29 +93,47 @@ export function WeighInScreen({ navigation }: { navigation: any }) {
         </View>
 
         <View style={styles.readout}>
-          <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 15, color: colors.faint }}>{(value + 0.8).toFixed(1)}</Text>
-          <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 19, color: colors.mutedStrong }}>{(value + 0.4).toFixed(1)}</Text>
+          <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 15, color: colors.faint }}>{(display + 0.8).toFixed(1)}</Text>
+          <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 19, color: colors.mutedStrong }}>{(display + 0.4).toFixed(1)}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 }}>
-            <TouchableOpacity onPress={() => setValue((v) => Math.round((v - 0.2) * 10) / 10)} style={[styles.adjustBtn, { backgroundColor: colors.surfaceInset }]}>
+            <TouchableOpacity onPress={() => step(-0.2)} style={[styles.adjustBtn, { backgroundColor: colors.surfaceInset }]}>
               <Text style={{ color: colors.mutedStrong, fontSize: 20, fontFamily: Fonts.sansSemiBold }}>–</Text>
             </TouchableOpacity>
-            <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 52, color: colors.ink, letterSpacing: -1.5 }}>
-              {value.toFixed(1)}
-            </Text>
-            <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 16, color: colors.mutedForeground }}>lb</Text>
-            <TouchableOpacity onPress={() => setValue((v) => Math.round((v + 0.2) * 10) / 10)} style={[styles.adjustBtn, { backgroundColor: colors.surfaceInset }]}>
+            {editing ? (
+              <TextInput
+                value={draft}
+                onChangeText={setDraft}
+                onBlur={commitDraft}
+                onSubmitEditing={commitDraft}
+                keyboardType="decimal-pad"
+                autoFocus
+                selectTextOnFocus
+                style={{
+                  fontFamily: Fonts.sansSemiBold, fontSize: 52, color: colors.ink, letterSpacing: -1.5,
+                  minWidth: 120, textAlign: 'center', padding: 0,
+                }}
+              />
+            ) : (
+              <TouchableOpacity onPress={() => { setDraft(display.toFixed(1)); setEditing(true); }}>
+                <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 52, color: colors.ink, letterSpacing: -1.5 }}>
+                  {display.toFixed(1)}
+                </Text>
+              </TouchableOpacity>
+            )}
+            <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 16, color: colors.mutedForeground }}>{unit}</Text>
+            <TouchableOpacity onPress={() => step(0.2)} style={[styles.adjustBtn, { backgroundColor: colors.surfaceInset }]}>
               <Text style={{ color: colors.mutedStrong, fontSize: 20, fontFamily: Fonts.sansSemiBold }}>+</Text>
             </TouchableOpacity>
           </View>
-          <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 19, color: colors.mutedStrong }}>{(value - 0.4).toFixed(1)}</Text>
-          <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 15, color: colors.faint }}>{(value - 0.8).toFixed(1)}</Text>
+          <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 19, color: colors.mutedStrong }}>{(display - 0.4).toFixed(1)}</Text>
+          <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 15, color: colors.faint }}>{(display - 0.8).toFixed(1)}</Text>
         </View>
 
         <View style={[styles.trendCard, { backgroundColor: colors.surface }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
             {delta <= 0 ? <TrendingDown size={15} color={colors.progress} strokeWidth={2.4} /> : <TrendingUp size={15} color={colors.signal} strokeWidth={2.4} />}
             <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 13, color: colors.ink }}>
-              {Math.abs(delta).toFixed(1)} lb {delta <= 0 ? 'under' : 'over'} your trend
+              {convertWeight(Math.abs(delta), unit).toFixed(1)} {unit} {delta <= 0 ? 'under' : 'over'} your trend
             </Text>
           </View>
           {weights.length >= 2 && <Sparkline values={[...weights.map((w) => w.weightLbs), value]} width={296} height={56} color={colors.progress} dotColor={colors.faint} />}

@@ -12,6 +12,13 @@ export function convertWeight(lbs: number, unit: WeightUnit = 'lb'): number {
   return Math.round(converted * 10) / 10;
 }
 
+// Inverse of convertWeight — for screens that let the user view/adjust/type
+// a weight in their preferred unit but must persist it as weightLbs.
+export function convertToLbs(value: number, unit: WeightUnit = 'lb'): number {
+  const lbs = unit === 'kg' ? value * LB_PER_KG : value;
+  return Math.round(lbs * 10) / 10;
+}
+
 export function formatWeight(lbs: number, unit: WeightUnit = 'lb'): string {
   return `${convertWeight(lbs, unit).toFixed(1)} ${unit}`;
 }
