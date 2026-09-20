@@ -12,6 +12,9 @@ export interface UserProfile {
   experienceLevel: ExperienceLevel;
   preferredSplit: WorkoutSplit;
   healthSyncApiKey?: string;
+  trackCycle?: boolean;
+  cycleLength?: number;
+  lastPeriodDate?: string;
   nutritionTargetOverride?: string | null;
   aiCoachGoal?: string | null;
   weightUnit?: WeightUnit;

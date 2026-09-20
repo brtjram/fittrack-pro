@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet, Platform, Alert } from 'react-native';
+import { View, Text, TextInput, ScrollView, TouchableOpacity, Switch, ActivityIndicator, StyleSheet, Platform, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Heart, Info } from 'lucide-react-native';
 import { useTheme } from '../theme/useTheme';
@@ -39,11 +39,14 @@ export function MeasurementsScreen({ navigation }: { navigation: any }) {
   const [hkAvailable, setHkAvailable] = useState(false);
   const [hkEnabled, setHkEnabled] = useState(false);
   const [connectingHealth, setConnectingHealth] = useState(false);
+  const [periodDateDraft, setPeriodDateDraft] = useState('');
   const healthSyncAttempted = useRef(false);
 
   useEffect(() => {
     Promise.all([api.getUserProfile(), api.getWeightEntries(30)]).then(([p, weights]) => {
-      setProfile(p ?? api.DEFAULT_PROFILE);
+      const resolved = p ?? api.DEFAULT_PROFILE;
+      setProfile(resolved);
+      setPeriodDateDraft(resolved.lastPeriodDate ?? '');
       const sorted = [...weights].sort((a, b) => b.date.localeCompare(a.date));
       setLatestWeighIn(sorted[0] ?? null);
       setLoading(false);
@@ -62,6 +65,15 @@ export function MeasurementsScreen({ navigation }: { navigation: any }) {
       setProfile(profile);
     }
   }, [profile]);
+
+  // Loose YYYY-MM-DD validation only — same free-text-date pattern the rest
+  // of the app avoids elsewhere by using native pickers, but no date-picker
+  // library is installed here, and this field is edited rarely.
+  const commitPeriodDate = useCallback(() => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(periodDateDraft)) {
+      apply({ lastPeriodDate: periodDateDraft });
+    }
+  }, [periodDateDraft, apply]);
 
   // Height apply reads `profile` via the `apply` closure, so this needs the
   // freshest profile snapshot passed in explicitly rather than trusting the
@@ -189,6 +201,54 @@ export function MeasurementsScreen({ navigation }: { navigation: any }) {
             </TouchableOpacity>
           </Row>
         </View>
+
+        {profile.gender === 'female' && (
+          <View style={[styles.card, { backgroundColor: colors.surface, padding: 16 }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 13.5, color: colors.ink }}>Cycle tracking</Text>
+                <Text style={{ fontFamily: Fonts.sans, fontSize: 11, color: colors.mutedForeground, marginTop: 2 }}>
+                  Personalizes workout intensity by cycle phase
+                </Text>
+              </View>
+              <Switch
+                value={profile.trackCycle ?? false}
+                onValueChange={(v) => apply({ trackCycle: v })}
+                trackColor={{ false: colors.surfaceInset, true: colors.progress }}
+                thumbColor={colors.mutedForeground}
+              />
+            </View>
+            {profile.trackCycle && (
+              <View style={{ marginTop: 14 }}>
+                <Row colors={colors} label="Cycle length" hint="Typically 21–35 days">
+                  <NumberBubble
+                    value={profile.cycleLength ?? 28}
+                    unit="days"
+                    colors={colors}
+                    onCommit={(v) => apply({ cycleLength: Math.min(35, Math.max(21, Math.round(v))) })}
+                  />
+                </Row>
+                <View style={{ borderTopWidth: 1, borderTopColor: colors.hairline, paddingTop: 14, marginTop: 2 }}>
+                  <Text style={{ fontFamily: Fonts.sansSemiBold, fontSize: 13.5, color: colors.ink, marginBottom: 8 }}>Last period start</Text>
+                  <TextInput
+                    value={periodDateDraft}
+                    onChangeText={setPeriodDateDraft}
+                    onBlur={commitPeriodDate}
+                    onSubmitEditing={commitPeriodDate}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor={colors.mutedForeground}
+                    keyboardType="numbers-and-punctuation"
+                    style={{
+                      fontFamily: Fonts.sans, fontSize: 15, color: colors.ink,
+                      backgroundColor: colors.surfaceInset, borderRadius: 10,
+                      paddingHorizontal: 12, paddingVertical: 10,
+                    }}
+                  />
+                </View>
+              </View>
+            )}
+          </View>
+        )}
 
         <Text style={{ fontFamily: Fonts.sansMedium, fontSize: 11, letterSpacing: 1, color: colors.mutedForeground, textTransform: 'uppercase', marginTop: 4 }}>Optional</Text>
         <View style={[styles.card, { backgroundColor: colors.surface }]}>

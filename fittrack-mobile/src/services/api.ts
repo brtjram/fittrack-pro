@@ -88,6 +88,7 @@ export const DEFAULT_PROFILE: UserProfile = {
   name: '', age: 25, gender: 'male', heightCm: 175,
   currentWeightLbs: 175, targetWeightLbs: 165, activityLevel: 'moderate',
   goal: 'fat_loss', experienceLevel: 'intermediate', preferredSplit: 'ppl',
+  trackCycle: false, cycleLength: 28, lastPeriodDate: '',
   createdAt: '', updatedAt: '',
 };
 
