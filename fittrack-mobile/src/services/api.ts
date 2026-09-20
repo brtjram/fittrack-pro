@@ -78,6 +78,19 @@ export async function loginWithCredentials(email: string, password: string) {
 
 // ==================== Profile ====================
 
+// A brand-new account has no FitnessProfile row yet (getUserProfile()
+// resolves to undefined) — mirrors the web Settings page's onboarding
+// defaults so profile sub-screens (Measurements, Goal & pace, Split &
+// schedule, Coach mode, Units, Edit name) have something to render and
+// save on first visit instead of waiting forever for a profile that
+// will never arrive on its own.
+export const DEFAULT_PROFILE: UserProfile = {
+  name: '', age: 25, gender: 'male', heightCm: 175,
+  currentWeightLbs: 175, targetWeightLbs: 165, activityLevel: 'moderate',
+  goal: 'fat_loss', experienceLevel: 'intermediate', preferredSplit: 'ppl',
+  createdAt: '', updatedAt: '',
+};
+
 export async function getUserProfile(): Promise<UserProfile | undefined> {
   const res = await apiFetch('/api/fitness/profile');
   if (!res.ok) return undefined;

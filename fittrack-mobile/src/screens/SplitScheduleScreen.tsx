@@ -33,7 +33,7 @@ export function SplitScheduleScreen({ navigation }: { navigation: any }) {
 
   useEffect(() => {
     api.getUserProfile().then((p) => {
-      setProfile(p ?? null);
+      setProfile(p ?? api.DEFAULT_PROFILE);
       setLoading(false);
     });
   }, []);

@@ -43,7 +43,7 @@ export function MeasurementsScreen({ navigation }: { navigation: any }) {
 
   useEffect(() => {
     Promise.all([api.getUserProfile(), api.getWeightEntries(30)]).then(([p, weights]) => {
-      setProfile(p ?? null);
+      setProfile(p ?? api.DEFAULT_PROFILE);
       const sorted = [...weights].sort((a, b) => b.date.localeCompare(a.date));
       setLatestWeighIn(sorted[0] ?? null);
       setLoading(false);

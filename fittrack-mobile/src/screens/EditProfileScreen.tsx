@@ -22,10 +22,8 @@ export function EditProfileScreen({ navigation }: { navigation: any }) {
 
   useEffect(() => {
     api.getUserProfile().then((p) => {
-      if (p) {
-        setProfile(p);
-        setName(p.name);
-      }
+      setProfile(p ?? api.DEFAULT_PROFILE);
+      if (p) setName(p.name);
       setLoading(false);
     });
   }, []);

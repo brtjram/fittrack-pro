@@ -36,8 +36,8 @@ export function GoalPaceScreen({ navigation }: { navigation: any }) {
 
   useEffect(() => {
     api.getUserProfile().then((p) => {
+      setProfile(p ?? api.DEFAULT_PROFILE);
       if (p) {
-        setProfile(p);
         setPace(extractPace(JSON.parse(p.nutritionTargetOverride ?? 'null')?.reason) ?? 0.8);
       }
       setLoading(false);
